@@ -262,7 +262,7 @@ namespace JKClient {
 				//
 				if (Demorecording && !Demowaiting && !DemoSkipPacket)
 				{
-					CL_WriteDemoMessage(msg, headerBytes);
+					WriteDemoMessage(msg, headerBytes);
 				}
 				DemoSkipPacket = false; // Reset again for next message
 											 // TODO Maybe instead make a queue of packages to be written to the demo file.
@@ -477,12 +477,12 @@ namespace JKClient {
 
 		/*
 		====================
-		CL_WriteDemoMessage
+		WriteDemoMessage
 
 		Dumps the current net message, prefixed by the length
 		====================
 		*/
-		void CL_WriteDemoMessage(Message msg, int headerBytes)
+		void WriteDemoMessage(Message msg, int headerBytes)
 		{
 			int len, swlen;
 
@@ -498,7 +498,7 @@ namespace JKClient {
 
 		/*
 		====================
-		CL_StopRecording_f
+		StopRecording_f
 
 		stop recording a demo
 		====================
@@ -527,7 +527,7 @@ namespace JKClient {
 
 		/*
 		==================
-		CL_DemoFilename
+		DemoFilename
 		==================
 		*/
 		string DemoFilename()

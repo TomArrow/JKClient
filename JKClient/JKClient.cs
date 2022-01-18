@@ -486,7 +486,13 @@ namespace JKClient {
 		{
 			int len, swlen;
 
-            lock (Demofile) { 
+            lock (Demofile) {
+				if (!Demorecording)
+				{
+					//Com_Printf("Not recording a demo.\n");
+					return;
+				}
+
 				// write the packet sequence
 				len = serverMessageSequence;
 				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
@@ -509,13 +515,14 @@ namespace JKClient {
 		{
 			int len;
 
-			if (!Demorecording)
-			{
-				//Com_Printf("Not recording a demo.\n");
-				return;
-			}
+            lock (Demofile) {
 
-            lock (Demofile) { 
+
+				if (!Demorecording)
+				{
+					//Com_Printf("Not recording a demo.\n");
+					return;
+				}
 
 				// finish up
 				len = -1;

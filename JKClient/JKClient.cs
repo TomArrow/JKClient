@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -34,6 +35,17 @@ namespace JKClient {
 		private int lastExecutedServerCommand = 0;
 		private sbyte [][]serverCommands = new sbyte[JKClient.MaxReliableCommands][];
 		private NetChannel netChannel;
+#endregion
+#region DemoWriting
+		// demo information
+		string DemoName;
+		//bool SpDemoRecording;
+		bool Demorecording;
+		//bool Demoplaying;
+		bool Demowaiting;   // don't record until a non-delta message is received
+		bool DemoSkipPacket;
+		bool FirstDemoFrameSkipped;
+		FileStream Demofile;
 #endregion
 #region ClientStatic
 		private int realTime = 0;
@@ -216,7 +228,8 @@ namespace JKClient {
 			}
 		}
 		private protected override unsafe void PacketEvent(NetAddress address, Message msg) {
-//			this.lastPacketTime = this.realTime;
+			//			this.lastPacketTime = this.realTime;
+			int headerBytes;
 			fixed (byte* b = msg.Data) {
 				if (msg.CurSize >= 4 && *(int*)b == -1) {
 					this.ConnectionlessPacket(address, msg);
@@ -235,9 +248,26 @@ namespace JKClient {
 					return;
 				}
 				this.Decode(msg);
+
+				// the header is different lengths for reliable and unreliable messages
+				headerBytes = msg.ReadCount;
+
 				this.serverMessageSequence = *(int*)b;
 				this.lastPacketTime = this.realTime;
 				this.ParseServerMessage(msg);
+
+				//
+				// we don't know if it is ok to save a demo message until
+				// after we have parsed the frame
+				//
+				if (Demorecording && !Demowaiting && !DemoSkipPacket)
+				{
+					CL_WriteDemoMessage(msg, headerBytes);
+				}
+				DemoSkipPacket = false; // Reset again for next message
+											 // TODO Maybe instead make a queue of packages to be written to the demo file.
+											 // Then just read them in the correct order. That way we can integrate even packages out of order.
+											 // However it's low priority bc this error is relatively rare.
 			}
 		}
 		private void ConnectionlessPacket(NetAddress address, Message msg) {
@@ -443,5 +473,187 @@ namespace JKClient {
 				return ClientVersion.JA_v1_01;
 			}
 		}
+
+
+		/*
+		====================
+		CL_WriteDemoMessage
+
+		Dumps the current net message, prefixed by the length
+		====================
+		*/
+		void CL_WriteDemoMessage(Message msg, int headerBytes)
+		{
+			int len, swlen;
+
+			// write the packet sequence
+			len = serverMessageSequence;
+			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+
+			// skip the packet sequencing information
+			len = msg.CurSize - headerBytes;
+			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+			Demofile.Write(msg.Data, headerBytes, len);
+		}
+
+		/*
+		====================
+		CL_StopRecording_f
+
+		stop recording a demo
+		====================
+		*/
+		private void StopRecord_f()
+		{
+			int len;
+
+			if (!Demorecording)
+			{
+				//Com_Printf("Not recording a demo.\n");
+				return;
+			}
+
+			// finish up
+			len = -1;
+			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+			Demofile.Close();
+			Demofile.Dispose();
+			Demofile = null;
+			Demorecording = false;
+			//Com_Printf("Stopped demo.\n");
+		}
+
+
+		/*
+		==================
+		CL_DemoFilename
+		==================
+		*/
+		string DemoFilename()
+		{
+			return "demo" + DateTime.Now.ToString("yyyy-MMMM-dd_HH-mm-ss");
+		}
+
+		// Demo recording
+		private unsafe void Record_f(string demoName, bool timeStampDemoname=false)
+        {
+
+			if (Demorecording)
+			{
+				return;
+			}
+
+			if (Status != ConnectionStatus.Active)
+			{
+				//Com_Printf("You must be in a level to record.\n");
+				return;
+			}
+
+
+            if (timeStampDemoname)
+            {
+				demoName = DemoFilename();
+            }
+			string name = "demos/" + demoName + "dm_" + ((int)Protocol).ToString();
+			if (File.Exists(name))
+			{
+				//Com_Printf("Record: Couldn't create a file\n");
+				return;
+			}
+
+			// open the demo file
+			//Com_Printf("recording to %s.\n", name);
+			Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.None);
+			/*if (!Demofile)
+			{
+				Com_Printf("ERROR: couldn't open.\n");
+				return;
+			}*/
+			Demorecording = true;
+
+			this.DemoName = demoName;
+
+			Demowaiting = true;
+			DemoSkipPacket = false;
+			
+
+			byte[] data = new byte[Message.MaxLength];
+
+
+			// write out the gamestate message
+			var msg = new Message(data, sizeof(byte) * Message.MaxLength);
+
+			msg.Bitstream();
+
+			// NOTE, MRE: all server->client messages now acknowledge
+			msg.WriteLong(reliableSequence);
+
+			msg.WriteByte((int)ServerCommandOperations.Gamestate);
+			msg.WriteLong(serverCommandSequence);
+
+			int len;
+
+			// configstrings
+			for (int i = 0; i < GameState.MaxConfigstrings; i++)
+			{
+				if (0 == gameState.StringOffsets[i])
+				{
+					continue;
+				}
+				fixed (sbyte* s = this.gameState.StringData)
+				{
+					sbyte* cs = s + gameState.StringOffsets[i];
+					msg.WriteByte((int)ServerCommandOperations.Configstring);
+					msg.WriteShort(i);
+					len = Common.StrLen(cs);
+					byte[] bytes = new byte[len];
+					Marshal.Copy((IntPtr)cs, bytes, 0, len);
+					msg.WriteBigString((sbyte[])(Array)bytes);
+				}
+			}
+
+			// baselines
+			EntityState nullstate;
+			for (int i = 0; i < Common.MaxGEntities; i++)
+			{
+
+				fixed(EntityState* ent = &entityBaselines[i])
+				{
+					if (0 == ent->Number)
+					{
+						continue;
+					}
+					msg.WriteByte((int)ServerCommandOperations.Baseline);
+					msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.gameMod);
+				}
+			}
+
+			msg.WriteByte((int)ServerCommandOperations.EOF);
+
+			// finished writing the gamestate stuff
+
+			// write the client num
+			msg.WriteLong(this.clientNum);
+			// write the checksum feed
+			msg.WriteLong(this.checksumFeed);
+
+			// finished writing the client packet
+			msg.WriteByte((int)ServerCommandOperations.EOF);
+
+			// write it to the demo file
+			len = this.serverMessageSequence - 1;
+
+			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+
+			len = msg.CurSize;
+			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+			Demofile.Write(msg.Data, 0, msg.CurSize);
+
+			// the rest of the demo file will be copied from net messages
+
+		}
+
+		
 	}
 }

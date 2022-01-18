@@ -134,6 +134,23 @@ namespace JKClient {
 				this.WriteData(b, l+1);
 			}
 		}
+
+		public unsafe void WriteBigString(sbyte []s) {
+			if (s == null || s.Length <= 0) {
+				this.WriteByte(0);
+			} else {
+				int l = Common.StrLen(s);
+				if (l >= Common.BigInfoString) {
+					this.WriteByte(0);
+					return;
+				}
+				byte []b = new byte[l+1];
+				fixed (sbyte *ss = s) {
+					Marshal.Copy((IntPtr)ss, b, 0, l);
+				}
+				this.WriteData(b, l+1);
+			}
+		}
 		public void WriteDeltaUsercmdKey(int key, ref UserCommand from, ref UserCommand to) {
 			if (to.ServerTime - from.ServerTime < 256) {
 				this.WriteBits(1, 1);
@@ -300,6 +317,159 @@ namespace JKClient {
 				/*data[i] = (byte)*/this.ReadByte();
 			}
 		}
+
+		public unsafe void WriteDeltaEntity(EntityState* from, EntityState* to,bool force, ClientVersion version, GameMod gameMod)
+        {
+
+			// a NULL to is a delta remove message
+			if (to == null)
+			{
+				if (from == null)
+				{
+					return;
+				}
+				this.WriteBits(from->Number, Common.GEntitynumBits);
+				this.WriteBits(1, 1);
+				return;
+			}
+
+			if (to->Number < 0 || to->Number >= Common.MaxGEntities)
+			{
+				throw new JKClientException($"Bad delta entity number: {to->Number}");
+			}
+
+			int lc = 0;
+			// build the change vector as bytes so it is endien independent
+
+			NetFieldsArray fields;
+			switch (version)
+			{
+				default:
+				case ClientVersion.JA_v1_00:
+				case ClientVersion.JA_v1_01:
+					throw new JKClientException($"WriteDeltaEntity: Only protocols 15 and 16 (Jedi Outcast) supported right now.");
+					switch (gameMod)
+					{
+						default:
+						case GameMod.Base:
+							fields = Message.entityStateFields;
+							break;
+						case GameMod.MBII:
+							fields = Message.entityStateFieldsMBII;
+							break;
+						case GameMod.OJP:
+							fields = Message.entityStateFieldsOJP;
+							break;
+					}
+					break;
+				case ClientVersion.JO_v1_02:
+					fields = Message.entityStateFields15;
+					break;
+				case ClientVersion.JO_v1_03:
+				case ClientVersion.JO_v1_04:
+					fields = Message.entityStateFields16;
+					break;
+			}
+
+			int numFields = fields.Count;
+			int* fromF, toF;
+			for (int i = 0; i < numFields; i++)
+			{
+				fromF = (int*)((byte*)from + fields[i].Offset);
+				toF = (int*)((byte*)to + fields[i].Offset);
+				if (*fromF != *toF)
+				{
+					lc = i + 1;
+				}
+			}
+
+			if (lc == 0)
+			{
+				// nothing at all changed
+				if (!force)
+				{
+					return;     // nothing at all
+				}
+				// write two bits for no change
+				this.WriteBits(to->Number, Common.GEntitynumBits);
+				this.WriteBits(0, 1);       // not removed
+				this.WriteBits(0, 1);       // no delta
+				return;
+			}
+
+			this.WriteBits(to->Number, Common.GEntitynumBits);
+			this.WriteBits(0, 1);           // not removed
+			this.WriteBits(1, 1);           // we have a delta
+
+			this.WriteByte(lc); // # of changes
+
+			//oldsize += numFields;  // ?!?!
+
+			float fullFloat;
+			int trunc;
+
+			for (int i = 0; i < lc; i++)
+			{
+				//gLastField = field;
+				fromF = (int*)((byte*)from + fields[i].Offset);
+				toF = (int*)((byte*)to + fields[i].Offset);
+
+				if (*fromF == *toF)
+				{
+					this.WriteBits( 0, 1);   // no change
+					continue;
+				}
+
+				this.WriteBits( 1, 1);   // changed
+
+				if (fields[i].Bits == 0)
+				{
+					// float
+					fullFloat = *(float*)toF;
+					trunc = (int)fullFloat;
+
+					if (fullFloat == 0.0f)
+					{
+						this.WriteBits(0, 1);
+						//oldsize += FLOAT_INT_BITS;  // ??
+					}
+					else
+					{
+						this.WriteBits(1, 1);
+						if (trunc == fullFloat && trunc + FloatIntBias >= 0 &&
+							trunc + FloatIntBias < (1 << FloatIntBits))
+						{
+							// send as small integer
+							this.WriteBits( 0, 1);
+							this.WriteBits( trunc + FloatIntBias, FloatIntBits);
+						}
+						else
+						{
+							// send as full floating point value
+							this.WriteBits( 1, 1);
+							this.WriteBits( *toF, 32);
+						}
+					}
+				}
+				else
+				{
+					if (*toF == 0)
+					{
+						this.WriteBits( 0, 1);
+					}
+					else
+					{
+						this.WriteBits( 1, 1);
+						// integer
+						this.WriteBits( *toF, fields[i].Bits);
+					}
+				}
+			}
+
+			//gLastField = &noField; // ?
+
+		}
+
 		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, ClientVersion version, GameMod gameMod) {
 			if (number < 0 || number >= Common.MaxGEntities) {
 				throw new JKClientException($"Bad delta entity number: {number}");
@@ -791,154 +961,154 @@ namespace JKClient {
 			{	0	,	1   }
 		};
 		private static readonly NetFieldsArray entityStateFields15 = new NetFieldsArray(typeof(EntityState)) {
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	nameof(EntityState.Event)	,	10	},
-			{	0	,	0	},
+			{	nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Time)).ToInt32()    ,	32	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() ,	0	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() + sizeof(float)*1,	0	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() ,	0	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() + sizeof(float)*1,	0	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() + sizeof(float)*2  ,	0	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() + sizeof(float)*1    ,	0	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() + sizeof(float)*2 ,	0	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32()   ,	0	},
+			{	nameof(EntityState.Event)	,	10	}, // There is a maximum of 256 events (8 bits transmission, 2 high bits for uniqueness)
+			{   nameof(EntityState.Angles2), sizeof(float)*1   ,	0	},
 			{	nameof(EntityState.EntityType)	,	8	},
-			{	0	,	16	},
-			{	0	,	16	},
+			{   nameof(EntityState.TorsoAnimation)  ,	16	}, // Maximum number of animation sequences is 2048.  Top bit is reserved for the togglebit
+			{   nameof(EntityState.ForceFrame)  ,	16	},
 			{   nameof(EntityState.EventParm)   ,	8	},
-			{	0	,	16	},
+			{   nameof(EntityState.LegsAnimation)  ,	16	},
 			{	nameof(EntityState.GroundEntityNum)	,	Common.GEntitynumBits	},
-			{	0	,	8	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32() ,	8	},
 			{	nameof(EntityState.EntityFlags)	,	32	},
-			{	0	,	8	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	0	},
-			{	0	,	2	},
-			{	0	,	32	},
-			{	0	,	6	},
-			{	0	,	32	},
+			{   nameof(EntityState.Bolt1) ,	8	},
+			{   nameof(EntityState.Bolt2) , Common.GEntitynumBits	},
+			{   nameof(EntityState.TrickedEntityIndex)   ,	16	}, //See note in PSF
+			{   nameof(EntityState.TrickedEntityIndex2)  ,	16	},
+			{   nameof(EntityState.TrickedEntityIndex3)  ,	16	},
+			{   nameof(EntityState.TrickedEntityIndex4)  ,	16	},
+			{   nameof(EntityState.Speed) ,	0	},
+			{   nameof(EntityState.FireFlag)  ,	2	},
+			{   nameof(EntityState.GenericEnemyIndex)    ,	32	},
+			{   nameof(EntityState.ActiveForcePass)   ,	6	},
+			{   nameof(EntityState.EmplacedOwner) ,	32	},
 			{	nameof(EntityState.OtherEntityNum)	,	Common.GEntitynumBits	},
-			{	0	,	8	},
+			{   nameof(EntityState.Weapon)   ,	8	},
 			{   nameof(EntityState.ClientNum)   ,   8   },
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	24	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	1	},
-			{	0	,	16	},
-			{	0	,	4	},
-			{	0	,	8	},
-			{	0	,	-8	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	32	},
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	16	},
-			{	0	,	1	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	32	},
-			{	0	,	1   }
+			{   nameof(EntityState.Angles), sizeof(float)*1  ,	0	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Duration)).ToInt32()    ,	32	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32()    ,	8	},
+			{   nameof(EntityState.Origin) ,	0	},
+			{   nameof(EntityState.Origin), sizeof(float)*1 ,	0	},
+			{   nameof(EntityState.Origin), sizeof(float)*2 ,	0	},
+			{   nameof(EntityState.Solid)  ,	24	},
+			{   nameof(EntityState.Owner)   ,	Common.GEntitynumBits	},
+			{   nameof(EntityState.TeamOwner)   ,	8	},
+			{   nameof(EntityState.ShouldTarget)   ,	1	},
+			{   nameof(EntityState.Powerups)    ,	16	},
+			{   nameof(EntityState.ModelGhoul2)    ,	4	},
+			{   nameof(EntityState.G2Radius)    ,	8	},
+			{   nameof(EntityState.ModelIndex)    ,	-8	},
+			{   nameof(EntityState.OtherEntityNum2)  ,	Common.GEntitynumBits	},
+			{   nameof(EntityState.LoopSound) ,	8	},
+			{   nameof(EntityState.Generic1) ,	8	},
+			{   nameof(EntityState.Origin2), sizeof(float)*2    ,	0	},
+			{   nameof(EntityState.Origin2), sizeof(float)*0    ,	0	},
+			{   nameof(EntityState.Origin2), sizeof(float)*1    ,	0	},
+			{   nameof(EntityState.ModelIndex2) ,	8	},
+			{   nameof(EntityState.Angles)    ,	0	},
+			{   nameof(EntityState.Time)  ,	32	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Time)).ToInt32(),	32	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Duration)).ToInt32() ,	32	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32()+sizeof(float)*2 ,	0	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() ,	0	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32()+sizeof(float)*1    ,	0	},
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32()+sizeof(float)*2    ,	0	},
+			{   nameof(EntityState.Time2)    ,	32	},
+			{   nameof(EntityState.Angles), sizeof(float)*2   ,	0	},
+			{   nameof(EntityState.Angles2) ,	0	},
+			{   nameof(EntityState.Angles2),sizeof(float)*2 ,	0	},
+			{   nameof(EntityState.ConstantLight) ,	32	},
+			{   nameof(EntityState.Frame)   ,	16	},
+			{   nameof(EntityState.SaberInFlight)   ,	1	},
+			{   nameof(EntityState.SaberEntityNum)   ,	Common.GEntitynumBits	},
+			{   nameof(EntityState.SaberMove)  ,	8	},
+			{   nameof(EntityState.ForcePowersActive)   ,	32	},
+			{   nameof(EntityState.IsJediMaster)   ,	1   }
 		};
 		private static readonly NetFieldsArray entityStateFields16 = new NetFieldsArray(typeof(EntityState)) {
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	nameof(EntityState.Event)	,	10	},
-			{	0	,	0	},
-			{	nameof(EntityState.EntityType)	,	8	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{   nameof(EntityState.EventParm)   ,	8	},
-			{	0	,	16	},
-			{	nameof(EntityState.GroundEntityNum)	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	nameof(EntityState.EntityFlags)	,	32	},
-			{	0	,	8	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	0	},
-			{	0	,	2	},
-			{	0	,	32	},
-			{	0	,	6	},
-			{	0	,	32	},
-			{	nameof(EntityState.OtherEntityNum)	,	Common.GEntitynumBits	},
-			{	0	,	8	},
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Time)).ToInt32()    ,   32  },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() ,  0   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() + sizeof(float)*1, 0   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() , 0   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() + sizeof(float)*1,    0   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() + sizeof(float)*2  ,   0   },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() + sizeof(float)*1    ,  0   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() + sizeof(float)*2 ,   0   },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32()   , 0   },
+			{   nameof(EntityState.Event)   ,   10  }, // There is a maximum of 256 events (8 bits transmission, 2 high bits for uniqueness)
+			{   nameof(EntityState.Angles2), sizeof(float)*1   ,    0   },
+			{   nameof(EntityState.EntityType)  ,   8   },
+			{   nameof(EntityState.TorsoAnimation)  ,   16  }, // Maximum number of animation sequences is 2048.  Top bit is reserved for the togglebit
+			{   nameof(EntityState.ForceFrame)  ,   16  },
+			{   nameof(EntityState.EventParm)   ,   8   },
+			{   nameof(EntityState.LegsAnimation)  ,    16  },
+			{   nameof(EntityState.GroundEntityNum) ,   Common.GEntitynumBits   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32() ,  8   },
+			{   nameof(EntityState.EntityFlags) ,   32  },
+			{   nameof(EntityState.Bolt1) , 8   },
+			{   nameof(EntityState.Bolt2) , Common.GEntitynumBits   },
+			{   nameof(EntityState.TrickedEntityIndex)   ,  16  }, //See note in PSF
+			{   nameof(EntityState.TrickedEntityIndex2)  ,  16  },
+			{   nameof(EntityState.TrickedEntityIndex3)  ,  16  },
+			{   nameof(EntityState.TrickedEntityIndex4)  ,  16  },
+			{   nameof(EntityState.Speed) , 0   },
+			{   nameof(EntityState.FireFlag)  , 2   },
+			{   nameof(EntityState.GenericEnemyIndex)    ,  32  },
+			{   nameof(EntityState.ActiveForcePass)   , 6   },
+			{   nameof(EntityState.EmplacedOwner) , 32  },
+			{   nameof(EntityState.OtherEntityNum)  ,   Common.GEntitynumBits   },
+			{   nameof(EntityState.Weapon)   ,  8   },
 			{   nameof(EntityState.ClientNum)   ,   8   },
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	24	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	1	},
-			{	0	,	16	},
-			{	0	,	5	},
-			{	0	,	8	},
-			{	0	,	-8	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	32	},
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	16	},
-			{	0	,	1	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	32	},
-			{	0	,	1   }
+			{   nameof(EntityState.Angles), sizeof(float)*1  ,  0   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Duration)).ToInt32()    ,   32  },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32()    ,    8   },
+			{   nameof(EntityState.Origin) ,    0   },
+			{   nameof(EntityState.Origin), sizeof(float)*1 ,   0   },
+			{   nameof(EntityState.Origin), sizeof(float)*2 ,   0   },
+			{   nameof(EntityState.Solid)  ,    24  },
+			{   nameof(EntityState.Owner)   ,   Common.GEntitynumBits   },
+			{   nameof(EntityState.TeamOwner)   ,   8   },
+			{   nameof(EntityState.ShouldTarget)   ,    1   },
+			{   nameof(EntityState.Powerups)    ,   16  },
+			{   nameof(EntityState.ModelGhoul2)    ,    5   },
+			{   nameof(EntityState.G2Radius)    ,   8   },
+			{   nameof(EntityState.ModelIndex)    , -8  },
+			{   nameof(EntityState.OtherEntityNum2)  ,  Common.GEntitynumBits   },
+			{   nameof(EntityState.LoopSound) , 8   },
+			{   nameof(EntityState.Generic1) ,  8   },
+			{   nameof(EntityState.Origin2), sizeof(float)*2    ,   0   },
+			{   nameof(EntityState.Origin2), sizeof(float)*0    ,   0   },
+			{   nameof(EntityState.Origin2), sizeof(float)*1    ,   0   },
+			{   nameof(EntityState.ModelIndex2) ,   8   },
+			{   nameof(EntityState.Angles)    , 0   },
+			{   nameof(EntityState.Time)  , 32  },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Time)).ToInt32(),    32  },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Duration)).ToInt32() ,   32  },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32()+sizeof(float)*2 ,   0   },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32() ,  0   },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32()+sizeof(float)*1    ,   0   },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Delta)).ToInt32()+sizeof(float)*2    ,   0   },
+			{   nameof(EntityState.Time2)    ,  32  },
+			{   nameof(EntityState.Angles), sizeof(float)*2   , 0   },
+			{   nameof(EntityState.Angles2) ,   0   },
+			{   nameof(EntityState.Angles2),sizeof(float)*2 ,   0   },
+			{   nameof(EntityState.ConstantLight) , 32  },
+			{   nameof(EntityState.Frame)   ,   16  },
+			{   nameof(EntityState.SaberInFlight)   ,   1   },
+			{   nameof(EntityState.SaberEntityNum)   ,  Common.GEntitynumBits   },
+			{   nameof(EntityState.SaberMove)  ,    8   },
+			{   nameof(EntityState.ForcePowersActive)   ,   32  },
+			{   nameof(EntityState.IsJediMaster)   ,    1   }
 		};
 #endregion
 #region PlayerStateFields

@@ -239,6 +239,7 @@ namespace JKClient {
 			if (newSnap.DeltaNum <= 0) {
 				newSnap.Valid = true;
 				oldSnap = false;
+				Demowaiting = false;   // we can start recording now
 			} else {
 				oldSnap = true;
 				oldSnapNum = newSnap.DeltaNum & JKClient.PacketMask;

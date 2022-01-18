@@ -486,14 +486,16 @@ namespace JKClient {
 		{
 			int len, swlen;
 
-			// write the packet sequence
-			len = serverMessageSequence;
-			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+            lock (Demofile) { 
+				// write the packet sequence
+				len = serverMessageSequence;
+				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
 
-			// skip the packet sequencing information
-			len = msg.CurSize - headerBytes;
-			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-			Demofile.Write(msg.Data, headerBytes, len);
+				// skip the packet sequencing information
+				len = msg.CurSize - headerBytes;
+				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+				Demofile.Write(msg.Data, headerBytes, len);
+			}
 		}
 
 		/*
@@ -513,15 +515,18 @@ namespace JKClient {
 				return;
 			}
 
-			// finish up
-			len = -1;
-			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-			Demofile.Close();
-			Demofile.Dispose();
-			Demofile = null;
-			Demorecording = false;
-			//Com_Printf("Stopped demo.\n");
+            lock (Demofile) { 
+
+				// finish up
+				len = -1;
+				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+				Demofile.Close();
+				Demofile.Dispose();
+				Demofile = null;
+				Demorecording = false;
+				//Com_Printf("Stopped demo.\n");
+			}
 		}
 
 
@@ -562,95 +567,99 @@ namespace JKClient {
 				return;
 			}
 
-			// open the demo file
-			//Com_Printf("recording to %s.\n", name);
-			Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.None);
-			/*if (!Demofile)
-			{
-				Com_Printf("ERROR: couldn't open.\n");
-				return;
-			}*/
-			Demorecording = true;
+            lock (Demofile) { 
 
-			this.DemoName = demoName;
+				// open the demo file
+				//Com_Printf("recording to %s.\n", name);
+				Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.None);
+				/*if (!Demofile)
+				{
+					Com_Printf("ERROR: couldn't open.\n");
+					return;
+				}*/
+				Demorecording = true;
 
-			Demowaiting = true;
-			DemoSkipPacket = false;
+				this.DemoName = demoName;
+
+				Demowaiting = true;
+				DemoSkipPacket = false;
 			
 
-			byte[] data = new byte[Message.MaxLength];
+				byte[] data = new byte[Message.MaxLength];
 
 
-			// write out the gamestate message
-			var msg = new Message(data, sizeof(byte) * Message.MaxLength);
+				// write out the gamestate message
+				var msg = new Message(data, sizeof(byte) * Message.MaxLength);
 
-			msg.Bitstream();
+				msg.Bitstream();
 
-			// NOTE, MRE: all server->client messages now acknowledge
-			msg.WriteLong(reliableSequence);
+				// NOTE, MRE: all server->client messages now acknowledge
+				msg.WriteLong(reliableSequence);
 
-			msg.WriteByte((int)ServerCommandOperations.Gamestate);
-			msg.WriteLong(serverCommandSequence);
+				msg.WriteByte((int)ServerCommandOperations.Gamestate);
+				msg.WriteLong(serverCommandSequence);
 
-			int len;
+				int len;
 
-			// configstrings
-			for (int i = 0; i < GameState.MaxConfigstrings; i++)
-			{
-				if (0 == gameState.StringOffsets[i])
+				// configstrings
+				for (int i = 0; i < GameState.MaxConfigstrings; i++)
 				{
-					continue;
-				}
-				fixed (sbyte* s = this.gameState.StringData)
-				{
-					sbyte* cs = s + gameState.StringOffsets[i];
-					msg.WriteByte((int)ServerCommandOperations.Configstring);
-					msg.WriteShort(i);
-					len = Common.StrLen(cs);
-					byte[] bytes = new byte[len];
-					Marshal.Copy((IntPtr)cs, bytes, 0, len);
-					msg.WriteBigString((sbyte[])(Array)bytes);
-				}
-			}
-
-			// baselines
-			EntityState nullstate;
-			for (int i = 0; i < Common.MaxGEntities; i++)
-			{
-
-				fixed(EntityState* ent = &entityBaselines[i])
-				{
-					if (0 == ent->Number)
+					if (0 == gameState.StringOffsets[i])
 					{
 						continue;
 					}
-					msg.WriteByte((int)ServerCommandOperations.Baseline);
-					msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.gameMod);
+					fixed (sbyte* s = this.gameState.StringData)
+					{
+						sbyte* cs = s + gameState.StringOffsets[i];
+						msg.WriteByte((int)ServerCommandOperations.Configstring);
+						msg.WriteShort(i);
+						len = Common.StrLen(cs);
+						byte[] bytes = new byte[len];
+						Marshal.Copy((IntPtr)cs, bytes, 0, len);
+						msg.WriteBigString((sbyte[])(Array)bytes);
+					}
 				}
+
+				// baselines
+				EntityState nullstate;
+				for (int i = 0; i < Common.MaxGEntities; i++)
+				{
+
+					fixed(EntityState* ent = &entityBaselines[i])
+					{
+						if (0 == ent->Number)
+						{
+							continue;
+						}
+						msg.WriteByte((int)ServerCommandOperations.Baseline);
+						msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.gameMod);
+					}
+				}
+
+				msg.WriteByte((int)ServerCommandOperations.EOF);
+
+				// finished writing the gamestate stuff
+
+				// write the client num
+				msg.WriteLong(this.clientNum);
+				// write the checksum feed
+				msg.WriteLong(this.checksumFeed);
+
+				// finished writing the client packet
+				msg.WriteByte((int)ServerCommandOperations.EOF);
+
+				// write it to the demo file
+				len = this.serverMessageSequence - 1;
+
+				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+
+				len = msg.CurSize;
+				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+				Demofile.Write(msg.Data, 0, msg.CurSize);
+
+				// the rest of the demo file will be copied from net messages
+
 			}
-
-			msg.WriteByte((int)ServerCommandOperations.EOF);
-
-			// finished writing the gamestate stuff
-
-			// write the client num
-			msg.WriteLong(this.clientNum);
-			// write the checksum feed
-			msg.WriteLong(this.checksumFeed);
-
-			// finished writing the client packet
-			msg.WriteByte((int)ServerCommandOperations.EOF);
-
-			// write it to the demo file
-			len = this.serverMessageSequence - 1;
-
-			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-
-			len = msg.CurSize;
-			Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-			Demofile.Write(msg.Data, 0, msg.CurSize);
-
-			// the rest of the demo file will be copied from net messages
 
 		}
 

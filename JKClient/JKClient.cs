@@ -40,7 +40,7 @@ namespace JKClient {
 		// demo information
 		string DemoName;
 		//bool SpDemoRecording;
-		bool Demorecording;
+		public bool Demorecording { get; private set; }
 		//bool Demoplaying;
 		bool Demowaiting;   // don't record until a non-delta message is received
 		bool DemoSkipPacket;
@@ -260,11 +260,11 @@ namespace JKClient {
 				// we don't know if it is ok to save a demo message until
 				// after we have parsed the frame
 				//
-				if (Demorecording && !Demowaiting && !DemoSkipPacket)
+				if (Demorecording && !Demowaiting /*&& !DemoSkipPacket*/)
 				{
 					WriteDemoMessage(msg, headerBytes);
 				}
-				DemoSkipPacket = false; // Reset again for next message
+				//DemoSkipPacket = false; // Reset again for next message
 											 // TODO Maybe instead make a queue of packages to be written to the demo file.
 											 // Then just read them in the correct order. That way we can integrate even packages out of order.
 											 // However it's low priority bc this error is relatively rare.
@@ -511,7 +511,7 @@ namespace JKClient {
 		stop recording a demo
 		====================
 		*/
-		private void StopRecord_f()
+		public void StopRecord_f()
 		{
 			int len;
 
@@ -548,7 +548,7 @@ namespace JKClient {
 		}
 
 		// Demo recording
-		private unsafe void Record_f(string demoName, bool timeStampDemoname=false)
+		public unsafe void Record_f(string demoName, bool timeStampDemoname=false)
         {
 
 			if (Demorecording)
@@ -589,7 +589,7 @@ namespace JKClient {
 				this.DemoName = demoName;
 
 				Demowaiting = true;
-				DemoSkipPacket = false;
+				//DemoSkipPacket = false;
 			
 
 				byte[] data = new byte[Message.MaxLength];

@@ -3,23 +3,23 @@
 namespace JKClient {
 	//TODO: remake to struct?
 	public sealed class ServerInfo {
-		public NetAddress Address;
-		public string HostName;
-		public string MapName;
-		public string Game;
-		public GameType GameType;
-		public int Clients;
-		public int MaxClients;
-		public int MinPing;
-		public int MaxPing;
-		public int Ping;
-		public bool Visibile;
-		public bool NeedPassword;
-		public bool TrueJedi;
-		public bool WeaponDisable;
-		public bool ForceDisable;
-		public ProtocolVersion Protocol;
-		public ClientVersion Version;
+		public NetAddress Address { get; set; }
+		public string HostName { get; set; }
+		public string MapName { get; set; }
+		public string Game { get; set; }
+		public GameType GameType { get; set; }
+		public int Clients { get; set; }
+		public int MaxClients { get; set; }
+		public int MinPing { get; set; }
+		public int MaxPing { get; set; }
+		public int Ping { get; set; }
+		public bool Visibile { get; set; }
+		public bool NeedPassword { get; set; }
+		public bool TrueJedi { get; set; }
+		public bool WeaponDisable { get; set; }
+		public bool ForceDisable { get; set; }
+		public ProtocolVersion Protocol { get; set; }
+		public ClientVersion Version { get; set; }
 		internal bool InfoSet;
 		internal long Start;
 		internal void SetInfo(InfoString info) {

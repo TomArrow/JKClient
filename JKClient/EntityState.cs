@@ -55,12 +55,12 @@ namespace JKClient {
 		public int ClientNum;      // 0 to (MAX_CLIENTS - 1), for players and corpses
 		public int Frame;
 
-		public bool SaberInFlight;
+		public QuakeBoolean SaberInFlight;
 		public int SaberEntityNum;
 		public int SaberMove;
 		public int ForcePowersActive;
 
-		public bool IsJediMaster;
+		public QuakeBoolean IsJediMaster;
 
 		public int Solid;          // for client side prediction, trap_linkentity sets this properly
 
@@ -70,7 +70,7 @@ namespace JKClient {
 		// so crosshair knows what it's looking at
 		public int Owner;
 		public int TeamOwner;
-		public bool ShouldTarget;
+		public QuakeBoolean ShouldTarget;
 
 		// for players
 		public int Powerups;       // bit flags

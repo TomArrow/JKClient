@@ -5,7 +5,7 @@ namespace JKClient {
 	internal struct Snapshot {
 		public const int NotActive = 2;
 		private const int MaxEntities = 256;
-		public bool Valid;
+		public QuakeBoolean Valid;
 		public int Flags;
 		public int ServerTime;
 		public int MessageNum;

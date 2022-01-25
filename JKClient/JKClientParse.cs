@@ -210,6 +210,12 @@ namespace JKClient {
 			this.serverCommandSequence = 0;
 			this.lastExecutedServerCommand = 0;
 			this.netChannel = null;
+
+			this.Demowaiting = false;
+			this.Demorecording = false;
+			this.DemoName = "";
+			this.Demofile = null;
+			this.DemoSkipPacket = false;
 		}
 		private void ParseCommandString(Message msg) {
 			int seq = msg.ReadLong();

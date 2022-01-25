@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace JKClient {
@@ -45,6 +46,7 @@ namespace JKClient {
 		bool Demowaiting;   // don't record until a non-delta message is received
 		bool DemoSkipPacket;
 		bool FirstDemoFrameSkipped;
+		Mutex DemofileLock = new Mutex();
 		FileStream Demofile;
 #endregion
 #region ClientStatic
@@ -363,7 +365,7 @@ namespace JKClient {
 				count = JKClient.MaxPacketUserCmds;
 			}
 			if (count >= 1) {
-				if (!this.snap.Valid || this.serverMessageSequence != this.snap.MessageNum) {
+				if (!this.snap.Valid || this.serverMessageSequence != this.snap.MessageNum || Demowaiting) {
 					msg.WriteByte((int)ClientCommandOperations.MoveNoDelta);
 				} else {
 					msg.WriteByte((int)ClientCommandOperations.Move);
@@ -440,6 +442,7 @@ namespace JKClient {
 			await this.connectTCS.Task;
 		}
 		public void Disconnect() {
+			this.StopRecord_f();
 			this.connectTCS?.TrySetCanceled();
 			if (this.Status >= ConnectionStatus.Connected) {
 				this.AddReliableCommand("disconnect", true);
@@ -486,7 +489,7 @@ namespace JKClient {
 		{
 			int len, swlen;
 
-            lock (Demofile) {
+            lock (DemofileLock) {
 				if (!Demorecording)
 				{
 					//Com_Printf("Not recording a demo.\n");
@@ -515,7 +518,7 @@ namespace JKClient {
 		{
 			int len;
 
-            lock (Demofile) {
+            lock (DemofileLock) {
 
 
 				if (!Demorecording)
@@ -544,7 +547,7 @@ namespace JKClient {
 		*/
 		string DemoFilename()
 		{
-			return "demo" + DateTime.Now.ToString("yyyy-MMMM-dd_HH-mm-ss");
+			return "demo" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
 		}
 
 		// Demo recording
@@ -567,17 +570,18 @@ namespace JKClient {
             {
 				demoName = DemoFilename();
             }
-			string name = "demos/" + demoName + "dm_" + ((int)Protocol).ToString();
+			string name = "demos/" + demoName + ".dm_" + ((int)Protocol).ToString();
 			if (File.Exists(name))
 			{
 				//Com_Printf("Record: Couldn't create a file\n");
 				return;
 			}
 
-            lock (Demofile) { 
+            lock (DemofileLock) {
 
 				// open the demo file
 				//Com_Printf("recording to %s.\n", name);
+				Directory.CreateDirectory("demos");
 				Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.None);
 				/*if (!Demofile)
 				{
@@ -643,7 +647,8 @@ namespace JKClient {
 					}
 				}
 
-				msg.WriteByte((int)ServerCommandOperations.EOF);
+				int eofOperation = this.IsJO()? (int)ServerCommandOperations.EOF -1 : (int)ServerCommandOperations.EOF;
+				msg.WriteByte(eofOperation);
 
 				// finished writing the gamestate stuff
 
@@ -653,7 +658,7 @@ namespace JKClient {
 				msg.WriteLong(this.checksumFeed);
 
 				// finished writing the client packet
-				msg.WriteByte((int)ServerCommandOperations.EOF);
+				msg.WriteByte(eofOperation);
 
 				// write it to the demo file
 				len = this.serverMessageSequence - 1;

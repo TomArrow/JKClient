@@ -48,6 +48,7 @@ namespace JKClient {
 		bool Demowaiting;   // don't record until a non-delta message is received
 		bool DemoSkipPacket;
 		bool FirstDemoFrameSkipped;
+		TaskCompletionSource<bool> demoRecordingStartPromise = null;
 		Mutex DemofileLock = new Mutex();
 		FileStream Demofile;
 #endregion
@@ -260,6 +261,13 @@ namespace JKClient {
 				this.serverMessageSequence = *(int*)b;
 				this.lastPacketTime = this.realTime;
 				this.ParseServerMessage(msg);
+
+				// Do we have to start recording a demo?
+				if(demoRecordingStartPromise != null)
+                {
+					demoRecordingStartPromise.SetResult(StartRecording(DemoName));
+					demoRecordingStartPromise = null;
+                }
 
 				//
 				// we don't know if it is ok to save a demo message until
@@ -545,19 +553,32 @@ namespace JKClient {
 			return "demo" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
 		}
 
+		public async Task<bool> Record_f(string demoName)
+        {
+			if(demoRecordingStartPromise != null)
+            {
+				return false;
+            }
+
+			DemoName = demoName;
+
+			demoRecordingStartPromise = new TaskCompletionSource<bool>();
+			return await demoRecordingStartPromise.Task;
+		}
+
 		// Demo recording
-		public unsafe void Record_f(string demoName, bool timeStampDemoname=false)
+		private unsafe bool StartRecording(string demoName,bool timeStampDemoname=false)
         {
 
 			if (Demorecording)
 			{
-				return;
+				return false;
 			}
 
 			if (Status != ConnectionStatus.Active)
 			{
 				//Com_Printf("You must be in a level to record.\n");
-				return;
+				return false;
 			}
 
 
@@ -569,7 +590,7 @@ namespace JKClient {
 			if (File.Exists(name))
 			{
 				//Com_Printf("Record: Couldn't create a file\n");
-				return;
+				return false;
 			}
 
             lock (DemofileLock) {
@@ -665,6 +686,8 @@ namespace JKClient {
 				Demofile.Write(msg.Data, 0, msg.CurSize);
 
 				// the rest of the demo file will be copied from net messages
+
+				return true;
 
 			}
 

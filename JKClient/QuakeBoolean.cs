@@ -6,7 +6,7 @@ using System.Text;
 namespace JKClient
 {
 	[StructLayout(LayoutKind.Explicit, Size = 4)]
-	internal struct QuakeBoolean
+	public struct QuakeBoolean
 	{
 		[FieldOffset(0)]
 		private readonly int value;

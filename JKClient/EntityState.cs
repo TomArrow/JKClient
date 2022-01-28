@@ -2,7 +2,7 @@
 
 namespace JKClient {
 	[StructLayout(LayoutKind.Sequential, Pack = 4)]
-	internal struct EntityState {
+	public struct EntityState {
 		//Dummy is used as any value parsed in ReadDeltaEntity, as being offset by 0
 		public int Dummy;
 		public int Number;
@@ -90,7 +90,7 @@ namespace JKClient {
 
 
 	[StructLayout(LayoutKind.Sequential, Pack = 4)]
-	internal struct Trajectory
+	public struct Trajectory
 	{
 		public TrajectoryType Type;
 		public int Time;
@@ -99,7 +99,7 @@ namespace JKClient {
 		public unsafe fixed float Delta[3];
 	}
 
-	enum TrajectoryType :int
+	public enum TrajectoryType :int
 	{
 		TR_STATIONARY,
 		TR_INTERPOLATE,             // non-parametric, but interpolate between snapshots

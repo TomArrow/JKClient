@@ -15,7 +15,7 @@ namespace JKClient {
 		protected int ProcessedSnapshotNum = 0;
 		protected Snapshot? Snap = null, NextSnap = null;
 		protected int ServerCommandSequence = 0;
-		protected readonly ClientEntity []Entities = new ClientEntity[Common.MaxGEntities];
+		internal readonly ClientEntity []Entities = new ClientEntity[Common.MaxGEntities];
 		protected readonly /*IJKClientImport*/JKClient Client;
 		protected int ServerTime;
 		public ClientInfo []ClientInfo {

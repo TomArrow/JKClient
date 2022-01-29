@@ -2,12 +2,22 @@
 
 namespace JKClient {
 	//TODO: migrate to C# 8.0 with access modifier for interface elements
-/*	internal interface IJKClientImport {
-		internal void GetCurrentSnapshotNumber(out int snapshotNumber, out int serverTime);
-		internal bool GetSnapshot(int snapshotNumber, ref Snapshot snapshot);
-		internal bool GetServerCommand(int serverCommandNumber, out Command command);
-		internal string GetConfigstring(int index);
-	}*/
+	/*	internal interface IJKClientImport {
+			internal void GetCurrentSnapshotNumber(out int snapshotNumber, out int serverTime);
+			internal bool GetSnapshot(int snapshotNumber, ref Snapshot snapshot);
+			internal bool GetServerCommand(int serverCommandNumber, out Command command);
+			internal string GetConfigstring(int index);
+		}*/
+
+
+	public enum EntityEvent : int
+	{
+		None,
+		VoiceCommandSound,
+		Obituary,
+		Bits = 0x300
+	}
+
 	internal abstract class ClientGame {
 		protected bool Initialized = false;
 		protected readonly int ClientNum;
@@ -198,7 +208,7 @@ namespace JKClient {
 			} else {
 				var clientInfoString = new InfoString(configstring);
 				this.ClientInfo[clientNum].ClientNum = clientNum;
-//				this.ClientInfo[clientNum].Team = (Team)clientInfoString["t"].Atoi();
+				this.ClientInfo[clientNum].Team = (Team)clientInfoString["t"].Atoi();
 				this.ClientInfo[clientNum].Name = clientInfoString["n"];
 				this.ClientInfo[clientNum].InfoValid = true;
 			}
@@ -255,6 +265,7 @@ namespace JKClient {
 				}
 				break;
 			}
+			this.Client.OnEntityEvent(new EntityEventArgs(ev,cent));
 		}
 		protected abstract int GetConfigstringIndex(Configstring index);
 		protected abstract EntityEvent GetEntityEvent(int entityEvent);
@@ -267,11 +278,6 @@ namespace JKClient {
 		internal enum EntityFlag : int {
 			TeleportBit,
 			PlayerEvent
-		}
-		internal enum EntityEvent : int {
-			None,
-			VoiceCommandSound,
-			Bits = 0x300
 		}
 		internal enum EntityType : int {
 			General,
@@ -396,8 +402,10 @@ namespace JKClient {
 		protected override EntityEvent GetEntityEvent(int entityEvent) {
 			if (Enum.IsDefined(typeof(EntityEventJO), entityEvent)) {
 				switch ((EntityEventJO)entityEvent) {
-				default:
-					break;
+					case EntityEventJO.Obituary:
+						return EntityEvent.Obituary;
+					default:
+						break;
 				}
 			}
 			return EntityEvent.None;
@@ -437,7 +445,152 @@ namespace JKClient {
 			PlayerEvent = (1<<5)
 		}
 		internal enum EntityEventJO : int {
-			None
+			None,
+
+			ClientJoin,
+
+			FootStep,
+			FootStepMetal,
+			FootSplash,
+			FootWade,
+			Swim,
+
+			Step4,
+			Step8,
+			Step12,
+			Step16,
+
+			Fall,
+
+			JumpPad,            // BoingSoundatOrigin, JumpSoundonPlayer
+
+			PrivateDuel,
+
+			Jump,
+			Roll,
+			WaterTouch, // FootTouches
+			WaterLeave, // FootLeaves
+			WaterUnder, // HeadTouches
+			WaterClear, // HeadLeaves
+
+			ItemPickup,         // NormalItemPickupsArePredictable
+			GlobalItemPickup,  // Powerup / TeamSoundsAreBroadcasttoEveryone
+
+			NoAmmo,
+			ChangeWeapon,
+			FireWeapon,
+			AltFire,
+			SaberAttack,
+			SaberHit,
+			SaberBlock,
+			SaberUnholster,
+			BecomeJedimaster,
+			DisruptorMainShot,
+			DisruptorSniperShot,
+			DisruptorSniperMiss,
+			DisruptorHit,
+			DisruptorZoomSound,
+
+			PredefinedSound,
+
+			TeamPower,
+
+			ScreenShake,
+
+			Use,         // +useKey
+
+			UseItem0,
+			UseItem1,
+			UseItem2,
+			UseItem3,
+			UseItem4,
+			UseItem5,
+			UseItem6,
+			UseItem7,
+			UseItem8,
+			UseItem9,
+			UseItem10,
+			UseItem11,
+			UseItem12,
+			UseItem13,
+			UseItem14,
+			UseItem15,
+
+			ItemUseFail,
+
+			ItemRespawn,
+			ItemPop,
+			PlayerTeleportin,
+			PlayerTeleportout,
+
+			GrenadeBounce,      // EventparmWillBetheSoundindex
+			MissileStick,       // EventparmWillBetheSoundindex
+
+			PlayEffect,
+			PlayEffectId,
+
+			MuteSound,
+			GeneralSound,
+			GlobalSound,        // NoAttenuation
+			GlobalTeamSound,
+			EntitySound,
+
+			PlayRoff,
+
+			GlassShatter,
+			Debris,
+
+			MissileHit,
+			MissileMiss,
+			MissileMissMetal,
+			Bullet,              // OtherentityIstheShooter
+
+			Pain,
+			Death1,
+			Death2,
+			Death3,
+			Obituary,
+
+			PowerUpQuad,
+			PowerUpBattlesuit,
+			//PowerupRegen,
+
+			ForceDrained,
+
+			GibPlayer,          // Giba PreviouslyLivingPlayer
+			ScorePlum,           // ScorePlum
+
+			CtfMessage,
+
+			SagaRoundover,
+			SagaObjectivecomplete,
+
+			DestroyGhoul2Instance,
+
+			DestroyWeaponModel,
+
+			GiveNewRank,
+			SetFreeSaber,
+			SetForceDisable,
+
+			WeaponCharge,
+			WeaponChargeAlt,
+
+			ShieldHit,
+
+			DebugLine,
+			TestLine,
+			StopLoopingSound,
+			StartLoopingSound,
+			Taunt,
+			TauntYes,
+			TauntNo,
+			TauntFollowme,
+			TauntGetflag,
+			TauntGuardbase,
+			TauntPatrol,
+
+			BodyQueueCopy,
 		}
 		internal enum EntityTypeJO : int {
 			General,

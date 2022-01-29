@@ -8,7 +8,7 @@ namespace JKClient {
 	public static class Common {
 		internal const int MaxStringChars = 1024;
 		internal const int BigInfoString = 8192;
-		internal const int MaxClients = 32;
+		public const int MaxClients = 32;
 		internal const int GEntitynumBits = 10;
 		internal const int MaxGEntities = (1<<Common.GEntitynumBits);
 		internal const int GibHealth = -40;
@@ -47,6 +47,12 @@ namespace JKClient {
 			Common.MemSet(gcHandle.AddrOfPinnedObject(), val, size);
 			gcHandle.Free();
 		}
+		internal static unsafe void VectorCopy(float* src, float* dst)
+        {
+			dst[0] = src[0];
+			dst[1] = src[1];
+			dst[2] = src[2];
+        }
 		internal static unsafe void MemSet(void *dst, byte val, int size) {
 			Common.MemSet((IntPtr)dst, val, size);
 		}

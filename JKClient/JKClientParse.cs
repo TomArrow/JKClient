@@ -311,6 +311,8 @@ namespace JKClient {
 			this.snap = newSnap;
 			this.snapshots[this.snap.MessageNum & JKClient.PacketMask] = this.snap;
 			this.newSnapshots = true;
+
+			this.OnSnapshotParsed(EventArgs.Empty);
 		}
 		private unsafe void ParsePacketEntities(Message msg, ClientSnapshot *oldSnap, ClientSnapshot *newSnap) {
 			newSnap->ParseEntitiesNum = this.parseEntitiesNum;

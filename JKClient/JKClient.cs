@@ -23,7 +23,8 @@ namespace JKClient {
 		private ClientGame clientGame;
 		private TaskCompletionSource<bool> connectTCS;
 
-        public ref readonly ClientEntity[] Entities => ref clientGame.Entities;
+        public ClientEntity[] Entities => clientGame != null? clientGame.Entities : null;
+        //public PlayerState CurrentPlayerState => clientGame != null? clientGame. : null;
         #region ClientConnection
         private int clientNum = 0;
 		private int lastPacketSentTime = 0;
@@ -65,6 +66,16 @@ namespace JKClient {
 		public event Action<ServerInfo> ServerInfoChanged;
 		internal void NotifyServerInfoChanged() {
 			this.ServerInfoChanged?.Invoke(this.ServerInfo);
+		}
+		public event EventHandler<EntityEventArgs> EntityEvent;
+		internal void OnEntityEvent(EntityEventArgs entityEventArgs)
+        {
+			this.EntityEvent?.Invoke(this,entityEventArgs);
+		}
+		public event EventHandler SnapshotParsed;
+		internal void OnSnapshotParsed(EventArgs eventArgs)
+        {
+			this.SnapshotParsed?.Invoke(this, eventArgs);
 		}
 		public string Name {
 			get => this.userInfoString["name"];

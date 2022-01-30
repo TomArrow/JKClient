@@ -9,6 +9,7 @@ namespace JKClient {
 		internal const int MaxStringChars = 1024;
 		internal const int BigInfoString = 8192;
 		public const int MaxClients = 32;
+		public const int MaxClientScoreSend = 20;
 		internal const int GEntitynumBits = 10;
 		internal const int MaxGEntities = (1<<Common.GEntitynumBits);
 		internal const int GibHealth = -40;
@@ -130,7 +131,7 @@ namespace JKClient {
 			} while (c1 != 0);
 			return 0;
 		}
-		internal static int Atoi(this string str) {
+		public static int Atoi(this string str) {
 			return int.TryParse(str, out int integer) ? integer : 0;
 		}
 		internal static int HashKey(sbyte []str, int maxlen) {

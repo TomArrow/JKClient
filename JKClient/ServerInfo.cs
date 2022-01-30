@@ -3,23 +3,24 @@
 namespace JKClient {
 	//TODO: remake to struct?
 	public sealed class ServerInfo {
-		public NetAddress Address { get; set; }
-		public string HostName { get; set; }
-		public string MapName { get; set; }
-		public string Game { get; set; }
-		public GameType GameType { get; set; }
-		public int Clients { get; set; }
-		public int MaxClients { get; set; }
-		public int MinPing { get; set; }
-		public int MaxPing { get; set; }
-		public int Ping { get; set; }
-		public bool Visibile { get; set; }
-		public bool NeedPassword { get; set; }
-		public bool TrueJedi { get; set; }
-		public bool WeaponDisable { get; set; }
-		public bool ForceDisable { get; set; }
-		public ProtocolVersion Protocol { get; set; }
-		public ClientVersion Version { get; set; }
+		public NetAddress Address { get; internal set; }
+		public string HostName { get; internal set; }
+		public string MapName { get; internal set; }
+		public string Game { get; internal set; }
+		public GameType GameType { get; internal set; }
+		public int Clients { get; internal set; }
+		public int MaxClients { get; internal set; }
+		public int MinPing { get; internal set; }
+		public int MaxPing { get; internal set; }
+		public int Ping { get; internal set; }
+		public bool Visibile { get; internal set; }
+		public bool NeedPassword { get; internal set; }
+		public bool TrueJedi { get; internal set; }
+		public bool WeaponDisable { get; internal set; }
+		public bool ForceDisable { get; internal set; }
+		public ProtocolVersion Protocol { get; internal set; }
+		public ClientVersion Version { get; internal set; }
+		public bool NWH { get; internal set; } // NWH mod detection
 		internal bool InfoSet;
 		internal long Start;
 		internal void SetInfo(InfoString info) {
@@ -28,6 +29,7 @@ namespace JKClient {
 			}
 			this.Clients = info["clients"].Atoi();
 			this.HostName = info["hostname"];
+			this.NWH = info.ContainsKey("nwh") ? (info["nwh"].Atoi()==0?false:true) : false;
 			this.MapName = info["mapname"];
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.Game = info["game"];

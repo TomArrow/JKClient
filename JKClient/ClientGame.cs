@@ -15,7 +15,16 @@ namespace JKClient {
 		None,
 		VoiceCommandSound,
 		Obituary,
+		CtfMessage,
 		Bits = 0x300
+	}
+
+	public enum CtfMessageType : int {
+		FraggedFlagCarrier,
+		FlagReturned,
+		PlayerReturnedFlag,
+		PlayerCapturedFlag,
+		PlayerGotFlag
 	}
 
 	internal abstract class ClientGame {
@@ -404,6 +413,8 @@ namespace JKClient {
 				switch ((EntityEventJO)entityEvent) {
 					case EntityEventJO.Obituary:
 						return EntityEvent.Obituary;
+					case EntityEventJO.CtfMessage:
+						return EntityEvent.CtfMessage;
 					default:
 						break;
 				}

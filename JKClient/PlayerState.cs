@@ -76,6 +76,8 @@ namespace JKClient {
 				this.EntityEventSequence++;
 			}
 			es.GroundEntityNum = this.GroundEntityNum;
+
+			es.FilledFromPlayerState = true;
 		}
 
 

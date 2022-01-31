@@ -27,6 +27,7 @@ namespace JKClient {
 				}
 			}
 			this.serverTime = this.snap.ServerTime;
+			this.oldFrameServerTime = this.snap.ServerTime;
 		}
 		private ClientGame InitClientGame() {
 			this.Status = ConnectionStatus.Primed;

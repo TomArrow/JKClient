@@ -10,6 +10,7 @@ namespace JKClient {
 #region ClientActive
 		private ClientSnapshot snap = new ClientSnapshot();
 		private int serverTime = 0;
+		private int oldFrameServerTime = 0;
 		private bool newSnapshots = false;
 		private GameState gameState = new GameState();
 		private int parseEntitiesNum = 0;
@@ -186,6 +187,8 @@ namespace JKClient {
 		private unsafe void ClearState() {
 			this.snap = new ClientSnapshot();
 			this.serverTime = 0;
+			this.oldFrameServerTime = 0;
+			this.serverTimeOlderThanPreviousCount = 0;
 			this.newSnapshots = false;
 			fixed (GameState *gs = &this.gameState) {
 				Common.MemSet(gs, 0, sizeof(GameState));
@@ -237,6 +240,8 @@ namespace JKClient {
 			int index = seq & (JKClient.MaxReliableCommands-1);
 			Array.Copy(s, 0, this.serverCommands[index], 0, Common.MaxStringChars);
 		}
+
+		int serverTimeOlderThanPreviousCount = 0; // Count of snaps received with a lower servertime than the old snap we have. Should be a static function variable but that doesn't exist in C#
 		private unsafe void ParseSnapshot(Message msg) {
 			ClientSnapshot *oldSnap;
 			var oldSnapHandle = GCHandle.Alloc(this.snapshots, GCHandleType.Pinned);
@@ -245,6 +250,20 @@ namespace JKClient {
 				ServerTime = msg.ReadLong(),
 				MessageNum = this.serverMessageSequence
 			};
+
+			// Sometimes packets arrive out of order. We want to tolerate this a bit to tolerate bad internet connections.
+			// However if it happens a large amount of times in a row, it might indicate a game restart/map chance I guess?
+			// So let the cvar cl_snapOrderTolerance decide how many times we allow it.
+			if (newSnap.ServerTime < this.oldFrameServerTime)
+			{
+				//Com_Printf("WARNING: newSnap.serverTime < cl.oldFrameServerTime.\n");
+				serverTimeOlderThanPreviousCount++;
+			}
+			else
+			{
+				serverTimeOlderThanPreviousCount = 0;
+			}
+
 			int deltaNum = msg.ReadByte();
 			if (deltaNum == 0) {
 				newSnap.DeltaNum = -1;
@@ -269,6 +288,21 @@ namespace JKClient {
 					newSnap.Valid = true;
 				}
 			}
+
+			// Ironically, to be more tolerant of bad internet, we set the (possibly) out of order snap to invalid. 
+			// That way it will not be saved to cl.snap and cause a catastrophic failure/disconnect unless it happens
+			// at least cl_snapOrderTolerance times in a row.
+			if (serverTimeOlderThanPreviousCount > 0 && serverTimeOlderThanPreviousCount <= SnapOrderTolerance)
+			{
+				// TODO handle demowaiting better?
+				newSnap.Valid = false; 
+				if (SnapOrderToleranceDemoSkipPackets)
+				{
+					DemoSkipPacket = true;
+				}
+				//Debug.Print("WARNING: Snapshot servertime lower than previous snap. Ignoring %d/%d.\n", serverTimeOlderThanPreviousCount, cl_snapOrderTolerance->integer);
+			}
+
 			int len = msg.ReadByte();
 			if (len > sizeof(byte)*32) {
 				throw new JKClientException("ParseSnapshot: Invalid size %d for areamask");

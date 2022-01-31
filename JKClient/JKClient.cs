@@ -10,6 +10,10 @@ using System.Threading.Tasks;
 
 namespace JKClient {
 	public sealed partial class JKClient : NetClient/*, IJKClientImport*/ {
+
+		public volatile int SnapOrderTolerance = 100;
+		public volatile bool SnapOrderToleranceDemoSkipPackets = false;
+
 		private const int LastPacketTimeOut = 5 * 60000;
 		private const int RetransmitTimeOut = 3000;
 		private const int MaxReliableCommands = 128;
@@ -129,7 +133,7 @@ namespace JKClient {
 			int msec;
 			this.realTime = 0;
 			//don't start with any pending actions
-			this.DequeueActions(false);
+			//this.DequeueActions(false);
 			while (true) {
 				if (!this.Started) {
 					break;
@@ -297,7 +301,7 @@ namespace JKClient {
 				// we don't know if it is ok to save a demo message until
 				// after we have parsed the frame
 				//
-				if (Demorecording && !Demowaiting /*&& !DemoSkipPacket*/)
+				if (Demorecording && !Demowaiting && !DemoSkipPacket)
 				{
 					WriteDemoMessage(msg, headerBytes);
 				}

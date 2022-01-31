@@ -4,6 +4,7 @@ using System.Text;
 
 namespace JKClient {
 	public sealed partial class JKClient {
+		public readonly StringBuilder bigInfoString = new StringBuilder(Common.BigInfoString, Common.BigInfoString);
 		public event Action<CommandEventArgs> ServerCommandExecuted;
 		internal void ExecuteServerCommand(CommandEventArgs eventArgs) {
 			this.ServerCommandExecuted?.Invoke(eventArgs);
@@ -122,7 +123,6 @@ namespace JKClient {
 			snapshot.PlayerState = clSnapshot.PlayerState;
 			snapshot.VehiclePlayerState = clSnapshot.VehiclePlayerState;
 			snapshot.NumEntities = Math.Min(clSnapshot.NumEntities, Snapshot.MaxEntities);
-			snapshot.Entities = new EntityState[Snapshot.MaxEntities];
 			for (int i = 0; i < snapshot.NumEntities; i++) {
 				int entNum = (clSnapshot.ParseEntitiesNum + i) & (JKClient.MaxParseEntities-1);
 				snapshot.Entities[i] = this.parseEntities[entNum];
@@ -137,17 +137,37 @@ namespace JKClient {
 				throw new JKClientException("GetServerCommand: requested a command not received");
 			}
 			this.lastExecutedServerCommand = serverCommandNumber;
-			sbyte[] sc = this.serverCommands[serverCommandNumber & (JKClient.MaxReliableCommands - 1)];
+			sbyte []sc = this.serverCommands[serverCommandNumber & (JKClient.MaxReliableCommands - 1)];
+rescan:
 			string s = Common.ToString(sc);
 			command = new Command(s);
 			s = Common.ToString(sc, Encoding.UTF8);
 			var utf8Command = new Command(s);
 			string cmd = command.Argv(0);
 			this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, utf8Command));
-			if (string.Compare(cmd, "disconnect", true) == 0) {
+			if (string.Compare(cmd, "disconnect", StringComparison.Ordinal) == 0) {
 				this.Disconnect();
 				return true;
-			} else if (string.Compare(cmd, "cs", true) == 0) {
+			} else if (string.Compare(cmd, "bcs0", StringComparison.Ordinal) == 0) {
+				this.bigInfoString
+					.Clear()
+					.Append("cs ")
+					.Append(command.Argv(1))
+					.Append(" \"")
+					.Append(command.Argv(2));
+				return false;
+			} else if (string.Compare(cmd, "bcs1", StringComparison.Ordinal) == 0) {
+				this.bigInfoString
+					.Append(command.Argv(2));
+				return false;
+			} else if (string.Compare(cmd, "bcs2", StringComparison.Ordinal) == 0) {
+				this.bigInfoString
+					.Append(command.Argv(2))
+					.Append("\"");
+				s = this.bigInfoString.ToString();
+				sc = (sbyte[])(Array)Common.Encoding.GetBytes(s);
+				goto rescan;
+			} else if (string.Compare(cmd, "cs", StringComparison.Ordinal) == 0) {
 				this.ConfigstringModified(command, sc);
 				return true;
 			}

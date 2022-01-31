@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -19,7 +19,7 @@ namespace JKClient {
 		private readonly Random random = new Random();
 		private readonly int port;
 		private readonly InfoString userInfoString = new InfoString(UserInfo);
-		private readonly Queue<Action> actionsQueue = new Queue<Action>();
+		private readonly ConcurrentQueue<Action> actionsQueue = new ConcurrentQueue<Action>();
 		private ClientGame clientGame;
 		private TaskCompletionSource<bool> connectTCS;
 
@@ -128,6 +128,8 @@ namespace JKClient {
 			long frameTime, lastTime = Common.Milliseconds;
 			int msec;
 			this.realTime = 0;
+			//don't start with any pending actions
+			this.DequeueActions(false);
 			while (true) {
 				if (!this.Started) {
 					break;
@@ -143,11 +145,7 @@ namespace JKClient {
 				if (msec > 5000) {
 					msec = 5000;
 				}
-				lock (this.actionsQueue) {
-					while (this.actionsQueue.Count > 0) {
-						this.actionsQueue.Dequeue()?.Invoke();
-					}
-				}
+				this.DequeueActions();
 				lastTime = frameTime;
 				this.realTime += msec;
 				this.SendCmd();
@@ -157,6 +155,21 @@ namespace JKClient {
 					this.clientGame.Frame(this.serverTime);
 				}
 				await Task.Delay(8);
+			}
+			//complete all actions after stop
+			this.DequeueActions();
+		}
+		private void DequeueActions(bool invoke = true) {
+#if NETSTANDARD2_1
+			if (!invoke) {
+				this.actionsQueue.Clear();
+				return;
+			}
+#endif
+			while (this.actionsQueue.TryDequeue(out var action)) {
+				if (invoke) {
+					action?.Invoke();
+				}
 			}
 		}
 		public void SetUserInfoKeyValue(string key, string value) {
@@ -300,7 +313,7 @@ namespace JKClient {
 			string s = msg.ReadStringLineAsString();
 			var command = new Command(s);
 			string c = command.Argv(0);
-			if (string.Compare(c, "challengeResponse", true) == 0) {
+			if (string.Compare(c, "challengeResponse", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.Status != ConnectionStatus.Connecting) {
 					return;
 				}
@@ -314,7 +327,7 @@ namespace JKClient {
 				this.connectPacketCount = 0;
 				this.connectTime = -99999;
 				this.serverAddress = address;
-			} else if (string.Compare(c, "connectResponse", true) == 0) {
+			} else if (string.Compare(c, "connectResponse", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.Status != ConnectionStatus.Challenging) {
 					return;
 				}
@@ -324,7 +337,7 @@ namespace JKClient {
 				this.netChannel = new NetChannel(this.net, address, this.port);
 				this.Status = ConnectionStatus.Connected;
 				this.lastPacketSentTime = -9999;
-			} else if (string.Compare(c, "disconnect", true) == 0) {
+			} else if (string.Compare(c, "disconnect", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.netChannel == null) {
 					return;
 				}
@@ -336,9 +349,9 @@ namespace JKClient {
 				}
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command));
 				this.Disconnect();
-			} else if (string.Compare(c, "echo", true) == 0) {
+			} else if (string.Compare(c, "echo", StringComparison.OrdinalIgnoreCase) == 0) {
 				this.OutOfBandPrint(address, command.Argv(1));
-			} else if (string.Compare(c, "print", true) == 0) {
+			} else if (string.Compare(c, "print", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (address == this.serverAddress) {
 					s = msg.ReadStringAsString();
 					var cmd = new Command(new string []{ "print", s });
@@ -369,7 +382,7 @@ namespace JKClient {
 			this.WritePacket();
 		}
 		private void WritePacket() {
-			UserCommand oldcmd = new UserCommand();
+			var oldcmd = new UserCommand();
 			byte []data = new byte[Message.MaxLength];
 			var msg = new Message(data, sizeof(byte)*Message.MaxLength);
 			msg.Bitstream();
@@ -441,12 +454,12 @@ namespace JKClient {
 		}
 		public async Task Connect(string address, ProtocolVersion protocol) {
 			this.connectTCS?.TrySetCanceled();
+			var serverAddress = NetSystem.StringToAddress(address);
+			if (serverAddress == null) {
+				throw new JKClientException("Bad server address");
+			}
 			this.connectTCS = new TaskCompletionSource<bool>();
 			void connect() {
-				var serverAddress = NetSystem.StringToAddress(address);
-				if (serverAddress == null) {
-					throw new JKClientException("Bad server address");
-				}
 				this.servername = address;
 				this.serverAddress = serverAddress;
 				this.challenge = ((random.Next() << 16) ^ random.Next()) ^ (int)Common.Milliseconds;

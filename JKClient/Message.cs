@@ -641,7 +641,7 @@ namespace JKClient {
 					int bits = this.ReadShort();
 					for (int i = 0; i < 16; i++) {
 						if ((bits & (1<<i)) != 0) {
-							this.ReadShort();
+							to->Persistant[i] = this.ReadShort();
 						}
 					}
 				}
@@ -649,7 +649,7 @@ namespace JKClient {
 					int bits = this.ReadShort();
 					for (int i = 0; i < 16; i++) {
 						if ((bits & (1<<i)) != 0) {
-							this.ReadShort();
+							to->Ammo[i] = this.ReadShort();
 						}
 					}
 				}
@@ -657,7 +657,7 @@ namespace JKClient {
 					int bits = this.ReadShort();
 					for (int i = 0; i < 16; i++) {
 						if ((bits & (1<<i)) != 0) {
-							this.ReadLong();
+							to->PowerUps[i] = this.ReadLong();
 						}
 					}
 				}

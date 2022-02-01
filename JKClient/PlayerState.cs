@@ -77,6 +77,15 @@ namespace JKClient {
 			}
 			es.GroundEntityNum = this.GroundEntityNum;
 
+			es.Powerups = 0;
+			for (int i = 0; i < Common.MaxPowerUps; i++)
+			{
+				if (PowerUps[i] != 0)
+				{
+					es.Powerups |= 1 << i;
+				}
+			}
+
 			es.FilledFromPlayerState = true;
 		}
 
@@ -136,9 +145,9 @@ namespace JKClient {
 		QuakeBoolean Pitching;      // NOT sent across the network
 
 		// these also need the constants ported:
-		//public int Persistant[MAX_PERSISTANT]; // stats that aren't cleared on death
-		//public int PowerUps[MAX_POWERUPS]; // level.time that the powerup runs out
-		//public int Ammo[MAX_WEAPONS];
+		public unsafe fixed int Persistant[Common.MaxPersistant]; // stats that aren't cleared on death
+		public unsafe fixed int PowerUps[Common.MaxPowerUps]; // level.time that the powerup runs out
+		public unsafe fixed int Ammo[Common.MaxWeapons];
 
 		public int Generic1;
 		public int LoopSound;

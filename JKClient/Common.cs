@@ -10,6 +10,10 @@ namespace JKClient {
 		internal const int BigInfoString = 8192;
 		public const int MaxClients = 32;
 		public const int MaxClientScoreSend = 20;
+		public const int MaxStats = 16;
+		public const int MaxPersistant = 16;
+		public const int MaxPowerUps = 16;
+		public const int MaxWeapons = 16;
 		internal const int GEntitynumBits = 10;
 		internal const int MaxGEntities = (1<<Common.GEntitynumBits);
 		internal const int GibHealth = -40;

@@ -57,6 +57,7 @@ namespace JKClient {
 		bool DemoSkipPacket;
 		bool FirstDemoFrameSkipped;
 		TaskCompletionSource<bool> demoRecordingStartPromise = null;
+		TaskCompletionSource<bool> demoFirstPacketRecordedPromise = null;
 		Mutex DemofileLock = new Mutex();
 		FileStream Demofile;
 #endregion
@@ -304,6 +305,11 @@ namespace JKClient {
 				if (Demorecording && !Demowaiting && !DemoSkipPacket)
 				{
 					WriteDemoMessage(msg, headerBytes);
+					if(demoFirstPacketRecordedPromise != null)
+                    {
+						demoFirstPacketRecordedPromise.SetResult(true); // Just in case the outside code wants to do something particular once actual packets are being recorded.
+						demoFirstPacketRecordedPromise = null;
+					}
 				}
 				//DemoSkipPacket = false; // Reset again for next message
 											 // TODO Maybe instead make a queue of packages to be written to the demo file.
@@ -588,7 +594,8 @@ namespace JKClient {
 			return "demo" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
 		}
 
-		public async Task<bool> Record_f(string demoName)
+		// firstPacketRecordedTCS in case you want to do anything once the first packet has recorded, like send some command that you want the response recorded of
+		public async Task<bool> Record_f(string demoName,TaskCompletionSource<bool> firstPacketRecordedTCS = null)
         {
 			if(demoRecordingStartPromise != null)
             {
@@ -598,9 +605,13 @@ namespace JKClient {
 			DemoName = demoName;
 
 			demoRecordingStartPromise = new TaskCompletionSource<bool>();
+			if(firstPacketRecordedTCS != null)
+            {
+				demoFirstPacketRecordedPromise = firstPacketRecordedTCS;
+			}
 
 			actionsQueue.Enqueue(()=> {
-				demoRecordingStartPromise.SetResult(StartRecording(DemoName));
+				demoRecordingStartPromise.TrySetResult(StartRecording(DemoName));
 				demoRecordingStartPromise = null;
 			});
 

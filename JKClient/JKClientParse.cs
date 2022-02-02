@@ -229,6 +229,16 @@ namespace JKClient {
 			this.DemoName = "";
 			this.Demofile = null;
 			this.DemoSkipPacket = false;
+			if(this.demoRecordingStartPromise != null)
+            {
+				this.demoRecordingStartPromise.TrySetResult(false);
+				this.demoRecordingStartPromise = null;
+			}
+			if (this.demoFirstPacketRecordedPromise != null)
+			{
+				this.demoFirstPacketRecordedPromise.TrySetResult(false);
+				this.demoFirstPacketRecordedPromise = null;
+			}
 		}
 		private void ParseCommandString(Message msg) {
 			int seq = msg.ReadLong();

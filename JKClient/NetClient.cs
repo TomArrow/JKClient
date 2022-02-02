@@ -17,6 +17,7 @@ namespace JKClient {
 //				throw new JKClientException("NetClient is already started");
 			}
 			this.Started = true;
+			this.OnStart();
 			this.cts = new CancellationTokenSource();
 			//Task.Run(this.Run, this.cts.Token)
 			Task.Factory.StartNew(this.Run, this.cts.Token,TaskCreationOptions.LongRunning,TaskScheduler.Default)
@@ -30,6 +31,7 @@ namespace JKClient {
 //				throw new JKClientException("Cannot stop NetClient when it's not started");
 			}
 			this.Started = false;
+			this.OnStop();
 			if (this.cts != null) {
 				this.cts.Cancel();
 				this.cts = null;
@@ -71,6 +73,8 @@ namespace JKClient {
 		}
 		private protected abstract void PacketEvent(NetAddress address, Message msg);
 		private protected abstract Task Run();
+		private protected virtual void OnStart() {}
+		private protected virtual void OnStop() {}
 		public void Dispose() {
 			this.net?.Dispose();
 		}

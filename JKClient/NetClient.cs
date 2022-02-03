@@ -11,6 +11,7 @@ namespace JKClient {
 		internal NetClient() {
 			this.net = new NetSystem();
 		}
+
 		public void Start(Func<JKClientException, Task> exceptionCallback) {
 			if (this.Started) {
 				return;
@@ -19,11 +20,9 @@ namespace JKClient {
 			this.Started = true;
 			this.OnStart();
 			this.cts = new CancellationTokenSource();
-			//Task.Run(this.Run, this.cts.Token)
-			Task.Factory.StartNew(this.Run, this.cts.Token,TaskCreationOptions.LongRunning,TaskScheduler.Default)
-				.ContinueWith((t) => {
+			Task.Factory.StartNew(this.Run, this.cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap().ContinueWith((t) => {
 					exceptionCallback?.Invoke(new JKClientException(t.Exception));
-				}, TaskContinuationOptions.OnlyOnFaulted);
+			}, TaskContinuationOptions.OnlyOnFaulted); // Don't use OnlyOnFaulted. It's buggy and won't catch exceptions thrown inside event handlers.
 		}
 		public void Stop() {
 			if (!this.Started) {

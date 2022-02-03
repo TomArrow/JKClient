@@ -82,6 +82,11 @@ namespace JKClient {
         {
 			this.SnapshotParsed?.Invoke(this, eventArgs);
 		}
+		public event EventHandler Disconnected;
+		internal void OnDisconnected(EventArgs eventArgs)
+        {
+			this.Disconnected?.Invoke(this, eventArgs);
+		}
 		public string Name {
 			get => this.userInfoString["name"];
 			set {
@@ -498,6 +503,7 @@ namespace JKClient {
 				this.Status = ConnectionStatus.Disconnected;
 				this.ClearState();
 				this.ClearConnection();
+				OnDisconnected(EventArgs.Empty);
 			}
 			this.actionsQueue.Enqueue(disconnect);
 		}

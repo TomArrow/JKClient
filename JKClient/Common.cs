@@ -15,7 +15,7 @@ namespace JKClient {
 		public const int MaxPowerUps = 16;
 		public const int MaxWeapons = 16;
 		internal const int GEntitynumBits = 10;
-		internal const int MaxGEntities = (1<<Common.GEntitynumBits);
+		public const int MaxGEntities = (1<<Common.GEntitynumBits);
 		internal const int GibHealth = -40;
 		internal static long Milliseconds => (DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond);
 #if NETSTANDARD2_1

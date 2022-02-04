@@ -8,15 +8,18 @@ namespace JKClient {
 	public static class Common {
 		internal const int MaxStringChars = 1024;
 		internal const int BigInfoString = 8192;
-		public const int MaxClients = 32;
+
+		// TODO: These are JK specific? 
 		public const int MaxClientScoreSend = 20;
 		public const int MaxStats = 16;
 		public const int MaxPersistant = 16;
 		public const int MaxPowerUps = 16;
 		public const int MaxWeapons = 16;
+
 		internal const int GEntitynumBits = 10;
 		public const int MaxGEntities = (1<<Common.GEntitynumBits);
 		internal const int GibHealth = -40;
+		public static int MaxClients(ProtocolVersion protocol) => JKClient.IsQ3(protocol) ? 64 : 32;
 		internal static long Milliseconds => (DateTime.UtcNow.Ticks / TimeSpan.TicksPerMillisecond);
 #if NETSTANDARD2_1
 		private static Action<IntPtr, byte, int> memSetDelegate;

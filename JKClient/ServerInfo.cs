@@ -21,6 +21,7 @@ namespace JKClient {
 		public ProtocolVersion Protocol { get; internal set; }
 		public ClientVersion Version { get; internal set; }
 		public bool NWH { get; internal set; } // NWH mod detection
+		public int FloodProtect { get; internal set; } = -1; // -1 if not yet set, -2 if server does not send it at all
 		internal bool InfoSet;
 		internal long Start;
 		internal void SetInfo(InfoString info) {
@@ -66,6 +67,7 @@ namespace JKClient {
 			if (JKClient.IsJO(this.Protocol) && this.GameType >= GameType.PowerDuel) {
 				this.GameType++;
 			}
+			this.FloodProtect = info["sv_floodProtect"] == String.Empty ? -2 : info["sv_floodProtect"].Atoi();
 			this.MinPing = info["sv_minping"].Atoi();
 			this.MaxPing = info["sv_maxping"].Atoi();
 			this.NeedPassword = info["g_needpass"].Atoi() != 0;

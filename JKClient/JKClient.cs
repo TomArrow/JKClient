@@ -30,9 +30,10 @@ namespace JKClient {
 		private TaskCompletionSource<bool> connectTCS;
 
         public ClientEntity[] Entities => clientGame != null? clientGame.Entities : null;
+        public int playerStateClientNum => snap.PlayerState.ClientNum;
         //public PlayerState CurrentPlayerState => clientGame != null? clientGame. : null;
         #region ClientConnection
-        private int clientNum = 0;
+        public int clientNum { get; private set; } = 0;
 		private int lastPacketSentTime = 0;
 		private int lastPacketTime = 0;
 		private NetAddress serverAddress;

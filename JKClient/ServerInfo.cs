@@ -7,6 +7,7 @@ namespace JKClient {
 		public string HostName { get; internal set; }
 		public string MapName { get; internal set; }
 		public string Game { get; internal set; }
+		public string GameName { get; internal set; }
 		public GameType GameType { get; internal set; }
 		public int Clients { get; internal set; }
 		public int MaxClients { get; internal set; }
@@ -20,6 +21,8 @@ namespace JKClient {
 		public bool ForceDisable { get; internal set; }
 		public ProtocolVersion Protocol { get; internal set; }
 		public ClientVersion Version { get; internal set; }
+		public string ServerGameVersionString { get; internal set; }
+		public string Location { get; internal set; }
 		public bool NWH { get; internal set; } // NWH mod detection
 		public int FloodProtect { get; internal set; } = -1; // -1 if not yet set, -2 if server does not send it at all
 		public bool Pure { get; internal set; }
@@ -67,6 +70,9 @@ namespace JKClient {
 			this.MapName = info["mapname"];
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.GameType = ServerInfo.GetGameType(info["g_gametype"].Atoi(), this.Protocol);
+			this.GameName = info["gamename"];
+			this.ServerGameVersionString = info["version"];
+			this.Location = info["Location"];
 			this.MinPing = info["sv_minping"].Atoi();
 			this.MaxPing = info["sv_maxping"].Atoi();
 			this.NeedPassword = info["g_needpass"].Atoi() != 0;

@@ -100,7 +100,7 @@ namespace JKClient {
 				this.ServerInfoChanged?.Invoke(this.ServerInfo);
 			}
 		}
-		internal void GetCurrentSnapshotNumber(out int snapshotNumber, out int serverTime) {
+		public void GetCurrentSnapshotNumber(out int snapshotNumber, out int serverTime) {
 			snapshotNumber = this.snap.MessageNum;
 			serverTime = this.snap.ServerTime;
 		}

@@ -9,7 +9,6 @@ namespace JKClient {
 		internal string GetConfigstring(int index);
 	}*/
 
-
 	public enum CtfMessageType : int {
 		FraggedFlagCarrier,
 		FlagReturned,

@@ -747,7 +747,7 @@ namespace JKClient {
 					}
 				}
 
-				int eofOperation = this.IsJO()? (int)ServerCommandOperations.EOF -1 : (int)ServerCommandOperations.EOF;
+				int eofOperation = (ClientHandler is JOClientHandler)? (int)ServerCommandOperations.EOF -1 : (int)ServerCommandOperations.EOF;
 				msg.WriteByte(eofOperation);
 
 				// finished writing the gamestate stuff

@@ -31,7 +31,6 @@ namespace JKClient {
 				}
 			}
 		}
-		public static int MaxLength(ProtocolVersion protocol) => !JKClient.IsJA(protocol) ? 16384 : 49152;
 		public Message() {}
 		public Message(byte []data, int length, bool oob = false) {
 			this.Data = data;
@@ -318,8 +317,8 @@ namespace JKClient {
 			}
 		}
 
-		// TODO: This must be adapted to the new Q3 stuff I think, see ReadDeltaEntity.
-		public unsafe void WriteDeltaEntity(EntityState* from, EntityState* to,bool force, ClientVersion version, GameMod gameMod)
+		// TODO: This must be adapted to the new ClientHandler stuff I think
+		public unsafe void WriteDeltaEntity(EntityState* from, EntityState* to,bool force, ClientVersion version, IClientHandler clientHandler)
         {
 
 			// a NULL to is a delta remove message
@@ -343,6 +342,27 @@ namespace JKClient {
 			// build the change vector as bytes so it is endien independent
 
 			NetFieldsArray fields;
+			switch (clientHandler.Protocol)
+			{
+				default:
+				case ProtocolVersion.Protocol25:
+				case ProtocolVersion.Protocol26:
+					throw new JKClientException($"WriteDeltaEntity: Only protocols 15 and 16 (Jedi Outcast) supported right now.");
+					fields = Message.entityStateFields26;
+					break;
+				case ProtocolVersion.Protocol15:
+					fields = Message.entityStateFields15;
+					break;
+				case ProtocolVersion.Protocol16:
+					fields = Message.entityStateFields16;
+					break;
+				case ProtocolVersion.Protocol68:
+				case ProtocolVersion.Protocol71:
+					throw new JKClientException($"WriteDeltaEntity: Only protocols 15 and 16 (Jedi Outcast) supported right now.");
+					fields = Message.entityStateFields68;
+					break;
+			}
+			/*
 			switch (version)
 			{
 				default:
@@ -370,7 +390,7 @@ namespace JKClient {
 				case ClientVersion.JO_v1_04:
 					fields = Message.entityStateFields16;
 					break;
-			}
+			}*/
 
 			int numFields = fields.Count;
 			int* fromF, toF;
@@ -471,8 +491,7 @@ namespace JKClient {
 
 		}
 
-		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, ProtocolVersion protocol, GameMod gameMod) {
-
+		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler) {
 			if (number < 0 || number >= Common.MaxGEntities) {
 				throw new JKClientException($"Bad delta entity number: {number}");
 			}
@@ -487,22 +506,11 @@ namespace JKClient {
 				return;
 			}
 			NetFieldsArray fields;
-			switch (protocol) {
+			switch (clientHandler.Protocol) {
 			default:
 			case ProtocolVersion.Protocol25:
 			case ProtocolVersion.Protocol26:
-				switch (gameMod) {
-				default:
-				case GameMod.Base:
-					fields = Message.entityStateFields;
-					break;
-				case GameMod.MBII:
-					fields = Message.entityStateFieldsMBII;
-					break;
-				case GameMod.OJP:
-					fields = Message.entityStateFieldsOJP;
-					break;
-				}
+				fields = Message.entityStateFields26;
 				break;
 			case ProtocolVersion.Protocol15:
 				fields = Message.entityStateFields15;
@@ -525,7 +533,8 @@ namespace JKClient {
 				if (this.ReadBits(1) == 0) {
 					*toF = *fromF;
 				} else {
-					if (fields[i].Bits == 0) {
+					int bits = clientHandler.GetEntityFieldOverride(i, fields[i].Bits);
+					if (bits == 0) {
 						if (this.ReadBits(1) == 0) {
 							*(float*)toF = 0.0f;
 						} else {
@@ -541,7 +550,7 @@ namespace JKClient {
 						if (this.ReadBits(1) == 0) {
 							*toF = 0;
 						} else {
-							*toF = this.ReadBits(fields[i].Bits);
+							*toF = this.ReadBits(bits);
 						}
 					}
 				}
@@ -554,7 +563,7 @@ namespace JKClient {
 				fields[i].Adjust?.Invoke(toF);
 			}
 		}
-		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, ProtocolVersion protocol, GameMod gameMod) {
+		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler) {
 			GCHandle fromHandle;
 			if (from == null) {
 				fromHandle = GCHandle.Alloc(PlayerState.Null, GCHandleType.Pinned);
@@ -565,29 +574,18 @@ namespace JKClient {
 			*to = *from;
 			bool isPilot = false;
 			NetFieldsArray fields;
-			switch (protocol) {
+			switch (clientHandler.Protocol) {
 			default:
 			case ProtocolVersion.Protocol25:
 			case ProtocolVersion.Protocol26:
 				if (isVehicle) {
-					fields = Message.vehPlayerStateFields;
+					fields = Message.vehPlayerStateFields26;
 				} else {
 					isPilot = this.ReadBits(1) != 0;
 					if (isPilot) {
-						fields = Message.pilotPlayerStateFields;
+						fields = Message.pilotPlayerStateFields26;
 					} else {
-						switch (gameMod) {
-						default:
-						case GameMod.Base:
-							fields = Message.playerStateFields;
-							break;
-						case GameMod.MBII:
-							fields = Message.playerStateFieldsMBII;
-							break;
-						case GameMod.OJP:
-							fields = Message.playerStateFieldsOJP;
-							break;
-						}
+						fields = Message.playerStateFields26;
 					}
 				}
 				break;
@@ -611,7 +609,13 @@ namespace JKClient {
 				if (this.ReadBits(1) == 0) {
 					*toF = *fromF;
 				} else {
-					if (fields[i].Bits == 0) {
+					int bits;
+					if (!isVehicle && !isPilot) {
+						bits = clientHandler.GetPlayerFieldOverride(i, fields[i].Bits);
+					} else {
+						bits = fields[i].Bits;
+					}
+					if (bits == 0) {
 						if (this.ReadBits(1) == 0) {
 							trunc = this.ReadBits(Message.FloatIntBits);
 							trunc -= Message.FloatIntBias;
@@ -620,7 +624,7 @@ namespace JKClient {
 							*toF = this.ReadBits(32);
 						}
 					} else {
-						*toF = this.ReadBits(fields[i].Bits);
+						*toF = this.ReadBits(bits);
 					}
 				}
 				fields[i].Adjust?.Invoke(toF);
@@ -636,7 +640,9 @@ namespace JKClient {
 					int bits = this.ReadShort();
 					for (int i = 0; i < 16; i++) {
 						if ((bits & (1<<i)) != 0) {
-							if (i == 4 && JKClient.IsJA(protocol)) {
+							if (i == 4
+								&& (clientHandler.Protocol == ProtocolVersion.Protocol25
+								|| clientHandler.Protocol == ProtocolVersion.Protocol26)) {
 								to->Stats[i] = this.ReadBits(19);
 							} else {
 								to->Stats[i] = this.ReadShort();
@@ -698,7 +704,7 @@ namespace JKClient {
 			public NetFieldAdjust Adjust;
 		}
 #region EntityStateFields
-		private static readonly NetFieldsArray entityStateFields = new NetFieldsArray(typeof(EntityState)) {
+		private static readonly NetFieldsArray entityStateFields26 = new NetFieldsArray(typeof(EntityState)) {
 			{	0	,	32	},
 			{	0	,	0	},
 			{	0	,	0	},
@@ -831,141 +837,6 @@ namespace JKClient {
 			{	0	,	1	},
 			{	0	,	1	},
 			{	0	,	1	}
-		};
-		private static readonly NetFieldsArray entityStateFieldsMBII = entityStateFields;
-		private static readonly NetFieldsArray entityStateFieldsOJP = new NetFieldsArray(typeof(EntityState)) {
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	nameof(EntityState.EntityType)	,	8	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	32	},
-			{	nameof(EntityState.EntityFlags)	,	32	},
-			{	0	,	32	},
-			{	0	,	8	},
-			{	nameof(EntityState.GroundEntityNum)	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	24	},
-			{	0	,	2	},
-			{	nameof(EntityState.Event)	,	10	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	nameof(EntityState.ClientNum)	,	Common.GEntitynumBits	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{   nameof(EntityState.EventParm)   ,	8	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	-16	},
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	1	},
-			{	0	,	0	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	0	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	0	},
-			{	0	,	1	},
-			{	0	,	16	},
-			{	nameof(EntityState.OtherEntityNum)	,	Common.GEntitynumBits	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	1	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	32	},
-			{	0	,	32	},
-			{	0	,	1	},
-			{	0	,	0	},
-			{	0	,	6	},
-			{	0	,	10	},
-			{	0	,	1	},
-			{	0	,	2	},
-			{	0	,	9	},
-			{	0	,	10	},
-			{	0	,	16	},
-			{	0	,	32	},
-			{	0	,	10	},
-			{	0	,	16	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	1	},
-			{	0	,	0	},
-			{	0	,	16	},
-			{	0	,	0	},
-			{	0	,	16	},
-			{	0	,	8	},
-			{	0	,	6	},
-			{	0	,	8	},
-			{	0	,	32	},
-			{	0	,	9	},
-			{	0	,	8	},
-			{	0	,	16	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	16	},
-			{	0	,	32	},
-			{	0	,	10	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	6	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	6	},
-			{	0	,	9	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	32	},
-			{	0	,	6	},
-			{	0	,	6	},
-			{	0	,	6	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	1	},
-			{	0	,	32	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1   }
 		};
 		private static readonly NetFieldsArray entityStateFields15 = new NetFieldsArray(typeof(EntityState)) {
 			{	nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Time)).ToInt32()    ,	32	},
@@ -1172,7 +1043,7 @@ namespace JKClient {
 		};
 #endregion
 #region PlayerStateFields
-		private static readonly NetFieldsArray playerStateFields = new NetFieldsArray(typeof(PlayerState)) {
+		private static readonly NetFieldsArray playerStateFields26 = new NetFieldsArray(typeof(PlayerState)) {
 			{	0	,	32	},
 			{	0	,	0	},
 			{	0	,	0	},
@@ -1301,146 +1172,6 @@ namespace JKClient {
 			{	0	,	1	},
 			{	0	,	1	},
 			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1   }
-		};
-		private static readonly NetFieldsArray playerStateFieldsMBII = playerStateFields;
-		private static readonly NetFieldsArray playerStateFieldsOJP = new NetFieldsArray(typeof(PlayerState)) {
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	0	},
-			{	0	,	8	},
-			{	0	,	-16	},
-			{	0	,	16	},
-			{	0	,	0	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	nameof(PlayerState.GroundEntityNum)	,	Common.GEntitynumBits	},
-			{   nameof(PlayerState.EntityFlags) ,	32	},
-			{	0	,	8	},
-			{   nameof(PlayerState.EventSequence) , 16  },
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	-8	},
-			{	0	,	4	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	4	},
-			{	0	,	32	},
-			{	nameof(PlayerState.Events)  ,   sizeof(int)*0   ,   10	},
-			{	nameof(PlayerState.Events)  ,   sizeof(int)*1   ,   10	},
-			{	0	,	8	},
-			{	0	,	4	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	4	},
-			{	0	,	32	},
-			{	0	,	10	},
-			{	0	,	10	},
-			{	0	,	-16	},
-			{   nameof(PlayerState.PlayerMoveFlags) ,	16	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	-16	},
-			{	0	,	8	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	16	},
-			{	0	,	8	},
-			{	0	,	16	},
-			{	0	,	1	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	2	},
-			{	0	,	32	},
-			{	0	,	8	},
-			{	0	,	1	},
-			{   nameof(PlayerState.ExternalEvent) ,	10	},
-			{	0	,	8	},
-			{	0	,	8	},
-			{	0	,	1	},
-			{   nameof(PlayerState.EventParms)  ,   sizeof(int)*1   ,   8	},
-			{	0	,	2	},
-			{	0	,	4	},
-			{	nameof(PlayerState.PlayerMoveType)	,	8	},
-			{	nameof(PlayerState.ExternalEventParm)	,	8	},
-			{   nameof(PlayerState.EventParms)  ,   sizeof(int)*0   ,   -16	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	32	},
-			{	0	,	32	},
-			{	0	,	1	},
-			{	0	,	8	},
-			{	0	,	32	},
-			{	0	,	6	},
-			{	0	,	32	},
-			{	0	,	0	},
-			{	0	,	16	},
-			{	0	,	1	},
-			{	0	,	8	},
-			{	0	,	2	},
-			{	0	,	32	},
-			{	0	,	8	},
-			{	0	,	2	},
-			{	0	,	32	},
-			{	0	,	8	},
-			{   nameof(PlayerState.VehicleNum) ,	Common.GEntitynumBits	},
-			{	0	,	8	},
-			{	0	,	10	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	16	},
-			{	0	,	2	},
-			{	0	,	32	},
-			{	0	,	32	},
-			{	0	,	8	},
-			{	0	,	1	},
-			{	0	,	0	},
-			{	0	,	32	},
-			{	0	,	32	},
-			{	0	,	16	},
-			{	0	,	16	},
-			{	0	,	0	},
-			{	0	,	16	},
-			{	0	,	0	},
-			{	0	,	10	},
-			{	0	,	16	},
-			{	0	,	0	},
-			{	0	,	1	},
-			{	0	,	32	},
-			{	0	,	16	},
-			{	0	,	2	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	1	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	32	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	32	},
-			{	0	,	1	},
-			{	0	,	1	},
-			{	0	,	6	},
-			{	0	,	Common.GEntitynumBits	},
-			{	0	,	10	},
-			{	0	,	16	},
-			{	0	,	10	},
-			{	0	,	1	},
-			{	0	,	32	},
 			{	0	,	1	},
 			{	0	,	1	},
 			{	0	,	1	},
@@ -1684,7 +1415,7 @@ namespace JKClient {
 			{	0	,	0	},
 			{	0	,	0   }
 		};
-		private static readonly NetFieldsArray pilotPlayerStateFields = new NetFieldsArray(typeof(PlayerState)) {
+		private static readonly NetFieldsArray pilotPlayerStateFields26 = new NetFieldsArray(typeof(PlayerState)) {
 			{	0	,	32	},
 			{	0	,	0	},
 			{	0	,	0	},
@@ -1826,7 +1557,7 @@ namespace JKClient {
 			{	0	,	1	},
 			{	0	,	1   }
 		};
-		private static readonly NetFieldsArray vehPlayerStateFields = new NetFieldsArray(typeof(PlayerState)) {
+		private static readonly NetFieldsArray vehPlayerStateFields26 = new NetFieldsArray(typeof(PlayerState)) {
 			{	0	,	32	},
 			{	0	,	0	},
 			{	0	,	0	},

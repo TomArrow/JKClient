@@ -7,10 +7,10 @@ namespace JKClient
     public class EntityEventArgs : EventArgs
     {
 
-        public EntityEvent EventType { get; private set; }
+        public ClientGame.EntityEvent EventType { get; private set; }
         public ClientEntity Entity { get; private set; }
 
-        public EntityEventArgs(EntityEvent eventType, ClientEntity entity)
+        public EntityEventArgs(ClientGame.EntityEvent eventType, ClientEntity entity)
         {
             EventType = eventType;
             Entity = entity;

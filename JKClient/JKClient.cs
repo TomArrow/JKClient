@@ -17,8 +17,6 @@ namespace JKClient {
 
 		private const int LastPacketTimeOut = 5 * 60000;
 		private const int RetransmitTimeOut = 3000;
-		private const int MaxReliableCommandsQ3 = 64;
-		private const int MaxReliableCommandsJK = 128;
 		private const int MaxPacketUserCmds = 32;
 		private const string DefaultName = "AssetslessClient";
 		private const string UserInfo = "\\name\\" + JKClient.DefaultName + "\\rate\\25000\\snaps\\40\\model\\kyle/default\\forcepowers\\7-1-032330000000001333\\color1\\4\\color2\\4\\handicap\\100\\teamtask\\0\\sex\\male\\password\\\\cg_predictItems\\1\\saber1\\single_1\\saber2\\none\\char_color_red\\255\\char_color_green\\255\\char_color_blue\\255\\engine\\jkclient\\assets\\0";
@@ -43,11 +41,11 @@ namespace JKClient {
 		private int checksumFeed = 0;
 		private int reliableSequence = 0;
 		private int reliableAcknowledge = 0;
-		private sbyte [][]reliableCommands = new sbyte[JKClient.MaxReliableCommandsJK][];
+		private sbyte [][]reliableCommands;
 		private int serverMessageSequence = 0;
 		private int serverCommandSequence = 0;
 		private int lastExecutedServerCommand = 0;
-		private sbyte [][]serverCommands = new sbyte[JKClient.MaxReliableCommandsJK][];
+		private sbyte [][]serverCommands;
 		private NetChannel netChannel;
 #endregion
 #region DemoWriting
@@ -69,8 +67,8 @@ namespace JKClient {
 		private string servername;
 		private NetAddress authorizeServer;
 		public ConnectionStatus Status { get; private set; }
-#endregion
-		internal ClientVersion Version { get; private set; } = ClientVersion.JA_v1_01;
+		private IClientHandler ClientHandler => this.NetHandler as IClientHandler;
+		internal ClientVersion Version => this.ClientHandler.Version;
 		public event EventHandler<EntityEventArgs> EntityEvent;
 		internal void OnEntityEvent(EntityEventArgs entityEventArgs)
         {
@@ -86,8 +84,9 @@ namespace JKClient {
         {
 			this.Disconnected?.Invoke(this, eventArgs);
 		}
-		private int MaxReliableCommands => this.IsQ3() ? JKClient.MaxReliableCommandsQ3 : JKClient.MaxReliableCommandsJK;
-		private string GuidKey => this.IsQ3() ? "cl_guid" : "ja_guid";
+		private int MaxReliableCommands => this.ClientHandler.MaxReliableCommands;
+		private string GuidKey => this.ClientHandler.GuidKey;
+		#endregion
 		public string Name {
 			get => this.userInfoString["name"];
 			set {
@@ -125,6 +124,7 @@ namespace JKClient {
 				this.serverInfo.Address = this.serverAddress;
 				this.serverInfo.Clients = this.ClientInfo?.Count(ci => ci.InfoValid) ?? 0;
 				this.serverInfo.SetConfigstringInfo(infoString);
+				this.ClientHandler.SetExtraConfigstringInfo(this.serverInfo, infoString);
 				return this.serverInfo;
 			}
 		}
@@ -132,11 +132,12 @@ namespace JKClient {
 		internal void NotifyServerInfoChanged() {
 			this.ServerInfoChanged?.Invoke(this.ServerInfo);
 		}
-		public JKClient(ProtocolVersion protocol = ProtocolVersion.Unknown) {
-			this.Protocol = protocol;
+		public JKClient(IClientHandler clientHandler) : base(clientHandler) {
 			this.Status = ConnectionStatus.Disconnected;
 			this.port = random.Next(1, 0xffff) & 0xffff;
-			for (int i = 0; i < JKClient.MaxReliableCommandsJK; i++) {
+			this.reliableCommands = new sbyte[this.MaxReliableCommands][];
+			this.serverCommands = new sbyte[this.MaxReliableCommands][];
+			for (int i = 0; i < this.MaxReliableCommands; i++) {
 				this.serverCommands[i] = new sbyte[Common.MaxStringChars];
 				this.reliableCommands[i] = new sbyte[Common.MaxStringChars];
 			}
@@ -232,7 +233,7 @@ namespace JKClient {
 			}
 		}
 		private void RequestAuthorization() {
-			if (!this.IsQ3()) {
+			if (!this.ClientHandler.RequiresAuthorization) {
 				return;
 			}
 			if (this.authorizeServer == null) {
@@ -263,7 +264,7 @@ namespace JKClient {
 					for (int i = 12; i < msg.CurSize; i++) {
 						if (str[index] == 0)
 							index = 0;
-						if ((!this.IsJA() && str[index] > 127) || str[index] == 37) { //'%'
+						if ((!this.ClientHandler.FullByteEncoding && str[index] > 127) || str[index] == 37) { //'%'
 							key ^= (byte)(46 << (i & 1)); //'.'
 						} else {
 							key ^= (byte)(str[index] << (i & 1));
@@ -287,7 +288,7 @@ namespace JKClient {
 					for (int i = msg.ReadCount + 4; i < msg.CurSize; i++) {
 						if (str[index] == 0)
 							index = 0;
-						if ((!this.IsJA() && str[index] > 127) || str[index] == 37) { //'%'
+						if ((!this.ClientHandler.FullByteEncoding && str[index] > 127) || str[index] == 37) { //'%'
 							key ^= (byte)(46 << (i & 1)); //'.'
 						} else {
 							key ^= (byte)(str[index] << (i & 1));
@@ -374,7 +375,7 @@ namespace JKClient {
 				if (address != this.serverAddress) {
 					return;
 				}
-				this.netChannel = new NetChannel(this.net, address, this.port, this.Protocol);
+				this.netChannel = new NetChannel(this.net, address, this.port, this.ClientHandler.MaxMessageLength);
 				this.Status = ConnectionStatus.Connected;
 				this.lastPacketSentTime = -9999;
 			} else if (string.Compare(c, "disconnect", StringComparison.OrdinalIgnoreCase) == 0) {
@@ -423,8 +424,8 @@ namespace JKClient {
 		}
 		private void WritePacket() {
 			var oldcmd = new UserCommand();
-			byte []data = new byte[Message.MaxLength(this.Protocol)];
-			var msg = new Message(data, sizeof(byte)*Message.MaxLength(this.Protocol));
+			byte []data = new byte[this.ClientHandler.MaxMessageLength];
+			var msg = new Message(data, sizeof(byte)*this.ClientHandler.MaxMessageLength);
 			msg.Bitstream();
 			msg.WriteLong(this.serverId);
 			msg.WriteLong(this.serverMessageSequence);
@@ -498,8 +499,8 @@ namespace JKClient {
 			if (serverAddress == null) {
 				throw new JKClientException("Bad server address");
 			}
-			if (this.Protocol == ProtocolVersion.Unknown && protocol == ProtocolVersion.Unknown) {
-				throw new JKClientException("Unknown protocol to connect to");
+			if (this.Protocol != protocol) {
+				throw new JKClientException("Protocol mismatch on connect");
 			}
 			this.connectTCS = new TaskCompletionSource<bool>();
 			void connect() {
@@ -508,8 +509,6 @@ namespace JKClient {
 				this.challenge = ((random.Next() << 16) ^ random.Next()) ^ (int)Common.Milliseconds;
 				this.connectTime = -9999;
 				this.connectPacketCount = 0;
-				this.Protocol = protocol;
-				this.Version = this.GetVersion();
 				this.Status = ConnectionStatus.Connecting;
 			}
 			this.actionsQueue.Enqueue(connect);
@@ -532,42 +531,25 @@ namespace JKClient {
 			}
 			this.actionsQueue.Enqueue(disconnect);
 		}
-		private bool IsJA() {
-			return JKClient.IsJA(this.Protocol);
+		public static IClientHandler GetKnownClientHandler(ServerInfo serverInfo) {
+			if (serverInfo == null) {
+				throw new JKClientException(new ArgumentNullException(nameof(serverInfo)));
+			}
+			return JKClient.GetKnownClientHandler(serverInfo.Protocol, serverInfo.Version);
 		}
-		internal static bool IsJA(ProtocolVersion protocol) {
-			return protocol == ProtocolVersion.Protocol25 || protocol == ProtocolVersion.Protocol26;
-		}
-		private bool IsJO() {
-			return JKClient.IsJO(this.Protocol);
-		}
-		internal static bool IsJO(ProtocolVersion protocol) {
-			return protocol == ProtocolVersion.Protocol15 || protocol == ProtocolVersion.Protocol16;
-		}
-		private bool IsQ3() {
-			return JKClient.IsQ3(this.Protocol);
-		}
-		internal static bool IsQ3(ProtocolVersion protocol) {
-			return protocol == ProtocolVersion.Protocol68 || protocol == ProtocolVersion.Protocol71;
-		}
-		private ClientVersion GetVersion() {
-			return JKClient.GetVersion(this.Protocol);
-		}
-		internal static ClientVersion GetVersion(ProtocolVersion protocol) {
+		public static IClientHandler GetKnownClientHandler(ProtocolVersion protocol, ClientVersion version) {
 			switch (protocol) {
+			case ProtocolVersion.Protocol25:
+			case ProtocolVersion.Protocol26:
+				return new JAClientHandler(protocol, version);
+			case ProtocolVersion.Protocol15:
+			case ProtocolVersion.Protocol16:
+				return new JOClientHandler(protocol, version);
 			case ProtocolVersion.Protocol68:
 			case ProtocolVersion.Protocol71:
-				return ClientVersion.Q3_v1_32;
-			case ProtocolVersion.Protocol15:
-				return ClientVersion.JO_v1_02;
-			case ProtocolVersion.Protocol16:
-				return ClientVersion.JO_v1_04;
-			case ProtocolVersion.Protocol25:
-				return ClientVersion.JA_v1_00;
-			default:
-			case ProtocolVersion.Protocol26:
-				return ClientVersion.JA_v1_01;
+				return new Q3ClientHandler(protocol);
 			}
+			throw new JKClientException($"There isn't any known client handler for given protocol: {protocol}");
 		}
 
 
@@ -714,11 +696,11 @@ namespace JKClient {
 			
 
 				//byte[] data = new byte[Message.MaxLength];
-				byte[] data = new byte[Message.MaxLength(Protocol)];
+				byte[] data = new byte[ClientHandler.MaxMessageLength];
 
 
 				// write out the gamestate message
-				var msg = new Message(data, sizeof(byte) * Message.MaxLength(Protocol));
+				var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
 
 				msg.Bitstream();
 
@@ -731,7 +713,7 @@ namespace JKClient {
 				int len;
 
 				// configstrings
-				for (int i = 0; i < GameState.MaxConfigstrings(Protocol); i++)
+				for (int i = 0; i < ClientHandler.MaxConfigstrings; i++)
 				{
 					if (0 == gameState.StringOffsets[i])
 					{
@@ -761,7 +743,7 @@ namespace JKClient {
 							continue;
 						}
 						msg.WriteByte((int)ServerCommandOperations.Baseline);
-						msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.gameMod);
+						msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.ClientHandler);
 					}
 				}
 

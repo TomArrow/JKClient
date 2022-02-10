@@ -67,7 +67,7 @@ namespace JKClient {
 		private string servername;
 		private NetAddress authorizeServer;
 		public ConnectionStatus Status { get; private set; }
-		private IClientHandler ClientHandler => this.NetHandler as IClientHandler;
+		public IClientHandler ClientHandler => this.NetHandler as IClientHandler;
 		internal ClientVersion Version => this.ClientHandler.Version;
 		public event EventHandler<EntityEventArgs> EntityEvent;
 		internal void OnEntityEvent(EntityEventArgs entityEventArgs)

@@ -29,6 +29,8 @@ namespace JKClient {
 		internal readonly ClientEntity []Entities = new ClientEntity[Common.MaxGEntities];
 		protected readonly /*IJKClientImport*/JKClient Client;
 		private protected int ServerTime;
+		private protected int LevelStartTime;
+		internal int GameTime => ServerTime - LevelStartTime;
 		private protected readonly Snapshot []ActiveSnapshots = new Snapshot[2] {
 			new Snapshot(),
 			new Snapshot()
@@ -217,6 +219,11 @@ namespace JKClient {
 			if (num >= configstringPlayers && num < configstringPlayers+this.Client.MaxClients) {
 				this.NewClientInfo(num - configstringPlayers);
 			}
+			int configstringLevelStartTime = this.GetConfigstringIndex(Configstring.LevelStartTime);
+			if(num == configstringLevelStartTime)
+            {
+				this.LevelStartTime = command.Argv(2).Atoi();
+            }
 		}
 		protected virtual void NewClientInfo(int clientNum) {
 			string configstring = this.Client.GetConfigstring(clientNum + this.GetConfigstringIndex(Configstring.Players));
@@ -282,7 +289,8 @@ namespace JKClient {
 		public enum Configstring {
 			GameVersion,
 			Sounds,
-			Players
+			Players,
+			LevelStartTime
 		}
 		public enum EntityFlag : int {
 			TeleportBit,
@@ -341,6 +349,8 @@ namespace JKClient {
 				return (int)ConfigstringJA.Sounds;
 			case Configstring.Players:
 				return (int)ConfigstringJA.Players;
+			case Configstring.LevelStartTime:
+				return (int)ConfigstringJA.LevelStartTime;
 			}
 			return 0;
 		}
@@ -394,6 +404,7 @@ namespace JKClient {
 			return ev;
 		}
 		public enum ConfigstringJA {
+			LevelStartTime = 22,
 			Sounds = 811,
 			Players = 1131
 		}
@@ -437,6 +448,8 @@ namespace JKClient {
 				return (int)ConfigstringJO.Sounds;
 			case Configstring.Players:
 				return (int)ConfigstringJO.Players;
+			case Configstring.LevelStartTime:
+				return (int)ConfigstringJO.LevelStartTime;
 			}
 			return 0;
 		}
@@ -479,6 +492,7 @@ namespace JKClient {
 			}
 		}
 		public enum ConfigstringJO {
+			LevelStartTime = 21,
 			Sounds = 288,
 			Players = 544
 		}
@@ -665,6 +679,8 @@ namespace JKClient {
 				return (int)ConfigstringQ3.Sounds;
 			case Configstring.Players:
 				return (int)ConfigstringQ3.Players;
+			case Configstring.LevelStartTime:
+				return (int)ConfigstringQ3.LevelStartTime;
 			}
 			return 0;
 		}
@@ -709,6 +725,7 @@ namespace JKClient {
 		}
 		public enum ConfigstringQ3 {
 			GameVersion = 20,
+			LevelStartTime = 21,
 			Sounds = 288,
 			Players = 544
 		}

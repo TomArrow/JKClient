@@ -30,6 +30,7 @@ namespace JKClient {
         public ClientEntity[] Entities => clientGame != null? clientGame.Entities : null;
         public int playerStateClientNum => snap.PlayerState.ClientNum;
         public bool IsInterMission => snap.PlayerState.PlayerMoveType == PlayerMoveType.Intermission;
+        public PlayerMoveType PlayerMoveType => snap.PlayerState.PlayerMoveType;
 		public int gameTime => this.clientGame == null ? 0: this.clientGame.GameTime;
         //public PlayerState CurrentPlayerState => clientGame != null? clientGame. : null;
         #region ClientConnection

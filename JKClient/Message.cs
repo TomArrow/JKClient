@@ -491,14 +491,14 @@ namespace JKClient {
 							*toF = this.ReadBits(bits);
 						}
 					}
+					fields[i].Adjust?.Invoke(toF);
 				}
-				fields[i].Adjust?.Invoke(toF);
 			}
 			for (int i = lc; i < fields.Count; i++) {
 				fromF = (int*)((byte*)from + fields[i].Offset);
 				toF = (int*)((byte*)to + fields[i].Offset);
 				*toF = *fromF;
-				fields[i].Adjust?.Invoke(toF);
+				//fields[i].Adjust?.Invoke(toF);
 			}
 		}
 		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler) {
@@ -535,14 +535,14 @@ namespace JKClient {
 					} else {
 						*toF = this.ReadBits(bits);
 					}
+					fields[i].Adjust?.Invoke(toF);
 				}
-				fields[i].Adjust?.Invoke(toF);
 			}
 			for (int i = lc; i < fields.Count; i++) {
 				fromF = (int*)((byte*)from + fields[i].Offset);
 				toF = (int*)((byte*)to + fields[i].Offset);
 				*toF = *fromF;
-				fields[i].Adjust?.Invoke(toF);
+				//fields[i].Adjust?.Invoke(toF);
 			}
 			if (this.ReadBits(1) != 0) {
 				if (this.ReadBits(1) != 0) {

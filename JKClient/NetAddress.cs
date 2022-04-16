@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace JKClient {
 	public sealed class NetAddress {
@@ -40,22 +41,18 @@ namespace JKClient {
 			return base.Equals(obj);
 		}
 		public override int GetHashCode() {
-			int hash = this.Port.GetHashCode();
-			foreach (var ip in this.IP) {
-				hash ^= ip;
-			}
-			return hash;
+			return (this.IP[0], this.IP[1], this.IP[2], this.IP[3], this.Port).GetHashCode();
 		}
 		public override string ToString() {
-			string toString = string.Empty;
+			var builder = new StringBuilder();
 			for (int i = 0; i < this.IP.Length; i++) {
 				if (i != 0) {
-					toString += ".";
+					builder.Append('.');
 				}
-				toString += this.IP[i].ToString();
+				builder.Append(this.IP[i].ToString());
 			}
-			toString += ":" + this.Port.ToString();
-			return toString;
+			builder.Append(':').Append(this.Port.ToString());
+			return builder.ToString();
 		}
 		public static NetAddress FromString(string address) {
 			return NetSystem.StringToAddress(address);

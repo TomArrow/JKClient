@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 
 namespace JKClient {
 	public class JOClientHandler : JONetHandler, IClientHandler {
+		public virtual new ProtocolVersion Protocol => (ProtocolVersion)base.Protocol;
 		public virtual ClientVersion Version { get; private set; }
 		public virtual int MaxReliableCommands => 128;
 		public virtual int MaxConfigstrings => 1400;
@@ -60,9 +61,6 @@ namespace JKClient {
 		}
 		public virtual void ClearState() {}
 		public virtual void SetExtraConfigstringInfo(ServerInfo serverInfo, InfoString info) {
-			if (info.Count <= 0) {
-				return;
-			}
 			switch (serverInfo.Protocol) {
 			case ProtocolVersion.Protocol15 when info["version"].Contains("v1.03"):
 				serverInfo.Version = ClientVersion.JO_v1_03;
@@ -73,6 +71,9 @@ namespace JKClient {
 			case ProtocolVersion.Protocol16:
 				serverInfo.Version = ClientVersion.JO_v1_04;
 				break;
+			}
+			if (info.Count <= 0) {
+				return;
 			}
 			int gameType = info["g_gametype"].Atoi();
 			//JO doesn't have Power Duel, the rest game types match

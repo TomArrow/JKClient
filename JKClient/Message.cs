@@ -342,7 +342,7 @@ namespace JKClient {
 			// build the change vector as bytes so it is endien independent
 
 			var fields = clientHandler.GetEntityStateFields();
-			if(clientHandler.Protocol != ProtocolVersion.Protocol15 && clientHandler.Protocol != ProtocolVersion.Protocol16)
+			if(clientHandler.Protocol != (int)ProtocolVersion.Protocol15 && clientHandler.Protocol != (int)ProtocolVersion.Protocol16)
             {
 				throw new JKClientException($"WriteDeltaEntity: Only protocols 15 and 16 (Jedi Outcast) supported right now.");
 			}
@@ -550,8 +550,8 @@ namespace JKClient {
 					for (int i = 0; i < 16; i++) {
 						if ((bits & (1<<i)) != 0) {
 							if (i == 4
-								&& (clientHandler.Protocol == ProtocolVersion.Protocol25
-								|| clientHandler.Protocol == ProtocolVersion.Protocol26)) {
+								&& (clientHandler.Protocol == (int)ProtocolVersion.Protocol25
+								|| clientHandler.Protocol == (int)ProtocolVersion.Protocol26)) {
 								to->Stats[i] = this.ReadBits(19);
 							} else {
 								to->Stats[i] = this.ReadShort();

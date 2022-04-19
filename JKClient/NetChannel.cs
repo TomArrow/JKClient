@@ -27,9 +27,12 @@ namespace JKClient {
 			this.fragmentBuffer = new byte[this.maxMessageLength];
 			this.unsentBuffer = new byte[this.maxMessageLength];
 		}
-		public unsafe bool Process(Message msg) {
+		public unsafe bool Process(Message msg, ref int sequenceNumber, ref bool validButOutOfOrder) {
 			msg.BeginReading(true);
 			int sequence = msg.ReadLong();
+			
+			validButOutOfOrder = false;
+
 			msg.SaveState();
 			bool fragmented;
 			if ((sequence & NetChannel.FragmentBit) != 0) {
@@ -38,6 +41,9 @@ namespace JKClient {
 			} else {
 				fragmented = false;
 			}
+
+			sequenceNumber = sequence;
+
 			int fragmentStart, fragmentLength;
 			if (fragmented) {
 				fragmentStart = (ushort)msg.ReadShort();
@@ -46,8 +52,10 @@ namespace JKClient {
 				fragmentStart = 0;
 				fragmentLength = 0;
 			}
+			bool isOutOfOrder = false;
 			if (sequence <= this.incomingSequence) {
-				return false;
+				//return false;
+				isOutOfOrder = true;// We still want to assemble fragmented messages, even if out of order
 			}
 			this.dropped = sequence - (this.incomingSequence+1);
 			if (fragmented) {
@@ -77,11 +85,29 @@ namespace JKClient {
 				msg.CurSize = this.fragmentLength + 4;
 				this.fragmentLength = 0;
 				msg.RestoreState();
+
+				if (!isOutOfOrder)
+				{
+					this.incomingSequence = sequence;   // lets not accept any more with this sequence number -gil
+					return true;
+				}
+				else
+				{
+					validButOutOfOrder = true;
+					return false;
+				}
+			}
+
+			if (!isOutOfOrder)
+			{
 				this.incomingSequence = sequence;
 				return true;
 			}
-			this.incomingSequence = sequence;
-			return true;
+			else
+			{
+				validButOutOfOrder = true;
+				return false;
+			}
 		}
 		public void Transmit(int length, byte []data) {
 			if (length > this.maxMessageLength) {

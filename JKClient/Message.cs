@@ -3,6 +3,14 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
 namespace JKClient {
+
+	internal class BufferedDemoMessageContainer
+    {
+		public Message msg;
+		public DateTime time;
+		public bool containsFullSnapshot;
+	}
+
 	internal sealed class Message {
 		private const int FloatIntBits = 13;
 		private const int FloatIntBias = (1<<(Message.FloatIntBits-1));
@@ -37,6 +45,19 @@ namespace JKClient {
 			this.MaxSize = length;
 			this.OOB = oob;
 		}
+		public Message Clone()
+        {
+			Message retVal = new Message();
+			retVal.Overflowed = this.Overflowed;
+			retVal.OOB = this.OOB;
+			retVal.MaxSize = this.MaxSize;
+			retVal.CurSize = this.CurSize;
+			retVal.ReadCount = this.ReadCount;
+			retVal.Bit = this.Bit;
+			retVal.Data = (byte[])this.Data.Clone();
+			return retVal;
+        }
+
 		public void Bitstream() {
 			this.OOB = false;
 		}

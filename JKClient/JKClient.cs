@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace JKClient {
 	public sealed partial class JKClient : NetClient/*, IJKClientImport*/ {
@@ -56,8 +57,11 @@ namespace JKClient {
 		string DemoName;
 		//bool SpDemoRecording;
 		public bool Demorecording { get; private set; }
+		private SortedDictionary<int, BufferedDemoMessageContainer> bufferedDemoMessages = new SortedDictionary<int, BufferedDemoMessageContainer>();
 		//bool Demoplaying;
-		bool Demowaiting;   // don't record until a non-delta message is received
+		int Demowaiting;   // don't record until a non-delta message is received. Changed to int. 0=not waiting. 1=waiting for delta message with correct deltanum. 2= waiting for full snapshot
+		const double DemoRecordBufferedReorderTimeout = 10;
+		int DemoLastWrittenSequenceNumber = -1;
 		bool DemoSkipPacket;
 		bool FirstDemoFrameSkipped;
 		TaskCompletionSource<bool> demoRecordingStartPromise = null;
@@ -319,10 +323,28 @@ namespace JKClient {
 				if (address != this.netChannel.Address) {
 					return;
 				}
-				if (!this.netChannel.Process(msg)) {
+				int sequenceNumber =0;
+				bool validButOutOfOrder=false;
+				bool process = this.netChannel.Process(msg, ref sequenceNumber, ref validButOutOfOrder);
+				
+				if(process || validButOutOfOrder)
+                {
+					this.Decode(msg);
+					if (Demorecording)
+					{
+						bufferedDemoMessages.Add(sequenceNumber, new BufferedDemoMessageContainer()
+						{
+							msg = msg.Clone(),
+							time = DateTime.Now,
+							containsFullSnapshot = false // To be determined
+						});
+					}
+				}
+				if (!process)
+				{
 					return;
 				}
-				this.Decode(msg);
+
 
 				// the header is different lengths for reliable and unreliable messages
 				headerBytes = msg.ReadCount;
@@ -336,14 +358,10 @@ namespace JKClient {
 				// we don't know if it is ok to save a demo message until
 				// after we have parsed the frame
 				//
-				if (Demorecording && !Demowaiting && !DemoSkipPacket)
+				if (Demorecording && Demowaiting==0 && !DemoSkipPacket)
 				{
-					WriteDemoMessage(msg, headerBytes);
-					if(demoFirstPacketRecordedPromise != null)
-                    {
-						demoFirstPacketRecordedPromise.SetResult(true); // Just in case the outside code wants to do something particular once actual packets are being recorded.
-						demoFirstPacketRecordedPromise = null;
-					}
+					//WriteDemoMessage(msg, headerBytes);
+					WriteBufferedDemoMessages();
 				}
 				//DemoSkipPacket = false; // Reset again for next message
 											 // TODO Maybe instead make a queue of packages to be written to the demo file.
@@ -448,7 +466,7 @@ namespace JKClient {
 					count = JKClient.MaxPacketUserCmds;
 				}
 				if (count >= 1) {
-					if (!this.snap.Valid || this.serverMessageSequence != this.snap.MessageNum || Demowaiting) {
+					if (!this.snap.Valid || this.serverMessageSequence != this.snap.MessageNum || Demowaiting == 2) {
 						msg.WriteByte((int)ClientCommandOperations.MoveNoDelta);
 					} else {
 						msg.WriteByte((int)ClientCommandOperations.Move);
@@ -572,7 +590,7 @@ namespace JKClient {
 		Dumps the current net message, prefixed by the length
 		====================
 		*/
-		void WriteDemoMessage(Message msg, int headerBytes)
+		void WriteDemoMessage(Message msg, int headerBytes,int sequenceNumber)
 		{
 			int len, swlen;
 
@@ -584,14 +602,76 @@ namespace JKClient {
 				}
 
 				// write the packet sequence
-				len = serverMessageSequence;
+				//len = serverMessageSequence;
+				len = sequenceNumber;
 				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
 
 				// skip the packet sequencing information
 				len = msg.CurSize - headerBytes;
 				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
 				Demofile.Write(msg.Data, headerBytes, len);
+
+
+				if (demoFirstPacketRecordedPromise != null)
+				{
+					demoFirstPacketRecordedPromise.SetResult(true); // Just in case the outside code wants to do something particular once actual packets are being recorded.
+					demoFirstPacketRecordedPromise = null;
+				}
 			}
+		}
+
+		/*
+		====================
+		WriteBufferedDemoMessages
+		Writes messages from the buffered demo packets map into the demo if they are either 
+		follow ups to a previously written messages without a gap or if they are at least the timeout age.
+		If called with qtrue parameter, timeout will be ignored and all messages will be flushed and written
+		into the demo file.
+		====================
+		*/
+		void WriteBufferedDemoMessages(bool forceWriteAll = false)
+		{
+			//static msg_t tmpMsg;
+			//static byte tmpMsgData[MAX_MSGLEN];
+			//tmpMsg.data = tmpMsgData;
+
+			// First write messages that exist without a gap.
+			//while (bufferedDemoMessages.find(clc.demoLastWrittenSequenceNumber + 1) != bufferedDemoMessages.end())
+			while (bufferedDemoMessages.ContainsKey(DemoLastWrittenSequenceNumber + 1))
+			{
+				// While we have all the messages without any gaps, we can just dump them all into the demo file.
+				Message tmpMsg = bufferedDemoMessages[DemoLastWrittenSequenceNumber + 1].msg;
+				WriteDemoMessage(tmpMsg, tmpMsg.ReadCount, DemoLastWrittenSequenceNumber + 1);
+				DemoLastWrittenSequenceNumber = DemoLastWrittenSequenceNumber + 1;
+				bufferedDemoMessages.Remove(DemoLastWrittenSequenceNumber);
+			}
+
+			// Now write messages that are older than the timeout. Also do a bit of cleanup while we're at it.
+			// bufferedDemoMessages is a map and maps are ordered, so the key (sequence number) should be incrementing.
+			List<int> itemsToErase = new List<int>();
+            foreach (KeyValuePair<int,BufferedDemoMessageContainer> tmpMsg in bufferedDemoMessages)
+            {
+				if (tmpMsg.Key <= DemoLastWrittenSequenceNumber)
+				{ // Older or identical number to stuff we already wrote. Discard.
+					itemsToErase.Add(tmpMsg.Key);
+					continue;
+				}
+				// First potential candidate.
+				//if (forceWriteAll || tmpIt->second.time + cl_demoRecordBufferedReorderTimeout->integer < Com_RealTime(NULL)) {
+				if (forceWriteAll || ((DateTime.Now - tmpMsg.Value.time).TotalSeconds) > DemoRecordBufferedReorderTimeout)
+				{
+					WriteDemoMessage(tmpMsg.Value.msg, tmpMsg.Value.msg.ReadCount, tmpMsg.Key);
+					DemoLastWrittenSequenceNumber = tmpMsg.Key;
+					itemsToErase.Add(tmpMsg.Key);
+				}
+				else
+				{
+					// Not old enough. When there are gaps we want to wait X amount of seconds before writing a new
+					// message so that older ones can still arrive.
+					break; // Since the messages in the map are ordered, if we're not writing this one, no need to continue.
+				}
+			}
+			
 		}
 
 		/*
@@ -613,6 +693,8 @@ namespace JKClient {
 					//Com_Printf("Not recording a demo.\n");
 					return;
 				}
+
+				WriteBufferedDemoMessages(true); // Flush all messages into the demo file.
 
 				// finish up
 				len = -1;
@@ -703,9 +785,9 @@ namespace JKClient {
 
 				this.DemoName = demoName;
 
-				Demowaiting = true;
-				//DemoSkipPacket = false;
-			
+				Demowaiting = 2; // request non-delta message with value 2.
+				 //DemoSkipPacket = false;
+				DemoLastWrittenSequenceNumber = 0;
 
 				//byte[] data = new byte[Message.MaxLength];
 				byte[] data = new byte[ClientHandler.MaxMessageLength];

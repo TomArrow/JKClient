@@ -27,6 +27,8 @@ namespace JKClient {
 		//IMPORTANT: update all playerStateFields in Message after adding new fields
 		public static readonly PlayerState Null = new PlayerState();
 		public const int MaxEvents = 2;
+
+		// This is not complete. If you need a particular field to be there in the converted entity, make sure to add it here
 		public unsafe void ToEntityState(ref EntityState es) {
 			if (this.PlayerMoveType == PlayerMoveType.Intermission || this.PlayerMoveType == PlayerMoveType.Spectator) {
 				es.EntityType = (int)ClientGame.EntityType.Invisible;

@@ -1,6 +1,13 @@
 ﻿using System.Runtime.InteropServices;
 
 namespace JKClient {
+
+	[StructLayout(LayoutKind.Sequential, Pack = 4)]
+	internal struct ForceData
+    {
+		// Todo
+    }
+
 	[StructLayout(LayoutKind.Sequential, Pack = 4)]
 	internal struct PlayerState {
 		public int Dummy;
@@ -85,6 +92,8 @@ namespace JKClient {
 					es.Powerups |= 1 << i;
 				}
 			}
+
+			es.EntityFlags = this.EntityFlags;
 
 			es.FilledFromPlayerState = true;
 		}

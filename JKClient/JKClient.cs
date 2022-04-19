@@ -671,6 +671,10 @@ namespace JKClient {
 					break; // Since the messages in the map are ordered, if we're not writing this one, no need to continue.
 				}
 			}
+			foreach(int itemToErase in itemsToErase)
+            {
+				bufferedDemoMessages.Remove(itemToErase);
+            }
 			
 		}
 

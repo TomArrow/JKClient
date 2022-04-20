@@ -28,13 +28,13 @@ namespace JKClient {
 
 		private SortedDictionary<int, FragmentAssemblyBuffer> fragmentBuffers = new SortedDictionary<int, FragmentAssemblyBuffer>(); // New arbitrary order fragment assembly ported from my eternaljk2mv fork - TA
 
-		private readonly byte []fragmentBuffer;
+		//private readonly byte []fragmentBuffer;
 		private readonly byte []unsentBuffer;
 		private readonly int maxMessageLength;
 		private int dropped = 0;
 		private int incomingSequence = 0;
-		private int fragmentSequence = 0;
-		private int fragmentLength = 0;
+		//private int fragmentSequence = 0;
+		//private int fragmentLength = 0;
 		private int unsentFragmentStart = 0;
 		private int unsentLength = 0;
 		public int OutgoingSequence { get; private set; } = 1;
@@ -45,7 +45,7 @@ namespace JKClient {
 			this.Address = address;
 			this.qport = qport;
 			this.maxMessageLength = maxMessageLength;
-			this.fragmentBuffer = new byte[this.maxMessageLength];
+			//this.fragmentBuffer = new byte[this.maxMessageLength];
 			this.unsentBuffer = new byte[this.maxMessageLength];
 		}
 		public unsafe bool Process(Message msg, ref int sequenceNumber, ref bool validButOutOfOrder) {

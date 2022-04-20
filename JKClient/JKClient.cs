@@ -332,12 +332,19 @@ namespace JKClient {
 					this.Decode(msg);
 					if (Demorecording)
 					{
-						bufferedDemoMessages.Add(sequenceNumber, new BufferedDemoMessageContainer()
-						{
-							msg = msg.Clone(),
-							time = DateTime.Now,
-							containsFullSnapshot = false // To be determined
-						});
+                        if (bufferedDemoMessages.ContainsKey(sequenceNumber))
+                        {
+							// VERY WEIRD. 
+                        } else
+                        {
+							bufferedDemoMessages.Add(sequenceNumber, new BufferedDemoMessageContainer()
+							{
+								msg = msg.Clone(),
+								time = DateTime.Now,
+								containsFullSnapshot = false // To be determined
+							});
+						}
+						
 					}
 				}
 				if (!process)

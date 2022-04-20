@@ -1,12 +1,33 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace JKClient {
+
+	internal class FragmentAssemblyBuffer
+	{
+		public const double FragmentBuffersTimeout = 10;
+
+		public byte[] data;//[MAX_MSGLEN]; // actual data
+		public bool[] fragmentsReceived;//[MAX_MSGLEN / FRAGMENT_SIZE + 1]; // array indicating if a particular fragment has been received
+		public int lastFragment; // index of the last fragment. 0 means we don't know yet.
+		public int totalLength; // length of the entire message
+		public DateTime time; // when was this fragment buffer last accessed? we want to clean up old unfinished fragment buffers.
+		public FragmentAssemblyBuffer(int maxMessageLength)
+		{
+			data = new byte[maxMessageLength];
+			fragmentsReceived = new bool[maxMessageLength / NetChannel.FragmentSize + 1];
+		}
+	}
+
 	internal sealed class NetChannel {
 		private const int MaxPacketLen = 1400;
-		private const int FragmentSize = NetChannel.MaxPacketLen - 100;
+		internal const int FragmentSize = NetChannel.MaxPacketLen - 100;
 		private const int FragmentBit = 1<<31;
 		private readonly NetSystem net;
 		private readonly int qport;
+
+		private SortedDictionary<int, FragmentAssemblyBuffer> fragmentBuffers = new SortedDictionary<int, FragmentAssemblyBuffer>(); // New arbitrary order fragment assembly ported from my eternaljk2mv fork - TA
+
 		private readonly byte []fragmentBuffer;
 		private readonly byte []unsentBuffer;
 		private readonly int maxMessageLength;
@@ -59,32 +80,104 @@ namespace JKClient {
 			}
 			this.dropped = sequence - (this.incomingSequence+1);
 			if (fragmented) {
-				if (sequence != this.fragmentSequence) {
+
+				// changes here by TA: Arbitrary order fragment assembly. And even possibility to assemble multiple fragment buffers at the same time, in case they all 
+				// the fragments from different messages come mixed at varying out of order times.
+
+				// First, some maintenance. Remove too old fragment buffers.
+				List<int> toErase = new List<int>();
+				foreach(KeyValuePair<int,FragmentAssemblyBuffer> fab in fragmentBuffers)
+                {
+					//if (fab.Value.time + FragmentAssemblyBuffer.FragmentBuffersTimeout < Com_RealTime(NULL))
+					if (  (DateTime.Now - fab.Value.time).TotalSeconds > FragmentAssemblyBuffer.FragmentBuffersTimeout)
+					{
+						toErase.Add(fab.Key);
+					}
+				}
+				foreach(int key in toErase)
+                {
+					fragmentBuffers.Remove(key);
+                }
+
+                if (!fragmentBuffers.ContainsKey(sequence))
+				{
+					fragmentBuffers.Add(sequence, new FragmentAssemblyBuffer(this.maxMessageLength));
+				}
+				bool isNewBuffer = !fragmentBuffers.ContainsKey(sequence);
+
+				FragmentAssemblyBuffer thisFragmentBuffer = fragmentBuffers[sequence]; // This will either find or insert the element.
+
+				/*if (sequence != this.fragmentSequence) {
 					this.fragmentSequence = sequence;
 					this.fragmentLength = 0;
 				}
 				if (fragmentStart != this.fragmentLength) {
 					return false;
-				}
+				}*/
+
+				// old sanity check for fragment size adapted to new code
 				if (fragmentLength < 0 || (msg.ReadCount + fragmentLength) > msg.CurSize ||
-					(this.fragmentLength + fragmentLength) > sizeof(byte)*this.maxMessageLength) {
+					(fragmentStart + fragmentLength) > sizeof(byte)*this.maxMessageLength) {
 					return false;
 				}
-				Array.Copy(msg.Data, msg.ReadCount, this.fragmentBuffer, this.fragmentLength, fragmentLength);
+
+				// Additional sanity check now since we need to track the individual pieces precisely
+				if (fragmentStart % NetChannel.FragmentSize > 0)
+				{ // Not a correct multiple of fragment size. Should never happen.
+					return false;
+				}
+
+				// copy to buffer 
+				int currentFragment = fragmentStart / NetChannel.FragmentSize;
+				bool isLastFragment = fragmentLength != NetChannel.FragmentSize;
+				Array.Copy(msg.Data, msg.ReadCount, thisFragmentBuffer.data,fragmentStart, fragmentLength);
+				//Com_Memcpy(thisFragmentBuffer->data + fragmentStart,msg->data + msg->readcount, fragmentLength);
+				thisFragmentBuffer.fragmentsReceived[currentFragment] = true;
+				thisFragmentBuffer.time = DateTime.Now;
+				if (isLastFragment)
+				{
+					thisFragmentBuffer.lastFragment = currentFragment;
+					thisFragmentBuffer.totalLength = fragmentStart + fragmentLength;
+				}
+
+				// Any fragments missing?
+				if (thisFragmentBuffer.lastFragment == 0)
+				{
+					return false; // last fragment is not received, no need to even check
+				}
+				else
+				{
+					for (int i = thisFragmentBuffer.lastFragment; i >= 0; i--)
+					{
+						if (!thisFragmentBuffer.fragmentsReceived[i])
+						{
+							return false; // If any fragment is missing, there's no point in continuing here.
+						}
+					}
+				}
+
+				/*Array.Copy(msg.Data, msg.ReadCount, this.fragmentBuffer, this.fragmentLength, fragmentLength);
 				this.fragmentLength += fragmentLength;
 				if (fragmentLength == NetChannel.FragmentSize) {
 					return false;
-				}
-				if (this.fragmentLength+4 > msg.MaxSize) {
+				}*/
+				if (thisFragmentBuffer.totalLength + 4 > msg.MaxSize) {
 					return false;
 				}
 				fixed (byte* b = msg.Data) {
 					*(int*)b = sequence;
 				}
-				Array.Copy(this.fragmentBuffer, 0, msg.Data, 4, this.fragmentLength);
+
+				//Com_Memcpy(msg->data + 4, thisFragmentBuffer->data, thisFragmentBuffer->totalLength);
+				Array.Copy(thisFragmentBuffer.data,0,msg.Data,4,thisFragmentBuffer.totalLength);
+				msg.CurSize = thisFragmentBuffer.totalLength + 4;
+				/*Array.Copy(this.fragmentBuffer, 0, msg.Data, 4, this.fragmentLength);
 				msg.CurSize = this.fragmentLength + 4;
-				this.fragmentLength = 0;
+				this.fragmentLength = 0;*/
 				msg.RestoreState();
+
+				thisFragmentBuffer = null;
+				fragmentBuffers.Remove(sequence); // Now that the message is fully assembled, we can discard the fragment buffer
 
 				if (!isOutOfOrder)
 				{

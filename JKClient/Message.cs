@@ -4,6 +4,8 @@ using System.Runtime.InteropServices;
 
 namespace JKClient {
 
+	
+
 	internal class BufferedDemoMessageContainer
     {
 		public Message msg;

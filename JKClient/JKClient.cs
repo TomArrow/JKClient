@@ -32,7 +32,7 @@ namespace JKClient {
         public int playerStateClientNum => snap.PlayerState.ClientNum;
         public bool IsInterMission => snap.PlayerState.PlayerMoveType == PlayerMoveType.Intermission;
         public PlayerMoveType PlayerMoveType => snap.PlayerState.PlayerMoveType;
-		public int gameTime => this.clientGame == null ? 0: this.clientGame.GameTime;
+		public int gameTime => this.clientGame == null ? 0: this.clientGame.GetGameTime();
         //public PlayerState CurrentPlayerState => clientGame != null? clientGame. : null;
         #region ClientConnection
         public int clientNum { get; private set; } = 0;
@@ -507,6 +507,12 @@ namespace JKClient {
 				Marshal.Copy(encoding.GetBytes(cmd+'\0'), 0, (IntPtr)(reliableCommand), encoding.GetByteCount(cmd)+1);
 			}
 		}
+		public int GetUnacknowledgedReliableCommandCount()
+        {
+			return this.reliableSequence - this.reliableAcknowledge;
+
+		}
+
 		public void ExecuteCommand(string cmd, Encoding encoding = null) {
 			void executeCommand() {
 				if (cmd.StartsWith("rcon ", StringComparison.OrdinalIgnoreCase)) {

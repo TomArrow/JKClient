@@ -29,8 +29,9 @@ namespace JKClient {
 		internal readonly ClientEntity []Entities = new ClientEntity[Common.MaxGEntities];
 		protected readonly /*IJKClientImport*/JKClient Client;
 		private protected int ServerTime;
-		private protected int LevelStartTime;
-		internal int GameTime => ServerTime - LevelStartTime;
+		//private protected int LevelStartTime;
+		//internal int GameTime => ServerTime - LevelStartTime;
+		
 		private protected readonly Snapshot []ActiveSnapshots = new Snapshot[2] {
 			new Snapshot(),
 			new Snapshot()
@@ -58,6 +59,13 @@ namespace JKClient {
 			this.ServerTime = serverTime;
 			this.ProcessSnapshots();
 		}
+		internal int GetGameTime()
+		{
+			int configstringLevelStartTime = this.GetConfigstringIndex(Configstring.LevelStartTime);
+			int levelStartTime = Client.GetConfigstring(configstringLevelStartTime).Atoi();
+			return ServerTime - levelStartTime;
+		}
+
 		private protected virtual void ProcessSnapshots() {
 			this.Client.GetCurrentSnapshotNumber(out int n, out int _);
 			if (n != this.LatestSnapshotNum) {
@@ -219,11 +227,11 @@ namespace JKClient {
 			if (num >= configstringPlayers && num < configstringPlayers+this.Client.MaxClients) {
 				this.NewClientInfo(num - configstringPlayers);
 			}
-			int configstringLevelStartTime = this.GetConfigstringIndex(Configstring.LevelStartTime);
-			if(num == configstringLevelStartTime)
-            {
-				this.LevelStartTime = command.Argv(2).Atoi();
-            }
+			//int configstringLevelStartTime = this.GetConfigstringIndex(Configstring.LevelStartTime);
+			//if(num == configstringLevelStartTime)
+            //{
+			//	this.LevelStartTime = command.Argv(2).Atoi();
+            //}
 		}
 		protected virtual void NewClientInfo(int clientNum) {
 			string configstring = this.Client.GetConfigstring(clientNum + this.GetConfigstringIndex(Configstring.Players));

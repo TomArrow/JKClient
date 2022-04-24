@@ -156,7 +156,18 @@ namespace JKClient {
 				throw new JKClientException("Cannot connect to a pure server without assets");
 			}
 		}
-		internal unsafe string GetConfigstring(int index) {
+		public unsafe string GetConfigstring(int index) {
+			if (index < 0 || index >= this.MaxConfigstrings) {
+				throw new JKClientException($"Configstring: bad index: {index}");
+			}
+			fixed (sbyte* s = this.gameState.StringData) {
+				sbyte* cs = s + this.gameState.StringOffsets[index];
+				return Common.ToString(cs, Common.StrLen(cs));
+			}
+		}
+		public unsafe string GetMappedConfigstring(ClientGame.Configstring indexA) {
+			if (this.clientGame == null) return "";
+			int index = this.clientGame.GetConfigstringIndex(indexA);
 			if (index < 0 || index >= this.MaxConfigstrings) {
 				throw new JKClientException($"Configstring: bad index: {index}");
 			}

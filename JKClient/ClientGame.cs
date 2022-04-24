@@ -290,12 +290,14 @@ namespace JKClient {
 			this.Client.OnEntityEvent(new EntityEventArgs(ev, eventData.Cent));
 			return ev;
 		}
-		protected abstract int GetConfigstringIndex(Configstring index);
+		internal abstract int GetConfigstringIndex(Configstring index);
 		protected abstract EntityEvent GetEntityEvent(int entityEvent);
 		protected abstract int GetEntityType(EntityType entityType);
 		protected abstract int GetEntityFlag(EntityFlag entityFlag);
 		public enum Configstring {
 			GameVersion,
+			Scores1,
+			Scores2,
 			Sounds,
 			Players,
 			LevelStartTime
@@ -351,7 +353,7 @@ namespace JKClient {
 	public class JAClientGame : ClientGame {
 		public JAClientGame(/*IJKClientImport*/JKClient client, int serverMessageNum, int serverCommandSequence, int clientNum)
 			: base(client, serverMessageNum, serverCommandSequence, clientNum) {}
-		protected override int GetConfigstringIndex(Configstring index) {
+		internal override int GetConfigstringIndex(Configstring index) {
 			switch (index) {
 			case Configstring.Sounds:
 				return (int)ConfigstringJA.Sounds;
@@ -450,7 +452,7 @@ namespace JKClient {
 	public class JOClientGame : ClientGame {
 		public JOClientGame(/*IJKClientImport*/JKClient client, int serverMessageNum, int serverCommandSequence, int clientNum)
 			: base(client, serverMessageNum, serverCommandSequence, clientNum) {}
-		protected override int GetConfigstringIndex(Configstring index) {
+		internal override int GetConfigstringIndex(Configstring index) {
 			switch (index) {
 			case Configstring.Sounds:
 				return (int)ConfigstringJO.Sounds;
@@ -458,6 +460,10 @@ namespace JKClient {
 				return (int)ConfigstringJO.Players;
 			case Configstring.LevelStartTime:
 				return (int)ConfigstringJO.LevelStartTime;
+			case Configstring.Scores1:
+				return (int)ConfigstringJO.Scores1;
+			case Configstring.Scores2:
+				return (int)ConfigstringJO.Scores2;
 			}
 			return 0;
 		}
@@ -500,6 +506,8 @@ namespace JKClient {
 			}
 		}
 		public enum ConfigstringJO {
+			Scores1 = 6,
+			Scores2 = 7,
 			LevelStartTime = 21,
 			Sounds = 288,
 			Players = 544
@@ -681,7 +689,7 @@ namespace JKClient {
 	public class Q3ClientGame : ClientGame {
 		public Q3ClientGame(/*IJKClientImport*/JKClient client, int serverMessageNum, int serverCommandSequence, int clientNum)
 			: base(client, serverMessageNum, serverCommandSequence, clientNum) {}
-		protected override int GetConfigstringIndex(Configstring index) {
+		internal override int GetConfigstringIndex(Configstring index) {
 			switch (index) {
 			case Configstring.Sounds:
 				return (int)ConfigstringQ3.Sounds;

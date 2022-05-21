@@ -279,9 +279,12 @@ namespace JKClient {
 			if (newSnap.DeltaNum <= 0) {
 				newSnap.Valid = true;
 				oldSnap = null;
-				if (bufferedDemoMessages.ContainsKey( this.serverMessageSequence))
+				lock (bufferedDemoMessages)
 				{
-					bufferedDemoMessages[this.serverMessageSequence].containsFullSnapshot = true;
+					if (bufferedDemoMessages.ContainsKey(this.serverMessageSequence))
+					{
+						bufferedDemoMessages[this.serverMessageSequence].containsFullSnapshot = true;
+					}
 				}
 				if (Demowaiting == 2)
 				{
@@ -310,34 +313,37 @@ namespace JKClient {
 				// Demo recording stuff.
 				if (Demowaiting == 1 && newSnap.Valid)
 				{
-					if (bufferedDemoMessages.ContainsKey(newSnap.DeltaNum))
+					lock (bufferedDemoMessages)
 					{
-						if (bufferedDemoMessages[newSnap.DeltaNum].containsFullSnapshot)
+						if (bufferedDemoMessages.ContainsKey(newSnap.DeltaNum))
 						{
-							// Okay NOW we can start recording the demo.
-							Demowaiting = 0;
-							// This is in case we use the buffered reordering of packets for demos. We want to remember the last sequenceNum we wrote to the demo.
-							// Here we just save a fake number of the message before the referenced full snapshot so that saving begins at that full snapshot that is being correctly referenced by the server.
-							//
-							DemoLastWrittenSequenceNumber = newSnap.DeltaNum - 1;
-							// Short explanation: 
-							// The old system merely waited for a full snapshot to start writing the demo.
-							// However, at that point the server has not yet received an ack for that full snapshot we received.
-							// Sometimes the server does not receive this ack (in time?) and as a result it keeps referencing
-							// older snapshots including delta snapshots that are not part of our demo file.
-							// So instead, we do a two tier system. First we request a full snapshot. Then we wait for a delta
-							// snapshot that correctly references the full snapshot. THEN we start recording the demo, starting
-							// exactly at the snapshot that we finally know the server knows we received.
+							if (bufferedDemoMessages[newSnap.DeltaNum].containsFullSnapshot)
+							{
+								// Okay NOW we can start recording the demo.
+								Demowaiting = 0;
+								// This is in case we use the buffered reordering of packets for demos. We want to remember the last sequenceNum we wrote to the demo.
+								// Here we just save a fake number of the message before the referenced full snapshot so that saving begins at that full snapshot that is being correctly referenced by the server.
+								//
+								DemoLastWrittenSequenceNumber = newSnap.DeltaNum - 1;
+								// Short explanation: 
+								// The old system merely waited for a full snapshot to start writing the demo.
+								// However, at that point the server has not yet received an ack for that full snapshot we received.
+								// Sometimes the server does not receive this ack (in time?) and as a result it keeps referencing
+								// older snapshots including delta snapshots that are not part of our demo file.
+								// So instead, we do a two tier system. First we request a full snapshot. Then we wait for a delta
+								// snapshot that correctly references the full snapshot. THEN we start recording the demo, starting
+								// exactly at the snapshot that we finally know the server knows we received.
+							}
+							else
+							{
+								Demowaiting = 2; // Nah. It's referencing a delta snapshot. We need it to reference a full one. Request another full one.
+							}
 						}
 						else
 						{
-							Demowaiting = 2; // Nah. It's referencing a delta snapshot. We need it to reference a full one. Request another full one.
+							// We do not have this referenced snapshot buffered. Request a new full snapshot.
+							Demowaiting = 2;
 						}
-					}
-					else
-					{
-						// We do not have this referenced snapshot buffered. Request a new full snapshot.
-						Demowaiting = 2;
 					}
 				}
 

@@ -332,17 +332,21 @@ namespace JKClient {
 					this.Decode(msg);
 					if (Demorecording)
 					{
-                        if (bufferedDemoMessages.ContainsKey(sequenceNumber))
-                        {
-							// VERY WEIRD. 
-                        } else
-                        {
-							bufferedDemoMessages.Add(sequenceNumber, new BufferedDemoMessageContainer()
+						lock (bufferedDemoMessages)
+						{
+							if (bufferedDemoMessages.ContainsKey(sequenceNumber))
 							{
-								msg = msg.Clone(),
-								time = DateTime.Now,
-								containsFullSnapshot = false // To be determined
-							});
+								// VERY WEIRD. 
+							}
+							else
+							{
+								bufferedDemoMessages.Add(sequenceNumber, new BufferedDemoMessageContainer()
+								{
+									msg = msg.Clone(),
+									time = DateTime.Now,
+									containsFullSnapshot = false // To be determined
+								});
+							}
 						}
 						
 					}
@@ -644,51 +648,52 @@ namespace JKClient {
 		*/
 		void WriteBufferedDemoMessages(bool forceWriteAll = false)
 		{
-			//static msg_t tmpMsg;
-			//static byte tmpMsgData[MAX_MSGLEN];
-			//tmpMsg.data = tmpMsgData;
+            lock (bufferedDemoMessages) { 
+				//static msg_t tmpMsg;
+				//static byte tmpMsgData[MAX_MSGLEN];
+				//tmpMsg.data = tmpMsgData;
 
-			// First write messages that exist without a gap.
-			//while (bufferedDemoMessages.find(clc.demoLastWrittenSequenceNumber + 1) != bufferedDemoMessages.end())
-			while (bufferedDemoMessages.ContainsKey(DemoLastWrittenSequenceNumber + 1))
-			{
-				// While we have all the messages without any gaps, we can just dump them all into the demo file.
-				Message tmpMsg = bufferedDemoMessages[DemoLastWrittenSequenceNumber + 1].msg;
-				WriteDemoMessage(tmpMsg, tmpMsg.ReadCount, DemoLastWrittenSequenceNumber + 1);
-				DemoLastWrittenSequenceNumber = DemoLastWrittenSequenceNumber + 1;
-				bufferedDemoMessages.Remove(DemoLastWrittenSequenceNumber);
-			}
+				// First write messages that exist without a gap.
+				//while (bufferedDemoMessages.find(clc.demoLastWrittenSequenceNumber + 1) != bufferedDemoMessages.end())
+				while (bufferedDemoMessages.ContainsKey(DemoLastWrittenSequenceNumber + 1))
+				{
+					// While we have all the messages without any gaps, we can just dump them all into the demo file.
+					Message tmpMsg = bufferedDemoMessages[DemoLastWrittenSequenceNumber + 1].msg;
+					WriteDemoMessage(tmpMsg, tmpMsg.ReadCount, DemoLastWrittenSequenceNumber + 1);
+					DemoLastWrittenSequenceNumber = DemoLastWrittenSequenceNumber + 1;
+					bufferedDemoMessages.Remove(DemoLastWrittenSequenceNumber);
+				}
 
-			// Now write messages that are older than the timeout. Also do a bit of cleanup while we're at it.
-			// bufferedDemoMessages is a map and maps are ordered, so the key (sequence number) should be incrementing.
-			List<int> itemsToErase = new List<int>();
-            foreach (KeyValuePair<int,BufferedDemoMessageContainer> tmpMsg in bufferedDemoMessages)
-            {
-				if (tmpMsg.Key <= DemoLastWrittenSequenceNumber)
-				{ // Older or identical number to stuff we already wrote. Discard.
-					itemsToErase.Add(tmpMsg.Key);
-					continue;
-				}
-				// First potential candidate.
-				//if (forceWriteAll || tmpIt->second.time + cl_demoRecordBufferedReorderTimeout->integer < Com_RealTime(NULL)) {
-				if (forceWriteAll || ((DateTime.Now - tmpMsg.Value.time).TotalSeconds) > DemoRecordBufferedReorderTimeout)
+				// Now write messages that are older than the timeout. Also do a bit of cleanup while we're at it.
+				// bufferedDemoMessages is a map and maps are ordered, so the key (sequence number) should be incrementing.
+				List<int> itemsToErase = new List<int>();
+				foreach (KeyValuePair<int,BufferedDemoMessageContainer> tmpMsg in bufferedDemoMessages)
 				{
-					WriteDemoMessage(tmpMsg.Value.msg, tmpMsg.Value.msg.ReadCount, tmpMsg.Key);
-					DemoLastWrittenSequenceNumber = tmpMsg.Key;
-					itemsToErase.Add(tmpMsg.Key);
+					if (tmpMsg.Key <= DemoLastWrittenSequenceNumber)
+					{ // Older or identical number to stuff we already wrote. Discard.
+						itemsToErase.Add(tmpMsg.Key);
+						continue;
+					}
+					// First potential candidate.
+					//if (forceWriteAll || tmpIt->second.time + cl_demoRecordBufferedReorderTimeout->integer < Com_RealTime(NULL)) {
+					if (forceWriteAll || ((DateTime.Now - tmpMsg.Value.time).TotalSeconds) > DemoRecordBufferedReorderTimeout)
+					{
+						WriteDemoMessage(tmpMsg.Value.msg, tmpMsg.Value.msg.ReadCount, tmpMsg.Key);
+						DemoLastWrittenSequenceNumber = tmpMsg.Key;
+						itemsToErase.Add(tmpMsg.Key);
+					}
+					else
+					{
+						// Not old enough. When there are gaps we want to wait X amount of seconds before writing a new
+						// message so that older ones can still arrive.
+						break; // Since the messages in the map are ordered, if we're not writing this one, no need to continue.
+					}
 				}
-				else
+				foreach(int itemToErase in itemsToErase)
 				{
-					// Not old enough. When there are gaps we want to wait X amount of seconds before writing a new
-					// message so that older ones can still arrive.
-					break; // Since the messages in the map are ordered, if we're not writing this one, no need to continue.
+					bufferedDemoMessages.Remove(itemToErase);
 				}
 			}
-			foreach(int itemToErase in itemsToErase)
-            {
-				bufferedDemoMessages.Remove(itemToErase);
-            }
-			
 		}
 
 		/*
@@ -741,6 +746,7 @@ namespace JKClient {
         {
 			if(demoRecordingStartPromise != null)
             {
+				firstPacketRecordedTCS.TrySetResult(false);
 				return false;
             }
 

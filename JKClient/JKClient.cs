@@ -767,7 +767,7 @@ namespace JKClient {
 		}
 
 
-		static Mutex demoUniqueFilenameMutex;
+		static Mutex demoUniqueFilenameMutex = new Mutex();
 
 		// Demo recording
 		private unsafe bool StartRecording(string demoName,bool timeStampDemoname=false)

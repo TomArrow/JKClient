@@ -766,6 +766,9 @@ namespace JKClient {
 			return await demoRecordingStartPromise.Task;
 		}
 
+
+		static Mutex demoUniqueFilenameMutex;
+
 		// Demo recording
 		private unsafe bool StartRecording(string demoName,bool timeStampDemoname=false)
         {
@@ -786,110 +789,117 @@ namespace JKClient {
             {
 				demoName = DemoFilename();
             }
-			string name = "demos/" + demoName + ".dm_" + ((int)Protocol).ToString();
-			if (File.Exists(name))
-			{
-				//Com_Printf("Record: Couldn't create a file\n");
-				return false;
-			}
 
-            lock (DemofileLock) {
+            lock (demoUniqueFilenameMutex) { // Make sure we don't accidentally try writing to an identical filename twice from different instances of the client. It can happen when the timing is really tight on a reconnect and then you get a serious error thrown your way.
 
-				// open the demo file
-				//Com_Printf("recording to %s.\n", name);
-				Directory.CreateDirectory("demos");
-				Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.None);
-				/*if (!Demofile)
+				string name = "demos/" + demoName + ".dm_" + ((int)Protocol).ToString();
+				int filenameIncrement = 2;
+				while (File.Exists(name))
 				{
-					Com_Printf("ERROR: couldn't open.\n");
-					return;
-				}*/
-				Demorecording = true;
+					name = "demos/" + demoName + $" ({filenameIncrement++})" + ".dm_" + ((int)Protocol).ToString();
 
-				this.DemoName = demoName;
-
-				Demowaiting = 2; // request non-delta message with value 2.
-				 //DemoSkipPacket = false;
-				DemoLastWrittenSequenceNumber = 0;
-
-				//byte[] data = new byte[Message.MaxLength];
-				byte[] data = new byte[ClientHandler.MaxMessageLength];
-
-
-				// write out the gamestate message
-				var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
-
-				msg.Bitstream();
-
-				// NOTE, MRE: all server->client messages now acknowledge
-				msg.WriteLong(reliableSequence);
-
-				msg.WriteByte((int)ServerCommandOperations.Gamestate);
-				msg.WriteLong(serverCommandSequence);
-
-				int len;
-
-				// configstrings
-				for (int i = 0; i < ClientHandler.MaxConfigstrings; i++)
-				{
-					if (0 == gameState.StringOffsets[i])
-					{
-						continue;
-					}
-					fixed (sbyte* s = this.gameState.StringData)
-					{
-						sbyte* cs = s + gameState.StringOffsets[i];
-						msg.WriteByte((int)ServerCommandOperations.Configstring);
-						msg.WriteShort(i);
-						len = Common.StrLen(cs);
-						byte[] bytes = new byte[len];
-						Marshal.Copy((IntPtr)cs, bytes, 0, len);
-						msg.WriteBigString((sbyte[])(Array)bytes);
-					}
+					//Com_Printf("Record: Couldn't create a file\n");
+					//return false;
 				}
 
-				// baselines
-				EntityState nullstate;
-				for (int i = 0; i < Common.MaxGEntities; i++)
-				{
+				lock (DemofileLock) {
 
-					fixed(EntityState* ent = &entityBaselines[i])
+					// open the demo file
+					//Com_Printf("recording to %s.\n", name);
+					Directory.CreateDirectory("demos");
+					Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.None);
+					/*if (!Demofile)
 					{
-						if (0 == ent->Number)
+						Com_Printf("ERROR: couldn't open.\n");
+						return;
+					}*/
+					Demorecording = true;
+
+					this.DemoName = demoName;
+
+					Demowaiting = 2; // request non-delta message with value 2.
+					 //DemoSkipPacket = false;
+					DemoLastWrittenSequenceNumber = 0;
+
+					//byte[] data = new byte[Message.MaxLength];
+					byte[] data = new byte[ClientHandler.MaxMessageLength];
+
+
+					// write out the gamestate message
+					var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
+
+					msg.Bitstream();
+
+					// NOTE, MRE: all server->client messages now acknowledge
+					msg.WriteLong(reliableSequence);
+
+					msg.WriteByte((int)ServerCommandOperations.Gamestate);
+					msg.WriteLong(serverCommandSequence);
+
+					int len;
+
+					// configstrings
+					for (int i = 0; i < ClientHandler.MaxConfigstrings; i++)
+					{
+						if (0 == gameState.StringOffsets[i])
 						{
 							continue;
 						}
-						msg.WriteByte((int)ServerCommandOperations.Baseline);
-						msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.ClientHandler);
+						fixed (sbyte* s = this.gameState.StringData)
+						{
+							sbyte* cs = s + gameState.StringOffsets[i];
+							msg.WriteByte((int)ServerCommandOperations.Configstring);
+							msg.WriteShort(i);
+							len = Common.StrLen(cs);
+							byte[] bytes = new byte[len];
+							Marshal.Copy((IntPtr)cs, bytes, 0, len);
+							msg.WriteBigString((sbyte[])(Array)bytes);
+						}
 					}
+
+					// baselines
+					EntityState nullstate;
+					for (int i = 0; i < Common.MaxGEntities; i++)
+					{
+
+						fixed(EntityState* ent = &entityBaselines[i])
+						{
+							if (0 == ent->Number)
+							{
+								continue;
+							}
+							msg.WriteByte((int)ServerCommandOperations.Baseline);
+							msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.ClientHandler);
+						}
+					}
+
+					int eofOperation = ClientHandler is JOClientHandler ? (int)ServerCommandOperations.EOF -1 : (int)ServerCommandOperations.EOF;
+					msg.WriteByte(eofOperation);
+
+					// finished writing the gamestate stuff
+
+					// write the client num
+					msg.WriteLong(this.clientNum);
+					// write the checksum feed
+					msg.WriteLong(this.checksumFeed);
+
+					// finished writing the client packet
+					msg.WriteByte(eofOperation);
+
+					// write it to the demo file
+					len = this.serverMessageSequence - 1;
+
+					Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+
+					len = msg.CurSize;
+					Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+					Demofile.Write(msg.Data, 0, msg.CurSize);
+
+					// the rest of the demo file will be copied from net messages
+
+					return true;
+
 				}
-
-				int eofOperation = ClientHandler is JOClientHandler ? (int)ServerCommandOperations.EOF -1 : (int)ServerCommandOperations.EOF;
-				msg.WriteByte(eofOperation);
-
-				// finished writing the gamestate stuff
-
-				// write the client num
-				msg.WriteLong(this.clientNum);
-				// write the checksum feed
-				msg.WriteLong(this.checksumFeed);
-
-				// finished writing the client packet
-				msg.WriteByte(eofOperation);
-
-				// write it to the demo file
-				len = this.serverMessageSequence - 1;
-
-				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-
-				len = msg.CurSize;
-				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-				Demofile.Write(msg.Data, 0, msg.CurSize);
-
-				// the rest of the demo file will be copied from net messages
-
-				return true;
-
 			}
 
 		}

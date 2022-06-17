@@ -9,6 +9,18 @@ namespace JKClient {
 		private readonly List<ServerAddress> masterServers;
 		private readonly Dictionary<NetAddress, ServerInfo> globalServers;
 		private TaskCompletionSource<IEnumerable<ServerInfo>> getListTCS, refreshListTCS;
+		private static List<NetAddress> hiddenServers = new List<NetAddress>();
+		public static void SetHiddenServers(IEnumerable<NetAddress> hiddenServersA)
+        {
+            lock (hiddenServers)
+            {
+				hiddenServers.Clear();
+				foreach(NetAddress theAddress in hiddenServersA)
+                {
+					hiddenServers.Add(theAddress);
+				}
+			}
+        }
 		private long serverRefreshTimeout = 0L;
 		private IBrowserHandler BrowserHandler => this.NetHandler as IBrowserHandler;
 		public ServerBrowser(IBrowserHandler browserHandler, IEnumerable<ServerAddress> customMasterServers = null, bool customOnly = false)
@@ -50,6 +62,19 @@ namespace JKClient {
 			this.getListTCS?.TrySetCanceled();
 			this.getListTCS = new TaskCompletionSource<IEnumerable<ServerInfo>>();
 			this.globalServers.Clear();
+			lock (hiddenServers) // For servers that aren't reported to the master server. Set via SetHiddenServers();
+			{
+				foreach (NetAddress hiddenServer in hiddenServers)
+				{
+					var serverInfo = new ServerInfo()
+					{
+						Address = hiddenServer,
+						Start = Common.Milliseconds
+					};
+					this.globalServers[serverInfo.Address] = serverInfo;
+					this.OutOfBandPrint(serverInfo.Address, "getinfo xxx");
+				}
+			}
 			foreach (var masterServer in this.masterServers) {
 				var address = NetSystem.StringToAddress(masterServer.Name, masterServer.Port);
 				if (address == null) {

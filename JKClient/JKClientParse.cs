@@ -202,7 +202,7 @@ namespace JKClient {
 				Common.MemSet(this.serverCommands[i], 0, sizeof(sbyte)*Common.MaxStringChars);
 				Common.MemSet(this.reliableCommands[i], 0, sizeof(sbyte)*Common.MaxStringChars);
 			}
-			this.clientNum = 0;
+			this.clientNum = -1;
 			this.lastPacketSentTime = 0;
 			this.lastPacketTime = 0;
 			this.serverAddress = null;

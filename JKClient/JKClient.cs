@@ -30,12 +30,13 @@ namespace JKClient {
 
         public ClientEntity[] Entities => clientGame != null? clientGame.Entities : null;
         public int playerStateClientNum => snap.PlayerState.ClientNum;
+        public PlayerState PlayerState => snap.PlayerState;
         public bool IsInterMission => snap.PlayerState.PlayerMoveType == PlayerMoveType.Intermission;
         public PlayerMoveType PlayerMoveType => snap.PlayerState.PlayerMoveType;
 		public int gameTime => this.clientGame == null ? 0: this.clientGame.GetGameTime();
         //public PlayerState CurrentPlayerState => clientGame != null? clientGame. : null;
         #region ClientConnection
-        public int clientNum { get; private set; } = 0;
+        public int clientNum { get; private set; } = -1;
 		private int lastPacketSentTime = 0;
 		private int lastPacketTime = 0;
 		private NetAddress serverAddress;

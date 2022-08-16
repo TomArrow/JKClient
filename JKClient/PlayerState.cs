@@ -9,7 +9,7 @@ namespace JKClient {
     }
 
 	[StructLayout(LayoutKind.Sequential, Pack = 4)]
-	internal struct PlayerState {
+	public struct PlayerState {
 		public int Dummy;
 		public PlayerMoveType PlayerMoveType;
 		public int PlayerMoveFlags;

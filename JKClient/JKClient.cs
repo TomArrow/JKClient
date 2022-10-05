@@ -69,6 +69,8 @@ namespace JKClient {
 		TaskCompletionSource<bool> demoFirstPacketRecordedPromise = null;
 		Mutex DemofileLock = new Mutex();
 		FileStream Demofile;
+		Int64 DemoLastFullFlush = 0;
+		public Int64 DemoFlushInterval = 200 * 1000; // 200 KB. At the very least every 200 KB a write to disk is forced.
 #endregion
 #region ClientStatic
 		private int realTime = 0;
@@ -635,6 +637,11 @@ namespace JKClient {
 					demoFirstPacketRecordedPromise.SetResult(true); // Just in case the outside code wants to do something particular once actual packets are being recorded.
 					demoFirstPacketRecordedPromise = null;
 				}
+                if ((DemoLastFullFlush + DemoFlushInterval) < Demofile.Position)
+                {
+					Demofile.Flush(true);
+					DemoLastFullFlush = Demofile.Position;
+				}
 			}
 		}
 
@@ -723,9 +730,12 @@ namespace JKClient {
 				len = -1;
 				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
 				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+				Demofile.Flush(true);
+				DemoLastFullFlush = Demofile.Position;
 				Demofile.Close();
 				Demofile.Dispose();
 				Demofile = null;
+				DemoLastFullFlush = 0;
 				Demorecording = false;
 				//Com_Printf("Stopped demo.\n");
 			}
@@ -808,7 +818,8 @@ namespace JKClient {
 					// open the demo file
 					//Com_Printf("recording to %s.\n", name);
 					Directory.CreateDirectory("demos");
-					Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.None);
+					DemoLastFullFlush = 0;
+					Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.Read);
 					/*if (!Demofile)
 					{
 						Com_Printf("ERROR: couldn't open.\n");
@@ -897,6 +908,9 @@ namespace JKClient {
 					Demofile.Write(msg.Data, 0, msg.CurSize);
 
 					// the rest of the demo file will be copied from net messages
+
+					Demofile.Flush(true);
+					DemoLastFullFlush = Demofile.Position;
 
 					return true;
 

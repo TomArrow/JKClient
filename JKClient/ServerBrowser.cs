@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace JKClient {
 	public sealed class ServerBrowser : NetClient {
-		private const long RefreshTimeout = 3000L;
+		public long RefreshTimeout { get; init; } = 3000L;
 		private readonly List<ServerAddress> masterServers;
 		private readonly ConcurrentDictionary<NetAddress, ServerInfo> globalServers;
 		private TaskCompletionSource<IEnumerable<ServerInfo>> getListTCS, refreshListTCS;

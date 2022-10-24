@@ -4,6 +4,8 @@ using System.Collections.Generic;
 namespace JKClient {
 	//TODO: remake to struct?
 	public sealed class ServerInfo {
+		public bool InfoPacketReceived { get; internal set; } = false;
+		public bool StatusResponseReceived { get; internal set; } = false; // If this is true, the Clients count is the actual count of clients excluding bots
 		public NetAddress Address { get; internal set; }
 		public string HostName { get; internal set; }
 		public string MapName { get; internal set; }
@@ -11,6 +13,7 @@ namespace JKClient {
 		public string GameName { get; internal set; }
 		public GameType GameType { get; internal set; }
 		public int Clients { get; internal set; }
+		public int ClientsIncludingBots { get; internal set; }
 		public int MaxClients { get; internal set; }
 		public int MinPing { get; internal set; }
 		public int MaxPing { get; internal set; }
@@ -34,7 +37,7 @@ namespace JKClient {
 				return;
 			}
 			this.Protocol = (ProtocolVersion)info["protocol"].Atoi();
-			this.Clients = info["clients"].Atoi();
+			this.Clients = this.ClientsIncludingBots = info["clients"].Atoi();
 			this.HostName = info["hostname"];
 			this.NWH = info.ContainsKey("nwh") ? (info["nwh"].Atoi()==0?false:true) : false;
 			this.MapName = info["mapname"];

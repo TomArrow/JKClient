@@ -136,7 +136,7 @@ namespace JKClient {
 				string serverInfoCSStr = this.GetConfigstring(GameState.ServerInfo);
 				var info = new InfoString(serverInfoCSStr);
 				this.serverInfo.Address = this.serverAddress;
-				this.serverInfo.Clients = this.ClientInfo?.Count(ci => ci.InfoValid) ?? 0;
+				this.serverInfo.Clients = this.serverInfo.ClientsIncludingBots = this.ClientInfo?.Count(ci => ci.InfoValid) ?? 0;
 				this.serverInfo.SetConfigstringInfo(info);
 				this.ClientHandler.SetExtraConfigstringInfo(this.serverInfo, info);
 				return this.serverInfo;

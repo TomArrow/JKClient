@@ -800,11 +800,11 @@ namespace JKClient {
 
             lock (demoUniqueFilenameMutex) { // Make sure we don't accidentally try writing to an identical filename twice from different instances of the client. It can happen when the timing is really tight on a reconnect and then you get a serious error thrown your way.
 
-				string name = "demos/" + demoName + ".dm_" + ((int)Protocol).ToString();
+				string name = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"JKWatcher", "demos/" + demoName + ".dm_" + ((int)Protocol).ToString());
 				int filenameIncrement = 2;
 				while (File.Exists(name))
 				{
-					name = "demos/" + demoName + $" ({filenameIncrement++})" + ".dm_" + ((int)Protocol).ToString();
+					name = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demos/" + demoName + $" ({filenameIncrement++})" + ".dm_" + ((int)Protocol).ToString());
 
 					//Com_Printf("Record: Couldn't create a file\n");
 					//return false;
@@ -814,7 +814,7 @@ namespace JKClient {
 
 					// open the demo file
 					//Com_Printf("recording to %s.\n", name);
-					Directory.CreateDirectory("demos");
+					Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demos"));
 					DemoLastFullFlush = 0;
 					Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.Read);
 					/*if (!Demofile)

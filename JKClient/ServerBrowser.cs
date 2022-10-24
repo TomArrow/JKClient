@@ -81,7 +81,7 @@ namespace JKClient {
 			this.getListTCS?.TrySetCanceled();
 			this.getListTCS = new TaskCompletionSource<IEnumerable<ServerInfo>>();
 			this.globalServers.Clear();
-			this.serverRefreshTimeout = Common.Milliseconds + ServerBrowser.RefreshTimeout;
+			this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
 			lock (hiddenServers) // For servers that aren't reported to the master server. Set via SetHiddenServers();
 			{
 				foreach (NetAddress hiddenServer in hiddenServers)
@@ -95,7 +95,7 @@ namespace JKClient {
 					this.OutOfBandPrint(serverInfo.Address, "getinfo xxx");
 				}
 			}
-			this.serverRefreshTimeout = Common.Milliseconds + ServerBrowser.RefreshTimeout;
+			this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
 			foreach (var masterServer in this.masterServers) {
 				var address = await NetSystem.StringToAddressAsync(masterServer.Name, masterServer.Port);
 				if (address == null) {
@@ -111,7 +111,7 @@ namespace JKClient {
 			}
 			this.refreshListTCS?.TrySetCanceled();
 			this.refreshListTCS = new TaskCompletionSource<IEnumerable<ServerInfo>>();
-			this.serverRefreshTimeout = Common.Milliseconds + ServerBrowser.RefreshTimeout;
+			this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
 			foreach (var server in this.globalServers) {
 				var serverInfo = server.Value;
 				serverInfo.InfoSet = false;
@@ -207,7 +207,7 @@ namespace JKClient {
 				}
 				serverInfo.Clients = playersCount;
 				this.BrowserHandler.HandleStatusResponse(serverInfo, info);
-				this.serverRefreshTimeout = Common.Milliseconds + ServerBrowser.RefreshTimeout;
+				this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
 			}
 		}
 		private void ServerInfoPacket(in NetAddress address, in Message msg) {
@@ -223,7 +223,7 @@ namespace JKClient {
 				if (this.BrowserHandler.NeedStatus) {
 					this.OutOfBandPrint(serverInfo.Address, "getstatus");
 				}
-				this.serverRefreshTimeout = Common.Milliseconds + ServerBrowser.RefreshTimeout;
+				this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
 			}
 		}
 		private class ServerInfoTask : TaskCompletionSource<InfoString> {

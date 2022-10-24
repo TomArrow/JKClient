@@ -12,11 +12,11 @@ namespace JKClient {
 		public virtual bool CanParseRMG => false;
 		public virtual bool CanParseVehicle => false;
 		public virtual string GuidKey => throw new NotImplementedException();
-		public virtual bool RequiresAuthorization => false;
 		public virtual bool FullByteEncoding => false;
 		public JOClientHandler(ProtocolVersion protocol, ClientVersion version) : base(protocol) {
 			this.Version = version;
 		}
+		public void RequestAuthorization(string CDKey, Action<NetAddress, string> authorize) {}
 		public virtual void AdjustServerCommandOperations(ref ServerCommandOperations cmd) {
 			//JO doesn't have setgame command, the rest commands match
 			if (cmd >= ServerCommandOperations.SetGame) {
@@ -31,7 +31,7 @@ namespace JKClient {
 				}
 			}
 		}
-		public virtual ClientGame CreateClientGame(/*IJKClientImport*/JKClient client, int serverMessageNum, int serverCommandSequence, int clientNum) {
+		public virtual ClientGame CreateClientGame(IJKClientImport client, int serverMessageNum, int serverCommandSequence, int clientNum) {
 			return new JOClientGame(client, serverMessageNum, serverCommandSequence, clientNum);
 		}
 		public virtual bool CanParseSnapshot() {
@@ -60,7 +60,7 @@ namespace JKClient {
 			}
 		}
 		public virtual void ClearState() {}
-		public virtual void SetExtraConfigstringInfo(ServerInfo serverInfo, InfoString info) {
+		public virtual void SetExtraConfigstringInfo(in ServerInfo serverInfo, in InfoString info) {
 			switch (serverInfo.Protocol) {
 			case ProtocolVersion.Protocol15 when info["version"].Contains("v1.03"):
 				serverInfo.Version = ClientVersion.JO_v1_03;

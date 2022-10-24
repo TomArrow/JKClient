@@ -22,8 +22,8 @@ namespace JKClient {
 		private int readCountSaved = 0;
 		public bool Overflowed { get; private set; }
 		public bool OOB { get; private set; }
-		public byte []Data { get; private set; }
-		public int MaxSize { get; private set; }
+		public byte []Data { get; init; }
+		public int MaxSize { get; init; }
 		public int CurSize { get; set; } = 0;
 		public int ReadCount { get; private set; } = 0;
 		public int Bit {
@@ -49,14 +49,14 @@ namespace JKClient {
 		}
 		public Message Clone()
         {
-			Message retVal = new Message();
+			Message retVal = new Message() { MaxSize= this.MaxSize, Data= (byte[])this.Data.Clone() };
 			retVal.Overflowed = this.Overflowed;
 			retVal.OOB = this.OOB;
-			retVal.MaxSize = this.MaxSize;
+			//retVal.MaxSize = this.MaxSize;
 			retVal.CurSize = this.CurSize;
 			retVal.ReadCount = this.ReadCount;
 			retVal.Bit = this.Bit;
-			retVal.Data = (byte[])this.Data.Clone();
+			//retVal.Data = (byte[])this.Data.Clone();
 			return retVal;
         }
 

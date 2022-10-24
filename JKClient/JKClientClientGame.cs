@@ -3,13 +3,14 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 namespace JKClient {
-	public sealed partial class JKClient {
-		private readonly StringBuilder bigInfoString = new StringBuilder(Common.BigInfoString, Common.BigInfoString);
-		internal int MaxClients => this.ClientHandler.MaxClients;
-		public event Action<CommandEventArgs> ServerCommandExecuted;
-		internal void ExecuteServerCommand(CommandEventArgs eventArgs) {
-			this.ServerCommandExecuted?.Invoke(eventArgs);
+	public sealed partial class JKClient : IJKClientImport {
+		public event EventHandler<EntityEventArgs> EntityEvent;
+		void IJKClientImport.OnEntityEvent(EntityEventArgs entityEventArgs)
+		{
+			this.EntityEvent?.Invoke(this, entityEventArgs);
 		}
+
+		private readonly StringBuilder bigInfoString = new StringBuilder(Common.BigInfoString, Common.BigInfoString);
 		private void SetTime() {
 			if (this.Status != ConnectionStatus.Active) {
 				if (this.Status != ConnectionStatus.Primed) {
@@ -38,7 +39,7 @@ namespace JKClient {
 			}
 			return clientGame;
 		}
-		private unsafe void ConfigstringModified(Command command, sbyte []s) {
+		private unsafe void ConfigstringModified(in Command command, in sbyte []s) {
 			int index = command.Argv(1).Atoi();
 			if (index < 0 || index >= this.MaxConfigstrings) {
 				throw new JKClientException($"ConfigstringModified: bad index {index}");
@@ -93,11 +94,20 @@ namespace JKClient {
 				this.ServerInfoChanged?.Invoke(this.ServerInfo);
 			}
 		}
-		public void GetCurrentSnapshotNumber(out int snapshotNumber, out int serverTime) {
+
+		int IJKClientImport.MaxClients => this.ClientHandler.MaxClients;
+		public event Action<CommandEventArgs> ServerCommandExecuted;
+		void IJKClientImport.ExecuteServerCommand(CommandEventArgs eventArgs) {
+			this.ServerCommandExecuted?.Invoke(eventArgs);
+		}
+		void IJKClientImport.NotifyClientInfoChanged() {
+			this.ServerInfoChanged?.Invoke(this.ServerInfo);
+		}
+		void IJKClientImport.GetCurrentSnapshotNumber(out int snapshotNumber, out int serverTime) {
 			snapshotNumber = this.snap.MessageNum;
 			serverTime = this.snap.ServerTime;
 		}
-		internal unsafe bool GetSnapshot(int snapshotNumber, ref Snapshot snapshot) {
+		bool IJKClientImport.GetSnapshot(in int snapshotNumber, ref Snapshot snapshot) {
 			if (snapshotNumber > this.snap.MessageNum) {
 				throw new JKClientException("GetSnapshot: snapshotNumber > this.snapshot.messageNum");
 			}
@@ -123,7 +133,7 @@ namespace JKClient {
 			}
 			return true;
 		}
-		internal unsafe bool GetServerCommand(int serverCommandNumber, out Command command) {
+		unsafe bool IJKClientImport.GetServerCommand(in int serverCommandNumber, out Command command) {
 			if (serverCommandNumber <= this.serverCommandSequence - this.MaxReliableCommands) {
 				throw new JKClientException("GetServerCommand: a reliable command was cycled out");
 			}
@@ -171,5 +181,7 @@ rescan:
 			}
 			return true;
 		}
-	}
+		unsafe string IJKClientImport.GetConfigstring(in int index) => this.GetConfigstring(index);
+
+    }
 }

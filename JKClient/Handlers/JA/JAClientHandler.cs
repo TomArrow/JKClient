@@ -13,11 +13,11 @@ namespace JKClient {
 		public virtual bool CanParseRMG => true;
 		public virtual bool CanParseVehicle => true;
 		public virtual string GuidKey => "ja_guid";
-		public virtual bool RequiresAuthorization => false;
 		public virtual bool FullByteEncoding => true;
 		public JAClientHandler(ProtocolVersion protocol, ClientVersion version) : base(protocol) {
 			this.Version = version;
 		}
+		public void RequestAuthorization(string CDKey, Action<NetAddress, string> authorize) {}
 		public virtual void AdjustServerCommandOperations(ref ServerCommandOperations cmd) {}
 		public virtual void AdjustGameStateConfigstring(int i, string csStr) {
 			if (i == GameState.ServerInfo) {
@@ -38,7 +38,7 @@ namespace JKClient {
 				}
 			}
 		}
-		public virtual ClientGame CreateClientGame(/*IJKClientImport*/JKClient client, int serverMessageNum, int serverCommandSequence, int clientNum) {
+		public virtual ClientGame CreateClientGame(IJKClientImport client, int serverMessageNum, int serverCommandSequence, int clientNum) {
 			return new JAClientGame(client, serverMessageNum, serverCommandSequence, clientNum);
 		}
 		public virtual bool CanParseSnapshot() {
@@ -82,7 +82,7 @@ namespace JKClient {
 			this.gameMod = GameMod.Undefined;
 			this.MaxConfigstrings = JAClientHandler.MaxConfigstringsBase;
 		}
-		public virtual void SetExtraConfigstringInfo(ServerInfo serverInfo, InfoString info) {
+		public virtual void SetExtraConfigstringInfo(in ServerInfo serverInfo, in InfoString info) {
 			switch (serverInfo.Protocol) {
 			case ProtocolVersion.Protocol25:
 				serverInfo.Version = ClientVersion.JA_v1_00;

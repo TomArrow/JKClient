@@ -29,24 +29,25 @@ namespace JKClient {
 			this.cts = new CancellationTokenSource();
 
 			Task.Factory.StartNew(this.Run, this.cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap().ContinueWith((t) => {
-					this.Stop();
+
+					this.Stop(true);
 					exceptionCallback?.Invoke(new JKClientException(t.Exception));
 			}, TaskContinuationOptions.OnlyOnFaulted); // Don't use OnlyOnFaulted. It's buggy and won't catch exceptions thrown inside event handlers.
 		}
-		public void Stop() {
+		public void Stop(bool afterFailure = false) {
 			if (!this.Started) {
 				return;
 //				throw new JKClientException("Cannot stop NetClient when it's not started");
 			}
 			this.Started = false;
-			this.OnStop();
+			this.OnStop(afterFailure);
 			if (this.cts != null) {
 				this.cts.Cancel();
 				this.cts = null;
 			}
 		}
 		private protected void GetPacket() {
-			var netmsg = new Message(packetReceived, sizeof(byte)*this.NetHandler.MaxMessageLength);
+			var netmsg = new Message(this.packetReceived, sizeof(byte)*this.NetHandler.MaxMessageLength);
 			NetAddress address = null;
 			while (this.net.GetPacket(ref address, netmsg)) {
 				if ((uint)netmsg.CurSize <= netmsg.MaxSize) {
@@ -55,7 +56,7 @@ namespace JKClient {
 				Common.MemSet(netmsg.Data, 0, sizeof(byte)*netmsg.MaxSize);
 			}
 		}
-		internal void OutOfBandPrint(NetAddress address, string data) {
+		internal void OutOfBandPrint(in NetAddress address, in string data) {
 			byte []msg = new byte[this.NetHandler.MaxMessageLength];
 			msg[0] = unchecked((byte)-1);
 			msg[1] = unchecked((byte)-1);
@@ -65,7 +66,7 @@ namespace JKClient {
 			dataMsg.CopyTo(msg, 4);
 			this.net.SendPacket(dataMsg.Length+4, msg, address);
 		}
-		internal void OutOfBandData(NetAddress address, string data, int length) {
+		internal void OutOfBandData(in NetAddress address, in string data, in int length) {
 			byte []msg = new byte[this.NetHandler.MaxMessageLength*2];
 			msg[0] = 0xff;
 			msg[1] = 0xff;
@@ -79,10 +80,10 @@ namespace JKClient {
 			Huffman.Compress(mbuf, 12);
 			this.net.SendPacket(mbuf.CurSize, mbuf.Data, address);
 		}
-		private protected abstract void PacketEvent(NetAddress address, Message msg);
+		private protected abstract void PacketEvent(in NetAddress address, in Message msg);
 		private protected abstract Task Run();
 		private protected virtual void OnStart() {}
-		private protected virtual void OnStop() {}
+		private protected virtual void OnStop(bool afterFailure) {}
 		public void Dispose() {
 			this.net?.Dispose();
 		}

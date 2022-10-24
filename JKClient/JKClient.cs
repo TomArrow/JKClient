@@ -9,13 +9,21 @@ using System.Threading;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Collections.Generic;
+using System.ComponentModel;
+
+namespace System.Runtime.CompilerServices
+{
+	[EditorBrowsable(EditorBrowsableState.Never)]
+	class IsExternalInit { }
+}
 
 namespace JKClient {
-	public sealed partial class JKClient : NetClient/*, IJKClientImport*/ {
 
+	
+
+	public sealed partial class JKClient : NetClient {
 		public volatile int SnapOrderTolerance = 100;
 		public volatile bool SnapOrderToleranceDemoSkipPackets = false;
-
 		private const int LastPacketTimeOut = 5 * 60000;
 		private const int RetransmitTimeOut = 3000;
 		private const int MaxPacketUserCmds = 32;
@@ -75,15 +83,11 @@ namespace JKClient {
 #region ClientStatic
 		private int realTime = 0;
 		private string servername;
-		private NetAddress authorizeServer;
 		public ConnectionStatus Status { get; private set; }
 		public IClientHandler ClientHandler => this.NetHandler as IClientHandler;
+
 		public ClientVersion Version => this.ClientHandler.Version;
-		public event EventHandler<EntityEventArgs> EntityEvent;
-		internal void OnEntityEvent(EntityEventArgs entityEventArgs)
-        {
-			this.EntityEvent?.Invoke(this,entityEventArgs);
-		}
+		
 		public event EventHandler SnapshotParsed;
 		internal void OnSnapshotParsed(EventArgs eventArgs)
         {
@@ -96,7 +100,7 @@ namespace JKClient {
 		}
 		private int MaxReliableCommands => this.ClientHandler.MaxReliableCommands;
 		private string GuidKey => this.ClientHandler.GuidKey;
-		#endregion
+#endregion
 		public string Name {
 			get => this.userInfo["name"];
 			set {
@@ -139,9 +143,6 @@ namespace JKClient {
 			}
 		}
 		public event Action<ServerInfo> ServerInfoChanged;
-		internal void NotifyServerInfoChanged() {
-			this.ServerInfoChanged?.Invoke(this.ServerInfo);
-		}
 		public JKClient(IClientHandler clientHandler) : base(clientHandler) {
 			this.Status = ConnectionStatus.Disconnected;
 			this.port = random.Next(1, 0xffff) & 0xffff;
@@ -156,6 +157,17 @@ namespace JKClient {
 			//don't start with any pending actions
 			this.DequeueActions(false);
 			base.OnStart();
+		}
+		private protected override void OnStop(bool afterFailure) {
+			this.connectTCS?.TrySetCanceled();
+			this.connectTCS = null;
+			this.Status = ConnectionStatus.Disconnected;
+			if (afterFailure) {
+				this.DequeueActions();
+				this.ClearState();
+				this.ClearConnection();
+			}
+			base.OnStop(afterFailure);
 		}
 		private protected override async Task Run() {
 			long frameTime, lastTime = Common.Milliseconds;
@@ -233,7 +245,9 @@ namespace JKClient {
 			this.connectPacketCount++;
 			switch (this.Status) {
 			case ConnectionStatus.Connecting:
-				this.RequestAuthorization();
+				this.ClientHandler.RequestAuthorization(this.CDKey, (address, data2) => {
+					this.OutOfBandPrint(address, data2);
+				});
 				this.OutOfBandPrint(this.serverAddress, $"getchallenge {this.challenge}");
 				break;
 			case ConnectionStatus.Challenging:
@@ -242,21 +256,7 @@ namespace JKClient {
 				break;
 			}
 		}
-		private void RequestAuthorization() {
-			if (!this.ClientHandler.RequiresAuthorization) {
-				return;
-			}
-			if (this.authorizeServer == null) {
-				this.authorizeServer = NetSystem.StringToAddress("authorize.quake3arena.com", 27952);
-				if (this.authorizeServer == null) {
-					Debug.WriteLine("Couldn't resolve authorize address");
-					return;
-				}
-			}
-			string nums = Regex.Replace(CDKey, "[^a-zA-Z0-9]", string.Empty);
-			this.OutOfBandPrint(this.authorizeServer, $"getKeyAuthorize {0} {nums}");
-		}
-		private unsafe void Encode(Message msg) {
+		private unsafe void Encode(in Message msg) {
 			if (msg.CurSize <= 12) {
 				return;
 			}
@@ -285,7 +285,7 @@ namespace JKClient {
 				}
 			}
 		}
-		private unsafe void Decode(Message msg) {
+		private unsafe void Decode(in Message msg) {
 			msg.SaveState();
 			msg.Bitstream();
 			int reliableAcknowledge = msg.ReadLong();
@@ -309,8 +309,9 @@ namespace JKClient {
 				}
 			}
 		}
-		private protected override unsafe void PacketEvent(NetAddress address, Message msg) {
-			//			this.lastPacketTime = this.realTime;
+
+		private protected override unsafe void PacketEvent(in NetAddress address, in Message msg) {
+//			this.lastPacketTime = this.realTime;
 			int headerBytes;
 			fixed (byte *b = msg.Data) {
 				if (msg.CurSize >= 4 && *(int*)b == -1) {
@@ -533,23 +534,18 @@ namespace JKClient {
 		private void ExecuteCommandDirectly(string cmd, Encoding encoding) {
 			this.OutOfBandPrint(this.serverAddress, cmd);
 		}
-		public Task Connect(ServerInfo serverInfo) {
+		public Task Connect(in ServerInfo serverInfo) {
 			if (serverInfo == null) {
 				throw new JKClientException(new ArgumentNullException(nameof(serverInfo)));
 			}
-			return this.Connect(serverInfo.Address.ToString(), serverInfo.Protocol);
+			return this.Connect(serverInfo.Address.ToString());
 		}
-		public Task Connect(string address, ProtocolVersion protocol = ProtocolVersion.Unknown) {
-			return this.Connect(address, (int)protocol);
-		}
-		public async Task Connect(string address, int protocol = (int)ProtocolVersion.Unknown) {
+		public async Task Connect(string address) {
 			this.connectTCS?.TrySetCanceled();
-			var serverAddress = NetSystem.StringToAddress(address);
+			this.connectTCS = null;
+			var serverAddress = await NetSystem.StringToAddressAsync(address);
 			if (serverAddress == null) {
 				throw new JKClientException("Bad server address");
-			}
-			if (this.Protocol != protocol) {
-				throw new JKClientException("Protocol mismatch on connect");
 			}
 			this.connectTCS = new TaskCompletionSource<bool>();
 			void connect() {
@@ -569,6 +565,7 @@ namespace JKClient {
 			void disconnect() {
 				this.StopRecord_f();
 				this.connectTCS?.TrySetCanceled();
+				this.connectTCS = null;
 				if (status >= ConnectionStatus.Connected) {
 					this.AddReliableCommand("disconnect", true);
 					this.WritePacket();
@@ -581,7 +578,7 @@ namespace JKClient {
 			}
 			this.actionsQueue.Enqueue(disconnect);
 		}
-		public static IClientHandler GetKnownClientHandler(ServerInfo serverInfo) {
+		public static IClientHandler GetKnownClientHandler(in ServerInfo serverInfo) {
 			if (serverInfo == null) {
 				throw new JKClientException(new ArgumentNullException(nameof(serverInfo)));
 			}

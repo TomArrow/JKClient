@@ -11,6 +11,7 @@ namespace JKClient {
 		public EntityState NextState;
 		public QuakeBoolean Interpolate;
 		public QuakeBoolean CurrentValid;
+		public QuakeBoolean CurrentFilledFromPlayerState;
 		public int PreviousEvent;
 		public int SnapshotTime;
 	}

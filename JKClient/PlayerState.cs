@@ -97,7 +97,7 @@ namespace JKClient {
 
 			es.EntityFlags = this.EntityFlags;
 
-			es.FilledFromPlayerState = true;
+			//es.FilledFromPlayerState = true;
 		}
 
 

@@ -82,7 +82,7 @@ namespace JKClient {
 
 		public int Generic1;
 
-		public QuakeBoolean FilledFromPlayerState; // That way we can know the data in this is valid aside from CurrentValid
+		//public QuakeBoolean FilledFromPlayerState; // That way we can know the data in this is valid aside from CurrentValid
 
 		//IMPORTANT: update all entityStateFields in Message after adding new fields
 		public static readonly EntityState Null = new EntityState();

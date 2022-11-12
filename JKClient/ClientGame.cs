@@ -123,6 +123,7 @@ namespace JKClient {
 		private protected virtual void SetInitialSnapshot(in Snapshot snap) {
 			this.Snap = snap;
 			this.Snap.PlayerState.ToEntityState(ref this.Entities[snap.PlayerState.ClientNum].CurrentState);
+			this.Entities[snap.PlayerState.ClientNum].CurrentFilledFromPlayerState = true;
 			this.ExecuteNewServerCommands(snap.ServerCommandSequence);
 			int count = this.Snap.NumEntities;
 			for (int i = 0; i < count; i++) {
@@ -158,9 +159,12 @@ namespace JKClient {
 				ref var cent = ref this.Entities[es.Number];
 				cent.CurrentValid = false;
 			}
+			this.Entities[this.Snap.PlayerState.ClientNum].CurrentFilledFromPlayerState = false;
+
 			var oldFrame = this.Snap;
 			this.Snap = this.NextSnap;
 			this.Snap.PlayerState.ToEntityState(ref this.Entities[this.Snap.PlayerState.ClientNum].CurrentState);
+			this.Entities[this.Snap.PlayerState.ClientNum].CurrentFilledFromPlayerState = true;
 			this.Entities[this.Snap.PlayerState.ClientNum].Interpolate = false;
 			count = this.Snap.NumEntities;
 			for (int i = 0; i < count; i++) {

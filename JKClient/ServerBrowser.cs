@@ -25,6 +25,8 @@ namespace JKClient {
 		private long serverRefreshTimeout = 0L;
 		private readonly ConcurrentDictionary<NetAddress, ServerInfoTask> serverInfoTasks;
 		private readonly HashSet<NetAddress> serverInfoTasksToRemove;
+		private readonly ConcurrentDictionary<NetAddress, ServerInfoInfoTask> serverInfoInfoTasks;
+		private readonly HashSet<NetAddress> serverInfoInfoTasksToRemove;
 		private IBrowserHandler BrowserHandler => this.NetHandler as IBrowserHandler;
 		public ServerBrowser(IBrowserHandler browserHandler, IEnumerable<ServerAddress> customMasterServers = null, bool customOnly = false)
 			: base(browserHandler) {
@@ -42,6 +44,8 @@ namespace JKClient {
 			this.globalServers = new ConcurrentDictionary<NetAddress, ServerInfo>(new NetAddressComparer());
 			this.serverInfoTasks = new ConcurrentDictionary<NetAddress, ServerInfoTask>(new NetAddressComparer());
 			this.serverInfoTasksToRemove = new HashSet<NetAddress>(new NetAddressComparer());
+			this.serverInfoInfoTasks = new ConcurrentDictionary<NetAddress, ServerInfoInfoTask>(new NetAddressComparer());
+			this.serverInfoInfoTasksToRemove = new HashSet<NetAddress>(new NetAddressComparer());
 		}
 		private protected override void OnStop(bool afterFailure) {
 			this.getListTCS?.TrySetCanceled();
@@ -55,6 +59,7 @@ namespace JKClient {
 				this.GetPacket();
 				this.HandleServersList();
 				this.HandleServerInfoTasks();
+				this.HandleServerInfoInfoTasks();
 				await Task.Delay(frameTime);
 			}
 		}
@@ -76,6 +81,18 @@ namespace JKClient {
 				this.serverInfoTasks.TryRemove(serverInfoTaskToRemove, out _);
 			}
 			this.serverInfoTasksToRemove.Clear();
+		}
+		private void HandleServerInfoInfoTasks() {
+			foreach (var serverInfoInfoTask in this.serverInfoInfoTasks) {
+				if (serverInfoInfoTask.Value.Timeout < Common.Milliseconds) {
+					serverInfoInfoTask.Value.TrySetCanceled();
+					this.serverInfoInfoTasksToRemove.Add(serverInfoInfoTask.Key);
+				}
+			}
+			foreach (var serverInfoInfoTaskToRemove in this.serverInfoInfoTasksToRemove) {
+				this.serverInfoInfoTasks.TryRemove(serverInfoInfoTaskToRemove, out _);
+			}
+			this.serverInfoInfoTasksToRemove.Clear();
 		}
 		public async Task<IEnumerable<ServerInfo>> GetNewList() {
 			this.getListTCS?.TrySetCanceled();
@@ -128,12 +145,29 @@ namespace JKClient {
 			this.OutOfBandPrint(address, "getstatus");
 			return await serverInfoTCS.Task;
 		}
-		public async Task<InfoString> GetServerInfo(string address, ushort port) {
+		public async Task<InfoString> GetServerInfo(string address, ushort port = 0) {
 			var netAddress = await NetSystem.StringToAddressAsync(address, port);
 			if (netAddress == null) {
 				return null;
 			}
 			return await this.GetServerInfo(netAddress);
+		}
+		// For actual "getinfo" packet since GetServerInfo actually gives you "getstatus"
+		public async Task<InfoString> GetServerInfoInfo(NetAddress address) {
+			if (this.serverInfoInfoTasks.ContainsKey(address)) {
+				this.serverInfoInfoTasks[address].TrySetCanceled();
+			}
+			var serverInfoInfoTCS = this.serverInfoInfoTasks[address] = new ServerInfoInfoTask();
+			this.OutOfBandPrint(address, "getinfo xxx");
+			return await serverInfoInfoTCS.Task;
+		}
+		// For actual "getinfo" packet since GetServerInfo actually gives you "getstatus"
+		public async Task<InfoString> GetServerInfoInfo(string address, ushort port = 0) {
+			var netAddress = await NetSystem.StringToAddressAsync(address, port);
+			if (netAddress == null) {
+				return null;
+			}
+			return await this.GetServerInfoInfo(netAddress);
 		}
 		private protected override unsafe void PacketEvent(in NetAddress address, in Message msg) {
 			fixed (byte *b = msg.Data) {
@@ -213,6 +247,11 @@ namespace JKClient {
 		}
 		private void ServerInfoPacket(in NetAddress address, in Message msg) {
 			var info = new InfoString(msg.ReadStringAsString());
+			if (this.serverInfoInfoTasks.ContainsKey(address))
+			{
+				this.serverInfoInfoTasks[address].TrySetResult(info);
+				this.serverInfoInfoTasks.TryRemove(address, out _);
+			}
 			if (this.globalServers.ContainsKey(address)) {
 				var serverInfo = this.globalServers[address];
 				if (serverInfo.InfoSet) {
@@ -231,6 +270,10 @@ namespace JKClient {
 		private class ServerInfoTask : TaskCompletionSource<InfoString> {
 			private const long CancelTimeout = 3000L;
 			public long Timeout { get; init; } = Common.Milliseconds + ServerInfoTask.CancelTimeout;
+		}
+		private class ServerInfoInfoTask : TaskCompletionSource<InfoString> {
+			private const long CancelTimeout = 3000L;
+			public long Timeout { get; init; } = Common.Milliseconds + ServerInfoInfoTask.CancelTimeout;
 		}
 		public sealed class ServerAddress {
 			public string Name { get; init; }

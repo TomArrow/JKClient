@@ -301,6 +301,8 @@ namespace JKClient {
 		protected abstract int GetEntityType(EntityType entityType);
 		protected abstract int GetEntityFlag(EntityFlag entityFlag);
 		public enum Configstring {
+			ServerInfo =0,
+			SystemInfo =1,
 			GameVersion,
 			Scores1,
 			Scores2,

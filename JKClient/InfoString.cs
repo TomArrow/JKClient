@@ -10,7 +10,7 @@ namespace JKClient {
 			internal set => base[key] = value;
 		}
 		private InfoString() {}
-		internal InfoString(string infoString) : base(new InfoStringComparer()) {
+		public InfoString(string infoString) : base(new InfoStringComparer()) {
 			if (string.IsNullOrEmpty(infoString)) {
 				return;
 			}

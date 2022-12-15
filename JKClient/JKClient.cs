@@ -49,6 +49,7 @@ namespace JKClient {
 		private int lastPacketTime = 0;
 		private NetAddress serverAddress;
 		private int connectTime = -9999;
+		private int infoRequestTime = -9999;
 		private int connectPacketCount = 0;
 		private int challenge = 0;
 		private int checksumFeed = 0;
@@ -249,6 +250,7 @@ namespace JKClient {
 					this.OutOfBandPrint(address, data2);
 				});
 				this.OutOfBandPrint(this.serverAddress, "getinfo xxx");
+				this.infoRequestTime = this.realTime;
 				this.OutOfBandPrint(this.serverAddress, $"getchallenge {this.challenge}");
 				break;
 			case ConnectionStatus.Challenging:
@@ -260,6 +262,10 @@ namespace JKClient {
                     }
 					string data = $"connect \"{this.userInfo}\\protocol\\{this.Protocol}\\qport\\{this.port}\\challenge\\{this.challenge}\"";
 					this.OutOfBandData(this.serverAddress, data, data.Length);
+				} else if (this.realTime - this.infoRequestTime >= JKClient.RetransmitTimeOut) // Maybe the request or answer to the request got lost somewhere... let's ask again.
+                {
+					this.OutOfBandPrint(this.serverAddress, "getinfo xxx");
+					this.infoRequestTime = this.realTime;
 				}
 				break;
 			}
@@ -569,6 +575,7 @@ namespace JKClient {
 				this.serverAddress = serverAddress;
 				this.challenge = ((random.Next() << 16) ^ random.Next()) ^ (int)Common.Milliseconds;
 				this.connectTime = -9999;
+				this.infoRequestTime = -9999;
 				this.connectPacketCount = 0;
 				this.Status = ConnectionStatus.Connecting;
 			}

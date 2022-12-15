@@ -208,6 +208,7 @@ namespace JKClient {
 			this.lastPacketTime = 0;
 			this.serverAddress = null;
 			this.connectTime = 0;
+			this.infoRequestTime = 0;
 			this.connectPacketCount = 0;
 			this.challenge = 0;
 			this.checksumFeed = 0;

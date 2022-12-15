@@ -248,11 +248,19 @@ namespace JKClient {
 				this.ClientHandler.RequestAuthorization(this.CDKey, (address, data2) => {
 					this.OutOfBandPrint(address, data2);
 				});
+				this.OutOfBandPrint(this.serverAddress, "getinfo xxx");
 				this.OutOfBandPrint(this.serverAddress, $"getchallenge {this.challenge}");
 				break;
 			case ConnectionStatus.Challenging:
-				string data = $"connect \"{this.userInfo}\\protocol\\{this.Protocol}\\qport\\{this.port}\\challenge\\{this.challenge}\"";
-				this.OutOfBandData(this.serverAddress, data, data.Length);
+                if (this.serverInfo.InfoPacketReceived) // Don't challenge until we have serverInfo.
+                {
+                    if (this.serverInfo.NWH)
+                    {
+						this.userInfo["engine"] = "demoBot"; // Try not to get influenced by servers blocking JKChat
+                    }
+					string data = $"connect \"{this.userInfo}\\protocol\\{this.Protocol}\\qport\\{this.port}\\challenge\\{this.challenge}\"";
+					this.OutOfBandData(this.serverAddress, data, data.Length);
+				}
 				break;
 			}
 		}
@@ -390,7 +398,15 @@ namespace JKClient {
 			string s = msg.ReadStringLineAsString();
 			var command = new Command(s);
 			string c = command.Argv(0);
-			if (string.Compare(c, "challengeResponse", StringComparison.OrdinalIgnoreCase) == 0) {
+			if (string.Compare(c, "infoResponse", StringComparison.OrdinalIgnoreCase) == 0)
+			{
+				// Minimalistic handling. We only need some basic info.
+				var info = new InfoString(msg.ReadStringAsString());
+				this.serverInfo.Ping = (int)(Common.Milliseconds - serverInfo.Start);
+				this.serverInfo.SetInfo(info);
+				this.serverInfo.InfoPacketReceived = true;
+			}
+			else if (string.Compare(c, "challengeResponse", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.Status != ConnectionStatus.Connecting) {
 					return;
 				}

@@ -19,6 +19,14 @@ namespace System.Runtime.CompilerServices
 
 namespace JKClient {
 
+	public class DemoName_t {
+		public string name;
+		public DateTime time; // For name shenanigans
+		public override string ToString()
+        {
+			return name;
+        }
+    }
 	
 
 	public sealed partial class JKClient : NetClient {
@@ -61,10 +69,10 @@ namespace JKClient {
 		private int lastExecutedServerCommand = 0;
 		private sbyte [][]serverCommands;
 		private NetChannel netChannel;
-#endregion
-#region DemoWriting
+		#endregion
+		#region DemoWriting
 		// demo information
-		string DemoName;
+		DemoName_t DemoName;
 		//bool SpDemoRecording;
 		public bool Demorecording { get; private set; }
 		private SortedDictionary<int, BufferedDemoMessageContainer> bufferedDemoMessages = new SortedDictionary<int, BufferedDemoMessageContainer>();
@@ -108,9 +116,9 @@ namespace JKClient {
 				string name = value;
 				if (string.IsNullOrEmpty(name)) {
 					name = JKClient.DefaultName;
-				} else if (name.Length > 31) {
+				}/* else if (name.Length > 31) { // Let me choose pls :)
 					name = name.Substring(0, 31);
-				}
+				}*/
 				this.userInfo["name"] = name;
 				this.UpdateUserInfo();
 			}
@@ -767,13 +775,14 @@ namespace JKClient {
 		DemoFilename
 		==================
 		*/
-		string DemoFilename()
+		DemoName_t DemoFilename()
 		{
-			return "demo" + DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+			DateTime now = DateTime.Now;
+			return new DemoName_t { name = "demo" + now.ToString("yyyy-MM-dd_HH-mm-ss"), time=now };
 		}
 
 		// firstPacketRecordedTCS in case you want to do anything once the first packet has recorded, like send some command that you want the response recorded of
-		public async Task<bool> Record_f(string demoName,TaskCompletionSource<bool> firstPacketRecordedTCS = null)
+		public async Task<bool> Record_f(DemoName_t demoName,TaskCompletionSource<bool> firstPacketRecordedTCS = null)
         {
 			if(demoRecordingStartPromise != null)
             {
@@ -797,11 +806,15 @@ namespace JKClient {
 			return await demoRecordingStartPromise.Task;
 		}
 
+		public DemoName_t getDemoName()
+        {
+			return DemoName;
+        }
 
 		static Mutex demoUniqueFilenameMutex = new Mutex();
 
 		// Demo recording
-		private unsafe bool StartRecording(string demoName,bool timeStampDemoname=false)
+		private unsafe bool StartRecording(DemoName_t demoName,bool timeStampDemoname=false)
         {
 
 			if (Demorecording)

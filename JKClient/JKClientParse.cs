@@ -223,7 +223,7 @@ namespace JKClient {
 			this.Demorecording = false;
 			this.bufferedDemoMessages.Clear();
 			this.DemoLastWrittenSequenceNumber = -1;
-			this.DemoName = "";
+			this.DemoName = null;
 			this.Demofile = null;
 			this.DemoSkipPacket = false;
 			if(this.demoRecordingStartPromise != null)

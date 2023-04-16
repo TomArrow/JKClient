@@ -49,6 +49,8 @@ namespace JKClient {
         public PlayerState PlayerState => snap.PlayerState;
         public bool IsInterMission => snap.PlayerState.PlayerMoveType == PlayerMoveType.Intermission;
         public PlayerMoveType PlayerMoveType => snap.PlayerState.PlayerMoveType;
+        public int SnapNum => snap.MessageNum;
+        public int ServerTime => snap.ServerTime;
 		public int gameTime => this.clientGame == null ? 0: this.clientGame.GetGameTime();
         //public PlayerState CurrentPlayerState => clientGame != null? clientGame. : null;
         #region ClientConnection
@@ -67,6 +69,8 @@ namespace JKClient {
 		private int serverMessageSequence = 0;
 		private int serverCommandSequence = 0;
 		private int lastExecutedServerCommand = 0;
+		private int desiredSnaps = 1000;
+		private bool clientForceSnaps = false;
 		private sbyte [][]serverCommands;
 		private NetChannel netChannel;
 		#endregion
@@ -128,6 +132,24 @@ namespace JKClient {
 			set {
 				this.userInfo["password"] = value;
 				this.UpdateUserInfo();
+			}
+		}
+		public int DesiredSnaps {
+			get => this.desiredSnaps;
+			set {
+				if(this.desiredSnaps != value) { 
+					this.desiredSnaps = value;
+					this.userInfo["snaps"] = value.ToString();
+					this.UpdateUserInfo();
+				}
+			}
+		}
+		// Force discard packets that don't respect our DesiredSnaps setting?
+		// Many servers don't respect it these days.
+		public bool ClientForceSnaps {
+			get => this.clientForceSnaps;
+			set {
+				this.clientForceSnaps = value;
 			}
 		}
 		public Guid Guid {
@@ -332,6 +354,45 @@ namespace JKClient {
 			}
 		}
 
+		// Basically: Is this message's first server command a snapshot (indicating no gamestate/commands in this message)?
+		// And: Is the snapshot delta? 
+		// We don't ever wanna skip messasges with gamestate or commands, or with non-delta messages.
+		// But we can skip delta messages to artificially limit snaps.
+		private bool MessageIsSkippable(in Message msg, int newSnapNum, ref int serverTimeHere)
+        {
+			bool canSkip = false;
+			// Pre-parse a bit of the messsage to see if it contains anything but snapshot as first thing
+			msg.SaveState();
+			msg.Bitstream();
+			_ = msg.ReadLong(); // Reliable acknowledge, don't care.
+			if (msg.ReadCount > msg.CurSize)
+			{
+				throw new JKClientException("ParseServerMessage (pre): read past end of server message");
+			}
+			ServerCommandOperations cmd = (ServerCommandOperations)msg.ReadByte();
+			this.ClientHandler.AdjustServerCommandOperations(ref cmd);
+			if (cmd == ServerCommandOperations.Snapshot)
+			{
+				serverTimeHere = msg.ReadLong();
+				int deltaNum = msg.ReadByte();
+				int theDeltaNum = 0;
+				if (deltaNum == 0)
+				{
+					theDeltaNum = -1;
+				}
+				else
+				{
+					theDeltaNum = newSnapNum - deltaNum;
+				}
+				if (theDeltaNum > 0)
+				{
+					canSkip = true; // This is the only situation where we wanna skip. Message contains no gamestate or commands, only snapshot, and it's a delta snapshot.
+				}
+			}
+			msg.RestoreState();
+			return canSkip;
+		}
+
 		private protected override unsafe void PacketEvent(in NetAddress address, in Message msg) {
 //			this.lastPacketTime = this.realTime;
 			int headerBytes;
@@ -352,10 +413,37 @@ namespace JKClient {
 				int sequenceNumber =0;
 				bool validButOutOfOrder=false;
 				bool process = this.netChannel.Process(msg, ref sequenceNumber, ref validButOutOfOrder);
-				
+
+				// Save to demo queue
 				if(process || validButOutOfOrder)
                 {
 					this.Decode(msg);
+
+					// Clientside snaps limiting if requested
+					if (process && clientForceSnaps)
+					{
+						int newSnapNum = *(int*)b;
+						int newServerTime = 0;
+
+						if (MessageIsSkippable(in msg, newSnapNum, ref newServerTime))
+						{
+							int oldServerTime = this.snap.ServerTime;
+							int timeDelta = newServerTime - oldServerTime;
+							int minDelta = 1000 / this.desiredSnaps;
+
+							// Give it a bit of tolerance. 5 percent
+							// Because for example snaps 2 will result in time distances like 493 instead of 500 ms.
+							// That's technically only 2 percent. But whatever, let's give it 5 percent tolerance.
+							// And it's rounded anyway. So it'd only apply with minDelta 20+ ms anyway, which would be 50 fps. So if we requesst 50fps, it might allow 52 fps.
+							minDelta -= minDelta / 20;
+
+							if (timeDelta < minDelta)
+							{
+								return; // We're skipping this one.
+							}
+						}
+					}
+
 					if (Demorecording)
 					{
 						lock (bufferedDemoMessages)
@@ -377,6 +465,8 @@ namespace JKClient {
 						
 					}
 				}
+
+
 				if (!process)
 				{
 					return;

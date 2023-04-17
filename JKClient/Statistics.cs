@@ -12,7 +12,7 @@ namespace JKClient
         public Int64 demoSize { get; internal set; }
         [DependsOn("demoSize")]
         public string demoSizeKiB { get {
-                return $"{((double)demoSize / 1024.0).ToString(",0.000",CultureInfo.InvariantCulture)} KiB";
+                return $"{((double)demoSize / 1024.0).ToString("#,#.000",CultureInfo.InvariantCulture)} KiB";
             } 
         }
         public Int64 demoSizeFullFlushed { get; internal set; }
@@ -21,7 +21,7 @@ namespace JKClient
         {
             get
             {
-                return $"{((double)demoSizeFullFlushed / 1024.0).ToString(",0.000", CultureInfo.InvariantCulture)} KiB";
+                return $"{((double)demoSizeFullFlushed / 1024.0).ToString("#,#.000", CultureInfo.InvariantCulture)} KiB";
             }
         }
         public Int64 deltaSnaps { get; internal set; }

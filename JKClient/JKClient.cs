@@ -44,6 +44,7 @@ namespace JKClient {
 		private ClientGame clientGame;
 		private TaskCompletionSource<bool> connectTCS;
 
+		public Statistics Stats { get; init; } = new Statistics();
         public ClientEntity[] Entities => clientGame != null? clientGame.Entities : null;
         public int playerStateClientNum => snap.PlayerState.ClientNum;
         public PlayerState PlayerState => snap.PlayerState;
@@ -371,22 +372,46 @@ namespace JKClient {
 			}
 			ServerCommandOperations cmd = (ServerCommandOperations)msg.ReadByte();
 			this.ClientHandler.AdjustServerCommandOperations(ref cmd);
-			if (cmd == ServerCommandOperations.Snapshot)
-			{
-				serverTimeHere = msg.ReadLong();
-				int deltaNum = msg.ReadByte();
-				int theDeltaNum = 0;
-				if (deltaNum == 0)
+			bool newCommands = false;
+			if(cmd == ServerCommandOperations.ServerCommand)
+            {
+				int seq = msg.ReadLong();
+				_ = msg.ReadString();
+				if (this.serverCommandSequence < seq)
 				{
-					theDeltaNum = -1;
+					newCommands = true;
+					Stats.messagesUnskippableNewCommands++;
+				}
+				cmd = (ServerCommandOperations)msg.ReadByte();
+			}
+            if (!newCommands)
+            {
+				if (cmd == ServerCommandOperations.Snapshot)
+				{
+					serverTimeHere = msg.ReadLong();
+					int deltaNum = msg.ReadByte();
+					int theDeltaNum = 0;
+					if (deltaNum == 0)
+					{
+						theDeltaNum = -1;
+					}
+					else
+					{
+						theDeltaNum = newSnapNum - deltaNum;
+					}
+					if (theDeltaNum > 0)
+					{
+						Stats.messagesSkippable++;
+						canSkip = true; // This is the only situation where we wanna skip. Message contains no gamestate or commands, only snapshot, and it's a delta snapshot.
+					}
+					else
+					{
+						Stats.messagesUnskippableNonDelta++;
+					}
 				}
 				else
 				{
-					theDeltaNum = newSnapNum - deltaNum;
-				}
-				if (theDeltaNum > 0)
-				{
-					canSkip = true; // This is the only situation where we wanna skip. Message contains no gamestate or commands, only snapshot, and it's a delta snapshot.
+					Stats.messagesUnskippableSvc++;
 				}
 			}
 			msg.RestoreState();
@@ -419,6 +444,12 @@ namespace JKClient {
                 {
 					this.Decode(msg);
 
+					Stats.totalMessages++;
+                    if (validButOutOfOrder)
+                    {
+						Stats.messagesOutOfOrder++;
+                    }
+
 					// Clientside snaps limiting if requested
 					if (process && clientForceSnaps)
 					{
@@ -439,7 +470,13 @@ namespace JKClient {
 
 							if (timeDelta < minDelta)
 							{
+								Stats.messagesSkipped++;
 								return; // We're skipping this one.
+                            }
+                            else
+                            {
+								Stats.messagesNotSkippedTime++;
+
 							}
 						}
 					}
@@ -759,7 +796,9 @@ namespace JKClient {
                 {
 					Demofile.Flush(true);
 					DemoLastFullFlush = Demofile.Position;
+					Stats.demoSizeFullFlushed = DemoLastFullFlush;
 				}
+				Stats.demoSize = Demofile.Position;
 			}
 		}
 
@@ -856,6 +895,8 @@ namespace JKClient {
 				DemoLastFullFlush = 0;
 				Demorecording = false;
 				//Com_Printf("Stopped demo.\n");
+				Stats.demoSize = 0;
+				Stats.demoSizeFullFlushed = DemoLastFullFlush;
 			}
 		}
 
@@ -1034,6 +1075,8 @@ namespace JKClient {
 
 					Demofile.Flush(true);
 					DemoLastFullFlush = Demofile.Position;
+					Stats.demoSize = Demofile.Position;
+					Stats.demoSizeFullFlushed = DemoLastFullFlush;
 
 					return true;
 

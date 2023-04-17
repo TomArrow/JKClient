@@ -398,6 +398,17 @@ namespace JKClient {
 			this.snapshots[this.snap.MessageNum & JKClient.PacketMask] = this.snap;
 			this.newSnapshots = true;
 
+			if(oldSnap == null)
+            {
+
+				Stats.nonDeltaSnaps++;
+			} else
+            {
+
+				Stats.deltaSnaps++;
+
+			}
+
 			this.OnSnapshotParsed(EventArgs.Empty);
 		}
 		private unsafe void ParsePacketEntities(in Message msg, in ClientSnapshot *oldSnap, in ClientSnapshot *newSnap) {

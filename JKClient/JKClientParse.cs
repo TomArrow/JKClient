@@ -399,8 +399,9 @@ namespace JKClient {
 			this.snap = newSnap;
 			this.snapshots[this.snap.MessageNum & JKClient.PacketMask] = this.snap;
 			this.newSnapshots = true;
+			this.lastServerTimeUpdateTime = Common.Milliseconds;
 
-			if(oldSnap == null)
+			if (oldSnap == null)
             {
 
 				Stats.nonDeltaSnaps++;

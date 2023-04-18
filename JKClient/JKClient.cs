@@ -235,7 +235,8 @@ namespace JKClient {
 				if (this.Status >= ConnectionStatus.Primed) {
 					this.clientGame.Frame(this.serverTime);
 				}
-				await Task.Delay(3);
+				System.Threading.Thread.Sleep(6);
+				//await Task.Delay(3); // This is taking WAY longer than 3 ms. More like 20-40ms, it's insane.
 			}
 			//complete all actions after stop
 			this.DequeueActions();
@@ -604,13 +605,18 @@ namespace JKClient {
 		}
 		private void CreateNewCommand()
 		{
-			int delta = (int)(Common.Milliseconds - this.lastServerTimeUpdateTime);
 			if (this.Status < ConnectionStatus.Primed) {
 				return;
 			}
-			int newCmdServerTime = this.serverTime + delta;
+			int delta = (int)(Common.Milliseconds - this.lastServerTimeUpdateTime);
+			if (this.lastServerTimeUpdateTime == 0 || delta > 1000 || delta < 0)
+			{
+				delta = 0; // If somehow stuff went backwards, just go 0.
+			}
+			//int newCmdServerTime = this.serverTime + delta;
+			int newCmdServerTime = this.snap.ServerTime + delta;
 			int userCmdDelta = newCmdServerTime - this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime;
-			if (userCmdDelta<1)
+			if (userCmdDelta<1 && newCmdServerTime > 0)
             {
 				return; // Never let time flow backwards.
 			}

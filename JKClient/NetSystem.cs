@@ -95,6 +95,10 @@ namespace JKClient {
 			}
 			EndPoint endPoint = new IPEndPoint(0, 0);
 			try {
+                if (!this.ipSocket.Poll(0,SelectMode.SelectRead))
+                {
+					return false;
+                }
 				int ret = this.ipSocket.ReceiveFrom(msg.Data, msg.MaxSize, SocketFlags.None, ref endPoint);
 				if (ret == msg.MaxSize) {
 					return false;

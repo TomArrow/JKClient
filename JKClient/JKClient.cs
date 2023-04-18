@@ -27,8 +27,8 @@ namespace JKClient {
 			return name;
         }
     }
-	
 
+	public delegate void UserCommandGeneratedEventHandler(object sender, ref UserCommand modifiableCommand);
 	public sealed partial class JKClient : NetClient {
 		public volatile int SnapOrderTolerance = 100;
 		public volatile bool SnapOrderToleranceDemoSkipPackets = false;
@@ -106,6 +106,11 @@ namespace JKClient {
 		internal void OnSnapshotParsed(EventArgs eventArgs)
         {
 			this.SnapshotParsed?.Invoke(this, eventArgs);
+		}
+		public event UserCommandGeneratedEventHandler UserCommandGenerated;
+		internal void OnUserCommandGenerated(ref UserCommand cmd)
+        {
+			this.UserCommandGenerated?.Invoke(this, ref cmd);
 		}
 		public event EventHandler Disconnected;
 		internal void OnDisconnected(EventArgs eventArgs)
@@ -223,13 +228,14 @@ namespace JKClient {
 				this.DequeueActions();
 				lastTime = frameTime;
 				this.realTime += msec;
+				this.Stats.lastFrameDelta = msec;
 				this.SendCommand();
 				this.CheckForResend();
 				this.SetTime();
 				if (this.Status >= ConnectionStatus.Primed) {
 					this.clientGame.Frame(this.serverTime);
 				}
-				await Task.Delay(8);
+				await Task.Delay(3);
 			}
 			//complete all actions after stop
 			this.DequeueActions();
@@ -596,12 +602,24 @@ namespace JKClient {
 				Debug.WriteLine(c);
 			}
 		}
-		private void CreateNewCommand() {
+		private void CreateNewCommand()
+		{
+			int delta = (int)(Common.Milliseconds - this.lastServerTimeUpdateTime);
 			if (this.Status < ConnectionStatus.Primed) {
 				return;
 			}
+			int newCmdServerTime = this.serverTime + delta;
+			int userCmdDelta = newCmdServerTime - this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime;
+			if (userCmdDelta<1)
+            {
+				return; // Never let time flow backwards.
+			}
+			this.Stats.lastUserCommandDelta = userCmdDelta;
 			this.cmdNumber++;
-			this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime = this.serverTime;
+			this.cmds[this.cmdNumber & UserCommand.CommandMask] = default;
+			this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime = this.serverTime+ delta;
+
+			OnUserCommandGenerated(ref this.cmds[this.cmdNumber & UserCommand.CommandMask]);
 		}
 		private void SendCommand() {
 			if (this.Status < ConnectionStatus.Connected) {
@@ -610,9 +628,11 @@ namespace JKClient {
 			this.CreateNewCommand();
 			int oldPacketNum = (this.netChannel.OutgoingSequence - 1) & JKClient.PacketMask;
 			int delta = this.realTime - this.outPackets[oldPacketNum].RealTime;
-			if (delta < 10) {
+			//if (delta < 10) { // Don't limit this. We're already limiting the main loop.
+			if (delta < 1) { // Ok let's not be ridiculous.
 				return;
 			}
+			this.Stats.lastUserPacketDelta = delta;
 			this.WritePacket();
 		}
 		private void WritePacket() {

@@ -18,6 +18,7 @@ namespace JKClient {
 				}
 				if (this.newSnapshots) {
 					this.newSnapshots = false;
+					this.lastServerTimeUpdateTime = Common.Milliseconds;
 					if ((this.snap.Flags & ClientSnapshot.NotActive) != 0) {
 						return;
 					}

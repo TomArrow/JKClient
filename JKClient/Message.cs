@@ -173,7 +173,19 @@ namespace JKClient {
 				this.WriteData(b, l+1);
 			}
 		}
-		public void WriteDeltaUsercmdKey(int key, ref UserCommand from, ref UserCommand to) {
+
+		public void WriteDeltaKey(int key, int oldV, int newV, int bits)
+		{
+			if (oldV == newV)
+			{
+				this.WriteBits(0, 1);
+				return;
+			}
+			this.WriteBits(1, 1);
+			this.WriteBits((newV ^ key) & ((1 << bits) - 1), bits);
+		}
+
+		public unsafe void WriteDeltaUsercmdKey(int key, ref UserCommand from, ref UserCommand to) {
 			if (to.ServerTime - from.ServerTime < 256) {
 				this.WriteBits(1, 1);
 				this.WriteBits(to.ServerTime - from.ServerTime, 8);
@@ -181,7 +193,36 @@ namespace JKClient {
 				this.WriteBits(0, 1);
 				this.WriteBits(to.ServerTime, 32);
 			}
-			this.WriteBits(0, 1);
+			if (from.Angles[0] == to.Angles[0] &&
+				from.Angles[1] == to.Angles[1] &&
+				from.Angles[2] == to.Angles[2] &&
+				from.ForwardMove == to.ForwardMove &&
+				from.RightMove == to.RightMove &&
+				from.Upmove == to.Upmove &&
+				from.Buttons == to.Buttons &&
+				from.Weapon == to.Weapon &&
+				from.ForceSelection == to.ForceSelection &&
+				from.InventorySelection == to.InventorySelection &&
+				from.GenericCmd == to.GenericCmd)
+			{
+				this.WriteBits(0, 1);               // no change
+				return;
+			}
+			key ^= to.ServerTime;
+			this.WriteBits(1, 1);
+			this.WriteDeltaKey(key, from.Angles[0], to.Angles[0], 16);
+			this.WriteDeltaKey(key, from.Angles[1], to.Angles[1], 16);
+			this.WriteDeltaKey(key, from.Angles[2], to.Angles[2], 16);
+			this.WriteDeltaKey(key, from.ForwardMove, to.ForwardMove, 8);
+			this.WriteDeltaKey(key, from.RightMove, to.RightMove, 8);
+			this.WriteDeltaKey(key, from.Upmove, to.Upmove, 8);
+			this.WriteDeltaKey(key, from.Buttons, to.Buttons, 16);
+			this.WriteDeltaKey(key, from.Weapon, to.Weapon, 8);
+
+			this.WriteDeltaKey(key, from.ForceSelection, to.ForceSelection, 8);
+			this.WriteDeltaKey(key, from.InventorySelection, to.InventorySelection, 8);
+
+			this.WriteDeltaKey(key, from.GenericCmd, to.GenericCmd, 8);
 		}
 		public void BeginReading(bool oob = false) {
 			this.ReadCount = 0;

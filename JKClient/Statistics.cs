@@ -35,6 +35,31 @@ namespace JKClient
         public Int64 messagesUnskippableNonDelta { get; internal set; }
         public Int64 messagesNotSkippedTime { get; internal set; }
 
+        public Int64 lastFrameDelta { get; internal set; }
+        [DependsOn("lastFrameDelta")]
+        public int lastFrameDeltaFPS { get {
+                return lastFrameDelta == 0 ? 0 : (int)(1000 / lastFrameDelta);
+            } }
+
+        public Int64 lastUserCommandDelta { get; internal set; }
+        [DependsOn("lastUserCommandDelta")]
+        public int lastUserCommandDeltaFPS
+        {
+            get
+            {
+                return lastUserCommandDelta ==  0 ? 0 :(int)(1000 / lastUserCommandDelta);
+            }
+        }
+        public Int64 lastUserPacketDelta { get; internal set; }
+        [DependsOn("lastUserPacketDelta")]
+        public int lastUserPacketDeltaFPS
+        {
+            get
+            {
+                return lastUserPacketDelta == 0 ? 0 : (int)(1000 / lastUserPacketDelta);
+            }
+        }
+
 
 
         public event PropertyChangedEventHandler PropertyChanged;

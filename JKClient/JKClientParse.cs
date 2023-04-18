@@ -10,6 +10,7 @@ namespace JKClient {
 #region ClientActive
 		private ClientSnapshot snap = new ClientSnapshot();
 		private int serverTime = 0;
+		private long lastServerTimeUpdateTime = 0;
 		private int levelStartTime = 0;
 		private int oldFrameServerTime = 0;
 		private bool newSnapshots = false;
@@ -180,6 +181,7 @@ namespace JKClient {
 		private unsafe void ClearState() {
 			this.snap = new ClientSnapshot();
 			this.serverTime = 0;
+			this.lastServerTimeUpdateTime = 0;
 			this.levelStartTime = 0;
 			this.oldFrameServerTime = 0;
 			this.serverTimeOlderThanPreviousCount = 0;

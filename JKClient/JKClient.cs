@@ -235,8 +235,9 @@ namespace JKClient {
 				if (this.Status >= ConnectionStatus.Primed) {
 					this.clientGame.Frame(this.serverTime);
 				}
-				System.Threading.Thread.Sleep(6);
-				//await Task.Delay(3); // This is taking WAY longer than 3 ms. More like 20-40ms, it's insane.
+				//await Task.Delay(6); // This is taking WAY longer than 3 ms. More like 20-40ms, it's insane
+				System.Threading.Thread.Sleep(6); // This ALSO isn't precise (except when debugging ironically?!?! the moment i detach debugger it becomes imprecise and takes forever)
+				// Actually it's fine now. I had to increase the timer resolution with the thingie thang
 			}
 			//complete all actions after stop
 			this.DequeueActions();

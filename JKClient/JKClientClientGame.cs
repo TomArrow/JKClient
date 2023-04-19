@@ -66,24 +66,30 @@ namespace JKClient {
 				this.gameState.DataCount = 1;
 				int len;
 				for (int i = 0; i < this.MaxConfigstrings; i++) {
-					byte []dup = new byte[GameState.MaxGameStateChars];
+					//byte []dup = new byte[GameState.MaxGameStateChars]; // Don't allocate this much useless stuff omg!
+					sbyte *dup = null;
+					sbyte* bdup = &oldGs.StringData[oldGs.StringOffsets[i]];
 					if (i == index) {
-						len = Common.StrLen(sb);
-						Marshal.Copy((IntPtr)sb, dup, 0, len);
+						//len = Common.StrLen(sb);
+						//Marshal.Copy((IntPtr)sb, dup, 0, len);
+						dup = sb;
 					} else {
-						sbyte *bdup = &oldGs.StringData[oldGs.StringOffsets[i]];
 						if (bdup[0] == 0) {
 							continue;
 						}
-						len = Common.StrLen(bdup);
-						Marshal.Copy((IntPtr)bdup, dup, 0, len);
+						//len = Common.StrLen(bdup);
+						dup = bdup;
+						//Marshal.Copy((IntPtr)bdup, dup, 0, len);
 					}
+
+					len = Common.StrLen(dup);
 					if (len + 1 + this.gameState.DataCount > GameState.MaxGameStateChars) {
 						throw new JKClientException("MaxGameStateChars exceeded");
 					}
 					this.gameState.StringOffsets[i] = this.gameState.DataCount;
 					fixed (sbyte *stringData = this.gameState.StringData) {
-						Marshal.Copy(dup, 0, (IntPtr)(stringData+this.gameState.DataCount), len+1);
+						//Marshal.Copy((IntPtr)dup, 0, (IntPtr)(stringData+this.gameState.DataCount), len+1);
+						Buffer.MemoryCopy(dup, stringData + this.gameState.DataCount, GameState.MaxGameStateChars- this.gameState.DataCount, len+1);
 					}
 					this.gameState.DataCount += len + 1;
 				}

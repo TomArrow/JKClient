@@ -10,6 +10,12 @@ namespace JKClient {
 #region ClientActive
 		private ClientSnapshot snap = new ClientSnapshot();
 		private int serverTime = 0;
+
+		// Need this for proper command timing. Or server will discard commands we send because they have duplicated servertimes
+		private int clServerTime = 0; // What we wanna send in commands
+		private int clOldServerTime = 0; // What we wanna send in commands
+		private int clServerTimeDelta = 0; // What we wanna send in commands
+
 		private long lastServerTimeUpdateTime = 0;
 		private int levelStartTime = 0;
 		private int oldFrameServerTime = 0;
@@ -181,6 +187,9 @@ namespace JKClient {
 		private unsafe void ClearState() {
 			this.snap = new ClientSnapshot();
 			this.serverTime = 0;
+			this.clServerTime = 0;
+			this.clOldServerTime = 0;
+			this.clServerTimeDelta = 0;
 			this.lastServerTimeUpdateTime = 0;
 			this.levelStartTime = 0;
 			this.oldFrameServerTime = 0;

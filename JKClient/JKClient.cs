@@ -609,22 +609,15 @@ namespace JKClient {
 			if (this.Status < ConnectionStatus.Primed) {
 				return;
 			}
-			int delta = (int)(Common.Milliseconds - this.lastServerTimeUpdateTime);
-			if (this.lastServerTimeUpdateTime == 0 || delta > 1000 || delta < 0)
-			{
-				delta = 0; // If somehow stuff went backwards, just go 0.
-			}
-			//int newCmdServerTime = this.serverTime + delta;
-			int newCmdServerTime = this.snap.ServerTime + delta;
-			int userCmdDelta = newCmdServerTime - this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime;
-			if (userCmdDelta<1 && newCmdServerTime > 0)
+			int userCmdDelta = this.clServerTime - this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime;
+			if (userCmdDelta<1 && this.clServerTime > 0)
             {
 				return; // Never let time flow backwards.
 			}
 			this.Stats.lastUserCommandDelta = userCmdDelta;
 			this.cmdNumber++;
 			this.cmds[this.cmdNumber & UserCommand.CommandMask] = default;
-			this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime = this.serverTime+ delta;
+			this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime = this.clServerTime;
 
 			OnUserCommandGenerated(ref this.cmds[this.cmdNumber & UserCommand.CommandMask]);
 		}

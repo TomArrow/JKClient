@@ -11,6 +11,48 @@ namespace JKClient {
 		}
 
 		private readonly StringBuilder bigInfoString = new StringBuilder(Common.BigInfoString, Common.BigInfoString);
+
+		private void AdjustTimeDelta()
+        {
+			const int RESET_TIME = 500;
+			this.newSnapshots = false;
+			int newDelta = this.snap.ServerTime - this.realTime;
+			int deltaDelta = Math.Abs(newDelta - this.clServerTimeDelta);
+			if (deltaDelta > RESET_TIME)
+			{
+				this.clServerTimeDelta = newDelta;
+				this.clOldServerTime = this.snap.ServerTime;  // FIXME: is this a problem for cgame?
+				this.clServerTime = this.snap.ServerTime;
+			}
+			else if (deltaDelta > 100)
+			{
+				// fast adjust, cut the difference in half
+				this.clServerTimeDelta = (this.clServerTimeDelta + newDelta) >> 1;
+			}
+			else
+			{
+				// Don't do this for now, not sure what it's about -TA
+
+				// slow drift adjust, only move 1 or 2 msec
+
+				// if any of the frames between this and the previous snapshot
+				// had to be extrapolated, nudge our sense of time back a little
+				// the granularity of +1 / -2 is too high for timescale modified frametimes
+				/*if (com_timescale->value == 0 || com_timescale->value == 1)
+				{
+					if (cl.extrapolatedSnapshot)
+					{
+						cl.extrapolatedSnapshot = qfalse;
+						cl.serverTimeDelta -= 2;
+					}
+					else
+					{
+						// otherwise, move our sense of time forward to minimize total latency
+						cl.serverTimeDelta++;
+					}
+				}*/
+			}
+		}
 		private void SetTime() {
 			if (this.Status != ConnectionStatus.Active) {
 				if (this.Status != ConnectionStatus.Primed) {
@@ -30,6 +72,23 @@ namespace JKClient {
 			}
 			this.serverTime = this.snap.ServerTime;
 			this.oldFrameServerTime = this.snap.ServerTime;
+
+			// Need this for proper command timing.
+			// For sake of simplicity, we forgo timenudge.
+			// We're not really playing after all, only spectating.
+			this.clServerTime = this.realTime + this.clServerTimeDelta;
+			// guarantee that time will never flow backwards, even if
+			// serverTimeDelta made an adjustment or cl_timeNudge was changed
+			if (this.clServerTime < this.clOldServerTime)
+			{
+				this.clServerTime = this.clOldServerTime;
+			}
+			this.clOldServerTime = this.clServerTime;
+
+            if (this.newSnapshots)
+            {
+				this.AdjustTimeDelta();
+			}
 		}
 		private ClientGame InitClientGame() {
 			this.Status = ConnectionStatus.Primed;

@@ -3,6 +3,15 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 namespace JKClient {
+
+	public struct ConfigStringMismatch
+	{
+		public string intendedString;
+		public string actualString;
+		public byte[] oldGsStringData;
+		public byte[] newGsStringData;
+	}
+
 	public sealed partial class JKClient : IJKClientImport {
 		public event EventHandler<EntityEventArgs> EntityEvent;
 		void IJKClientImport.OnEntityEvent(EntityEventArgs entityEventArgs)
@@ -98,7 +107,9 @@ namespace JKClient {
 			}
 			return clientGame;
 		}
-		private unsafe void ConfigstringModified(in Command command, in sbyte []s) {
+
+
+        private unsafe void ConfigstringModified(in Command command, in sbyte []s) {
 			int index = command.Argv(1).Atoi();
 			if (index < 0 || index >= this.MaxConfigstrings) {
 				throw new JKClientException($"ConfigstringModified: bad index {index}");
@@ -108,17 +119,27 @@ namespace JKClient {
 				start++;
 			}
 			int blen = command.Argv(2).Length;
-			if (blen == 0) {
-				blen = 1;
-			}
-			sbyte []b = new sbyte[blen];
-			Array.Copy(s, start, b, 0, b.Length);
+			//if (blen == 0) { //Wtf?
+			//	blen = 1;
+			//}
+			sbyte []b = new sbyte[blen+1];
+			Array.Copy(s, start, b, 0, b.Length-1);
+#if DEBUG
+			bool oldGsExists = false;
+			GameState oldGs;
+#endif
 			fixed (sbyte *old = &this.gameState.StringData[this.gameState.StringOffsets[index]],
 				sb = b) {
 				if (Common.StriCmp(old, sb) == 0) {
 					return;
 				}
+
+#if DEBUG
+				oldGs = this.gameState;
+				oldGsExists = true;
+#else
 				var oldGs = this.gameState;
+#endif
 				fixed (GameState *gs = &this.gameState) {
 					Common.MemSet(gs, 0, sizeof(GameState));
 				}
@@ -158,6 +179,30 @@ namespace JKClient {
 			} else if (index == GameState.ServerInfo) {
 				this.ServerInfoChanged?.Invoke(this.ServerInfo);
 			}
+#if DEBUG
+			if(this.DebugEventHappened.GetInvocationList().Length > 0)
+            {
+				// Check back if the configstring was correctly written.
+				string shouldString = command.Argv(2);
+				string isString = this.GetConfigstring(index);
+				if(shouldString != isString)
+                {
+
+					byte[] oldArray = oldGsExists ? new byte[GameState.MaxGameStateChars] : null;
+					byte[] newArray = new byte[GameState.MaxGameStateChars];
+                    if (oldGsExists)
+					{
+						Marshal.Copy((IntPtr)oldGs.StringData, oldArray, 0,  GameState.MaxGameStateChars);
+					}
+
+					fixed (sbyte* newGameStateData = this.gameState.StringData)
+                    {
+						Marshal.Copy((IntPtr)newGameStateData, newArray, 0, GameState.MaxGameStateChars);
+					}
+					this.OnDebugEventHappened(new ConfigStringMismatch() { intendedString=shouldString, actualString=isString,oldGsStringData=oldArray,newGsStringData=newArray});
+                }
+            }
+#endif
 		}
 
 		int IJKClientImport.MaxClients => this.ClientHandler.MaxClients;

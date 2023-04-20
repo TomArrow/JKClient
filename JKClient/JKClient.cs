@@ -112,6 +112,11 @@ namespace JKClient {
         {
 			this.UserCommandGenerated?.Invoke(this, ref cmd);
 		}
+		public event EventHandler<object> DebugEventHappened; // Has nothing to do with q3 engine events. It's just for some special cases to comfortably debug stuff.
+		internal void OnDebugEventHappened(object o)
+        {
+			this.DebugEventHappened?.Invoke(this, o);
+		}
 		public event EventHandler Disconnected;
 		internal void OnDisconnected(EventArgs eventArgs)
         {

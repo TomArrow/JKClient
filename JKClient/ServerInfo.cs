@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
-namespace JKClient {
+namespace JKClient
+{
 	//TODO: remake to struct?
 	public sealed class ServerInfo {
+		public DateTime? InfoPacketReceivedTime { get; internal set; } = null;
+		public DateTime? StatusResponseReceivedTime { get; internal set; } = null;
 		public bool InfoPacketReceived { get; internal set; } = false;
 		public bool StatusResponseReceived { get; internal set; } = false; // If this is true, the Clients count is the actual count of clients excluding bots
 		public NetAddress Address { get; internal set; }

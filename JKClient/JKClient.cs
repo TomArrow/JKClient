@@ -559,6 +559,7 @@ namespace JKClient {
 				this.serverInfo.Ping = (int)(Common.Milliseconds - serverInfo.Start);
 				this.serverInfo.SetInfo(info);
 				this.serverInfo.InfoPacketReceived = true;
+				this.serverInfo.InfoPacketReceivedTime = DateTime.Now;
 			}
 			else if (string.Compare(c, "challengeResponse", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.Status != ConnectionStatus.Connecting) {

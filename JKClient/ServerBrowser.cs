@@ -242,6 +242,7 @@ namespace JKClient {
 				serverInfo.Clients = playersCount;
 				this.BrowserHandler.HandleStatusResponse(serverInfo, info);
 				serverInfo.StatusResponseReceived = true;
+				serverInfo.StatusResponseReceivedTime = DateTime.Now;
 				this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
 			}
 		}
@@ -264,6 +265,7 @@ namespace JKClient {
 					this.OutOfBandPrint(serverInfo.Address, "getstatus");
 				}
 				serverInfo.InfoPacketReceived = true;
+				serverInfo.InfoPacketReceivedTime = DateTime.Now;
 				this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
 			}
 		}

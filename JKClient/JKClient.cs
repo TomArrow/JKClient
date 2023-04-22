@@ -616,10 +616,10 @@ namespace JKClient {
 				return;
 			}
 			int userCmdDelta = this.clServerTime - this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime;
-			if (userCmdDelta<1 && this.clServerTime > 0)
+			/*if (userCmdDelta==0 && this.clServerTime > 0) // I commented this block out but originally it was userCmdDelta<1 and caused issues. ==0 should be ok but we don't really need this anyway.
             {
 				return; // Never let time flow backwards.
-			}
+			}*/ // actually this seems to do more harm than good. we're already limited with thread.sleep and sometimes servers reset time and we can accidentally get sstuck in MoveNoDelta and record HUGE files.
 			this.Stats.lastUserCommandDelta = userCmdDelta;
 			this.cmdNumber++;
 			this.cmds[this.cmdNumber & UserCommand.CommandMask] = default;

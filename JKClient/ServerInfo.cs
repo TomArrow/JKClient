@@ -7,10 +7,10 @@ namespace JKClient
 {
 	public struct Player
     {
-		public int score;
-		public int ping;
-		public string name;
-		public bool isBot;
+		public int score { get; set; }
+		public int ping { get; set; }
+		public string name { get; set; }
+		public bool isBot { get; set; }
 		public override string ToString()
         {
 			string botStringPart = isBot ? ",bot" : "";

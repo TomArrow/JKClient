@@ -1,11 +1,29 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 
 namespace JKClient
 {
+	public struct Player
+    {
+		public int score;
+		public int ping;
+		public string name;
+		public bool isBot;
+		public override string ToString()
+        {
+			string botStringPart = isBot ? ",bot" : "";
+			return $"\"{name}\"({score},{ping}{botStringPart})";
+        }
+    }
+
 	//TODO: remake to struct?
 	public sealed class ServerInfo {
+		internal List<Player> players = new List<Player> ();
+		public ReadOnlyCollection<Player> Players { get {
+				return players.AsReadOnly();
+			} }
 		public DateTime? InfoPacketReceivedTime { get; internal set; } = null;
 		public DateTime? StatusResponseReceivedTime { get; internal set; } = null;
 		public bool InfoPacketReceived { get; internal set; } = false;

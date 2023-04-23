@@ -232,9 +232,13 @@ namespace JKClient {
 			if (this.globalServers.ContainsKey(address)) {
 				var serverInfo = this.globalServers[address];
 				int playersCount = 0;
+				serverInfo.players.Clear();
 				for (string s = msg.ReadStringLineAsString(); !string.IsNullOrEmpty(s); s = msg.ReadStringLineAsString()) {
 					var command = new Command(s);
+					int score = command.Argv(0).Atoi();
 					int ping = command.Argv(1).Atoi();
+					string name = command.Argv(2);
+					serverInfo.players.Add(new Player() {name=name,ping=ping,score=score,isBot=ping<=0 });
 					if (ping > 0) {
 						playersCount++;
 					}

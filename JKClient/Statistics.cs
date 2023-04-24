@@ -34,6 +34,8 @@ namespace JKClient
         public Int64 messagesUnskippableNewCommands { get; internal set; }
         public Int64 messagesUnskippableNonDelta { get; internal set; }
         public Int64 messagesNotSkippedTime { get; internal set; }
+        public Int64 demoCurrentTime { get; internal set; }
+        public Int64 messagesDropped { get; internal set; }
 
         public Int64 lastFrameDelta { get; internal set; }
         [DependsOn("lastFrameDelta")]

@@ -16,6 +16,12 @@ namespace JKClient {
 		private int clOldServerTime = 0; // What we wanna send in commands
 		private int clServerTimeDelta = 0; // What we wanna send in commands
 
+		public int DemoCurrentTime { get; private set; } = 0;
+		private int DemoBaseTime = 0;
+		private int DemoStartTime = 0;
+		private int LastKnownTime = 0;
+
+
 		private long lastServerTimeUpdateTime = 0;
 		private int levelStartTime = 0;
 		private int oldFrameServerTime = 0;
@@ -31,6 +37,30 @@ namespace JKClient {
 		private EntityState []parseEntities = new EntityState[JKClient.MaxParseEntities];
 #endregion
 		private int MaxConfigstrings => this.ClientHandler.MaxConfigstrings;
+
+
+		private void UpdateDemoTime()
+        {
+			if(!this.Demorecording || this.Demowaiting > 0)
+            {
+				this.DemoCurrentTime = 0;
+				this.DemoBaseTime = 0;
+				this.DemoStartTime = 0;
+				this.LastKnownTime = this.snap.ServerTime;
+				this.Stats.demoCurrentTime = this.DemoCurrentTime;
+				return;
+            }
+
+			if (this.snap.ServerTime < LastKnownTime && this.snap.ServerTime < 10000)
+			{ // Assume a servertime reset (new serverTime is under 10 secs). 
+				DemoBaseTime = DemoCurrentTime; // Remember fixed offset into demo time.
+				DemoStartTime = this.snap.ServerTime;
+			}
+			DemoCurrentTime = DemoBaseTime + this.snap.ServerTime - DemoStartTime;
+			LastKnownTime = this.snap.ServerTime;
+			this.Stats.demoCurrentTime = this.DemoCurrentTime;
+		}
+
 		private void ParseServerMessage(in Message msg) {
 			msg.Bitstream();
 			this.reliableAcknowledge = msg.ReadLong();
@@ -61,6 +91,7 @@ namespace JKClient {
 					break;
 				case ServerCommandOperations.Snapshot:
 					this.ParseSnapshot(in msg);
+					this.UpdateDemoTime();
 					eof = true;
 					break;
 				case ServerCommandOperations.SetGame:
@@ -190,6 +221,10 @@ namespace JKClient {
 			this.clServerTime = 0;
 			this.clOldServerTime = 0;
 			this.clServerTimeDelta = 0;
+			this.DemoCurrentTime = 0;
+			this.DemoBaseTime = 0;
+			this.DemoStartTime = 0;
+			this.LastKnownTime = 0;
 			this.lastServerTimeUpdateTime = 0;
 			this.levelStartTime = 0;
 			this.oldFrameServerTime = 0;
@@ -235,6 +270,7 @@ namespace JKClient {
 			this.bufferedDemoMessages.Clear();
 			this.DemoLastWrittenSequenceNumber = -1;
 			this.DemoName = null;
+			this.AbsoluteDemoName = null;
 			this.Demofile = null;
 			this.DemoSkipPacket = false;
 			if(this.demoRecordingStartPromise != null)
@@ -299,6 +335,7 @@ namespace JKClient {
 					if (bufferedDemoMessages.ContainsKey(this.serverMessageSequence))
 					{
 						bufferedDemoMessages[this.serverMessageSequence].containsFullSnapshot = true;
+						bufferedDemoMessages[this.serverMessageSequence].serverTime = newSnap.ServerTime;
 					}
 				}
 				if (Demowaiting == 2)
@@ -348,6 +385,8 @@ namespace JKClient {
 								// So instead, we do a two tier system. First we request a full snapshot. Then we wait for a delta
 								// snapshot that correctly references the full snapshot. THEN we start recording the demo, starting
 								// exactly at the snapshot that we finally know the server knows we received.
+
+								DemoStartTime = bufferedDemoMessages[newSnap.DeltaNum].serverTime;
 							}
 							else
 							{

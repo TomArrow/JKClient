@@ -78,6 +78,7 @@ namespace JKClient {
 		#region DemoWriting
 		// demo information
 		DemoName_t DemoName;
+		public string AbsoluteDemoName { get; private set; } = null;
 		//bool SpDemoRecording;
 		public bool Demorecording { get; private set; }
 		private SortedDictionary<int, BufferedDemoMessageContainer> bufferedDemoMessages = new SortedDictionary<int, BufferedDemoMessageContainer>();
@@ -461,7 +462,7 @@ namespace JKClient {
                     if (validButOutOfOrder)
                     {
 						Stats.messagesOutOfOrder++;
-                    }
+					}
 
 					// Clientside snaps limiting if requested
 					if (process && clientForceSnaps)
@@ -510,6 +511,10 @@ namespace JKClient {
 									time = DateTime.Now,
 									containsFullSnapshot = false // To be determined
 								});
+                                if (validButOutOfOrder)
+                                {
+									this.Stats.messagesDropped--;
+								}
 							}
 						}
 						
@@ -520,6 +525,9 @@ namespace JKClient {
 				if (!process)
 				{
 					return;
+				} else
+                {
+					this.Stats.messagesDropped += this.netChannel.dropped;
 				}
 
 
@@ -920,9 +928,12 @@ namespace JKClient {
 				Demofile = null;
 				DemoLastFullFlush = 0;
 				Demorecording = false;
+				Demowaiting = 0;
 				//Com_Printf("Stopped demo.\n");
 				Stats.demoSize = 0;
 				Stats.demoSizeFullFlushed = DemoLastFullFlush;
+
+				UpdateDemoTime();
 			}
 		}
 
@@ -1017,6 +1028,7 @@ namespace JKClient {
 					}*/
 					Demorecording = true;
 
+					this.AbsoluteDemoName = name;
 					this.DemoName = demoName;
 
 					Demowaiting = 2; // request non-delta message with value 2.

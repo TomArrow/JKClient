@@ -31,7 +31,7 @@ namespace JKClient {
 		//private readonly byte []fragmentBuffer;
 		private readonly byte []unsentBuffer;
 		private readonly int maxMessageLength;
-		private int dropped = 0;
+		public int dropped { get; private set; } = 0;
 		private int incomingSequence = 0;
 		//private int fragmentSequence = 0;
 		//private int fragmentLength = 0;

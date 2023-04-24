@@ -11,6 +11,7 @@ namespace JKClient {
 		public Message msg;
 		public DateTime time;
 		public bool containsFullSnapshot;
+		public int serverTime;
 	}
 
 	internal sealed class Message {

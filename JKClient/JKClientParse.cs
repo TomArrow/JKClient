@@ -221,10 +221,10 @@ namespace JKClient {
 			this.clServerTime = 0;
 			this.clOldServerTime = 0;
 			this.clServerTimeDelta = 0;
-			this.DemoCurrentTime = 0;
-			this.DemoBaseTime = 0;
-			this.DemoStartTime = 0;
-			this.LastKnownTime = 0;
+			//this.DemoCurrentTime = 0;
+			//this.DemoBaseTime = 0;
+			//this.DemoStartTime = 0;
+			//this.LastKnownTime = 0;
 			this.lastServerTimeUpdateTime = 0;
 			this.levelStartTime = 0;
 			this.oldFrameServerTime = 0;

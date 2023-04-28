@@ -151,9 +151,9 @@ namespace JKClient {
 		public int Paintime;       // used for both game and client side to process the pain twitch - NOT sent across the network
 		public int PainDirection;  // NOT sent across the network
 		float YawAngle;     // NOT sent across the network
-		QuakeBoolean Yawing;            // NOT sent across the network
+		public QuakeBoolean Yawing;            // NOT sent across the network
 		float PitchAngle;       // NOT sent across the network
-		QuakeBoolean Pitching;      // NOT sent across the network
+		public QuakeBoolean Pitching;      // NOT sent across the network
 
 		// these also need the constants ported:
 		public unsafe fixed int Persistant[Common.MaxPersistant]; // stats that aren't cleared on death
@@ -171,8 +171,8 @@ namespace JKClient {
 
 		public int LastOnGround;   //last time you were on the ground
 
-		QuakeBoolean SaberInFlight;
-		QuakeBoolean SaberActive;
+		public QuakeBoolean SaberInFlight;
+		public QuakeBoolean SaberActive;
 
 		public int SaberMove;
 		public int SaberBlocking;
@@ -289,6 +289,64 @@ namespace JKClient {
 		public QuakeBoolean DualBlade;
 
 		public unsafe fixed float lastHitLoc[3];
+
+
+
+		// JKA:
+		public unsafe fixed float moveDir[3]; //NOT sent over the net - nor should it be.
+		public float speedJKA;
+		public int slopeRecalcTime; //this is NOT sent across the net and is maintained seperately on game and cgame in pmove code.
+		public QuakeBoolean legsFlip; //set to opposite when the same anim needs restarting, sent over in only 1 bit. Cleaner and makes porting easier than having that god forsaken ANIM_TOGGLEBIT.
+		public QuakeBoolean torsoFlip;
+		public int eFlags2;        // copied to entityState_t->eFlags2, EF2_??? used much less frequently
+		public int saberLockHitCheckTime; //so we don't allow more than 1 push per server frame
+		public int saberLockHitIncrementTime; //so we don't add a hit per attack button press more than once per server frame
+		public int saberHolsteredJKA;
+		public int heldByClient; //can only be a client index - this client should be holding onto my arm using IK stuff.
+		public int ragAttach; //attach to ent while ragging
+		public int iModelScale;
+		public int brokenLimbs;
+		//for looking at an entity's origin (NPCs and players)
+		public QuakeBoolean hasLookTarget;
+		public int lookTarget;
+		public unsafe fixed int customRGBA[4];
+		public int standheight;
+		public int crouchheight;
+		//If non-0, this is the index of the vehicle a player/NPC is riding.
+		//public int m_iVehicleNum;
+		//lovely hack for keeping vehicle orientation in sync with prediction
+		public unsafe fixed float vehOrientation[3];
+		public QuakeBoolean vehBoarding;
+		public int vehSurfaces;
+		//vehicle turnaround stuff (need this in ps so it doesn't jerk too much in prediction)
+		public int vehTurnaroundIndex;
+		public int vehTurnaroundTime;
+		//vehicle has weapons linked
+		public QuakeBoolean vehWeaponsLinked;
+		//when hyperspacing, you just go forward really fast for HYPERSPACE_TIME
+		public int hyperSpaceTime;
+		public unsafe fixed float hyperSpaceAngles[3];
+		//hacking when > time
+		public int hackingTime;
+		//actual hack amount - only for the proper percentage display when
+		//drawing progress bar (is there a less bandwidth-eating way to do
+		//this without a lot of hassle?)
+		public int hackingBaseTime;
+		//keeps track of jetpack fuel
+		public int jetpackFuel;
+		//keeps track of cloak fuel
+		public int cloakFuel;
+		//rww - spare values specifically for use by mod authors.
+		//See psf_overrides.txt if you want to increase the send
+		//amount of any of these above 1 bit.
+		public int userInt1;
+		public int userInt2;
+		public int userInt3;
+		public float userFloat1;
+		public float userFloat2;
+		public float userFloat3;
+		public unsafe fixed float userVec1[3];
+		public unsafe fixed float userVec2[3];
 
 	}
 }

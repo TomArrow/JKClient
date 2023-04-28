@@ -1097,6 +1097,43 @@ namespace JKClient {
 					// write the checksum feed
 					msg.WriteLong(this.checksumFeed);
 
+                    if (this.ClientHandler is JAClientHandler) // RMG nonsense. Take the easy way for now. Maybe do nicer someday.
+					{
+						/*// RMG stuff
+						if (clc.rmgHeightMapSize)
+						{
+							int i;
+
+							// Height map
+							MSG_WriteShort(&buf, (unsigned short)clc.rmgHeightMapSize );
+							MSG_WriteBits(&buf, 0, 1);
+							MSG_WriteData(&buf, clc.rmgHeightMap, clc.rmgHeightMapSize);
+
+							// Flatten map
+							MSG_WriteShort(&buf, (unsigned short)clc.rmgHeightMapSize );
+							MSG_WriteBits(&buf, 0, 1);
+							MSG_WriteData(&buf, clc.rmgFlattenMap, clc.rmgHeightMapSize);
+
+							// Seed 
+							MSG_WriteLong(&buf, clc.rmgSeed);
+
+							// Automap symbols
+							MSG_WriteShort(&buf, (unsigned short)clc.rmgAutomapSymbolCount );
+							for (i = 0; i < clc.rmgAutomapSymbolCount; i++)
+							{
+								MSG_WriteByte(&buf, (unsigned char)clc.rmgAutomapSymbols[i].mType );
+								MSG_WriteByte(&buf, (unsigned char)clc.rmgAutomapSymbols[i].mSide );
+								MSG_WriteLong(&buf, (long)clc.rmgAutomapSymbols[i].mOrigin[0]);
+								MSG_WriteLong(&buf, (long)clc.rmgAutomapSymbols[i].mOrigin[1]);
+							}
+						}
+						else*/
+						{
+
+							msg.WriteShort(0);
+						}
+					}
+
 					// finished writing the client packet
 					msg.WriteByte(eofOperation);
 

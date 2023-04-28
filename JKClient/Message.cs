@@ -407,9 +407,9 @@ namespace JKClient {
 			// build the change vector as bytes so it is endien independent
 
 			var fields = clientHandler.GetEntityStateFields();
-			if(clientHandler.Protocol != (int)ProtocolVersion.Protocol15 && clientHandler.Protocol != (int)ProtocolVersion.Protocol16)
+			if(clientHandler.Protocol != (int)ProtocolVersion.Protocol15 && clientHandler.Protocol != (int)ProtocolVersion.Protocol16 && clientHandler.Protocol != (int)ProtocolVersion.Protocol26)
             {
-				throw new JKClientException($"WriteDeltaEntity: Only protocols 15 and 16 (Jedi Outcast) supported right now.");
+				throw new JKClientException($"WriteDeltaEntity: Only protocols 15 and 16 (Jedi Outcast) and protocol 26 (Jedi Academy) supported right now.");
 			}
 
 			int numFields = fields.Count;

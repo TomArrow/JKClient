@@ -473,8 +473,8 @@ namespace JKClient {
 			.Override(18,9) // fd.forcePower
 			.Override(29,32) // customRGBA[0]
 			.Override(32,32) // customRGBA[3]
-			.Override(42,32) // customRGBA[2]
-			.Override(45,32) // customRGBA[1]
+			.Override(42,32) // customRGBA[1]
+			.Override(45,32) // customRGBA[2]
 			.Override(60,Common.GEntitynumBits) // eventParms[1]
 			.Override(64,Common.GEntitynumBits) // externalEventParm
 			.Override(65,Common.GEntitynumBits) // eventParms[0]

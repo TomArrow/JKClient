@@ -28,6 +28,16 @@ namespace JKClient {
         }
     }
 
+	enum jaPlusClientSupportFlags_t
+	{
+		CSF_GRAPPLE_SWING = (int)0x00000001u, // Can correctly predict movement when using the grapple hook
+		CSF_SCOREBOARD_LARGE = (int)0x00000002u, // Can correctly parse scoreboard messages with information for 32 clients
+		CSF_SCOREBOARD_KD = (int)0x00000004u, // Can correctly parse scoreboard messages with extra K/D information
+		CSF_CHAT_FILTERS = (int)0x00000008u, // Can correctly parse chat messages with proper delimiters
+		CSF_FIXED_WEAPON_ANIMS = (int)0x00000010u, // Fixes the missing concussion rifle animations
+		CSF_WEAPONDUEL = (int)0x00000020u,
+	}
+
 	public delegate void UserCommandGeneratedEventHandler(object sender, ref UserCommand modifiableCommand);
 	public sealed partial class JKClient : NetClient {
 		public volatile int SnapOrderTolerance = 100;
@@ -36,7 +46,9 @@ namespace JKClient {
 		private const int RetransmitTimeOut = 3000;
 		private const int MaxPacketUserCmds = 32;
 		private const string DefaultName = "AssetslessClient";
-		private const string UserInfo = "\\name\\" + JKClient.DefaultName + "\\rate\\200000\\snaps\\1000\\model\\kyle/default\\forcepowers\\7-1-032330000000001333\\color1\\4\\color2\\4\\handicap\\100\\teamtask\\0\\sex\\male\\password\\\\cg_predictItems\\1\\saber1\\single_1\\saber2\\none\\char_color_red\\255\\char_color_green\\255\\char_color_blue\\255\\engine\\jkclient_demoRec\\assets\\0";
+		private readonly string jaPlusClientSupportFlagsExplanation = ((int)(jaPlusClientSupportFlags_t.CSF_SCOREBOARD_KD | jaPlusClientSupportFlags_t.CSF_SCOREBOARD_LARGE | jaPlusClientSupportFlags_t.CSF_GRAPPLE_SWING)).ToString("X"); // This is what jaPlusClientSupportFlags is, but I can't do that because ToString() can't be assigned to constant
+		private const string jaPlusClientSupportFlags = "7";
+		private const string UserInfo = "\\name\\" + JKClient.DefaultName + "\\rate\\200000\\snaps\\1000\\model\\kyle/default\\forcepowers\\7-1-032330000000001333\\color1\\4\\color2\\4\\handicap\\100\\teamtask\\0\\sex\\male\\password\\\\cg_predictItems\\1\\saber1\\single_1\\saber2\\none\\char_color_red\\255\\char_color_green\\255\\char_color_blue\\255\\engine\\jkclient_demoRec\\cjp_client\\1.4JAPRO\\csf\\"+ jaPlusClientSupportFlags + "\\assets\\0"; // cjp_client: Pretend to be jaPRO for more scoreboard stats
 		private readonly Random random = new Random();
 		private readonly int port;
 		private readonly InfoString userInfo = new InfoString(UserInfo);

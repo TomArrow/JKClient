@@ -22,6 +22,8 @@ namespace JKClient
 
         string pureCheckSumCommand = null;
 
+        bool serverIsPure = false;
+
         public void SetAssetChecksumFiles(CheckSumFile[] files)
         {
             checkSumFiles = files;
@@ -101,6 +103,10 @@ namespace JKClient
 
         void SendPureChecksums()
         {
+            if (!serverIsPure)
+            {
+                return;
+            }
             if(this.checksumFeed != lastCheckSumFeedCalculated)
             {
                 CalculatePureChecksums();

@@ -194,8 +194,12 @@ namespace JKClient {
 			var info = new InfoString(systemInfo);
 			this.serverId = info["sv_serverid"].Atoi();
 			if (info["sv_pure"].Atoi() != 0) {
+				serverIsPure = true;
 				//throw new JKClientException("Cannot connect to a pure server without assets");
-			}
+			}  else
+            {
+				serverIsPure = false;
+            }
 		}
 
 		internal unsafe string GetConfigstring(in int index) {

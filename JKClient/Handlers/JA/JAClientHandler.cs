@@ -47,8 +47,9 @@ namespace JKClient {
 			default:
 				return true;
 			case GameMod.Undefined:
-			case GameMod.MBII:
 				return false;
+			case GameMod.MBII:
+				return true;
 			}
 		}
 		public virtual IList<NetField> GetEntityStateFields() {

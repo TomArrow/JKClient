@@ -158,6 +158,9 @@ namespace JKClient {
 				this.ParseRMG(msg);
 			}
 			this.SystemInfoChanged();
+
+			this.SendPureChecksums();
+
 			this.clientGame = this.InitClientGame();
 			this.ServerInfoChanged?.Invoke(this.ServerInfo);
 		}
@@ -191,7 +194,7 @@ namespace JKClient {
 			var info = new InfoString(systemInfo);
 			this.serverId = info["sv_serverid"].Atoi();
 			if (info["sv_pure"].Atoi() != 0) {
-				throw new JKClientException("Cannot connect to a pure server without assets");
+				//throw new JKClientException("Cannot connect to a pure server without assets");
 			}
 		}
 

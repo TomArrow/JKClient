@@ -36,7 +36,7 @@ namespace JKClient
 
         void CalculatePureChecksums()
         {
-            if(this.checkSumFiles.Length == 0)
+            if(this.checkSumFiles == null || this.checkSumFiles.Length == 0)
             {
                 pureCheckSumCommand = null;
                 return;

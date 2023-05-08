@@ -348,5 +348,8 @@ namespace JKClient {
 			FX,
 			Events
 		}
+		public enum EntityTypeMBII : int {
+			Events=23
+		}
 	}
 }

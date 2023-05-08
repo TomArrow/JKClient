@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
+using System.Text;
 
 namespace JKClient {
 
@@ -511,13 +512,20 @@ namespace JKClient {
 
 		}
 
-		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler) {
+		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler, StringBuilder debugString = null) {
 			if (number < 0 || number >= Common.MaxGEntities) {
 				throw new JKClientException($"Bad delta entity number: {number}");
 			}
+
+			bool print = debugString != null;
+
 			if (this.ReadBits(1) == 1) {
 				Common.MemSet(to, 0, sizeof(EntityState));
 				to->Number = Common.MaxGEntities - 1;
+                if (print)
+                {
+					debugString.Append($"{this.ReadCount}: #{number} remove\n");
+                }
 				return;
 			}
 			if (this.ReadBits(1) == 0) {
@@ -525,8 +533,16 @@ namespace JKClient {
 				to->Number = number;
 				return;
 			}
+
+
 			var fields = clientHandler.GetEntityStateFields();
 			int lc = this.ReadByte();
+
+            if (print)
+            {
+				debugString.Append($"{this.ReadCount}: #{number} ");
+			}
+
 			to->Number = number;
 			int* fromF, toF;
 			int trunc;
@@ -545,8 +561,16 @@ namespace JKClient {
 								trunc = this.ReadBits(Message.FloatIntBits);
 								trunc -= Message.FloatIntBias;
 								*(float*)toF = trunc;
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{trunc} ");
+								}
 							} else {
 								*toF = this.ReadBits(32);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 							}
 						}
 					} else {
@@ -554,6 +578,10 @@ namespace JKClient {
 							*toF = 0;
 						} else {
 							*toF = this.ReadBits(bits);
+							if (print)
+							{
+								debugString.Append($"{fields[i].Name}:{*toF} ");
+							}
 						}
 					}
 					fields[i].Adjust?.Invoke(toF);
@@ -565,8 +593,12 @@ namespace JKClient {
 				*toF = *fromF;
 				//fields[i].Adjust?.Invoke(toF);
 			}
+			if (print)
+			{
+				debugString.Append($"\n");
+			}
 		}
-		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler) {
+		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler, StringBuilder debugString = null) {
 			GCHandle fromHandle;
 			if (from == null) {
 				fromHandle = GCHandle.Alloc(PlayerState.Null, GCHandleType.Pinned);
@@ -578,6 +610,13 @@ namespace JKClient {
 			bool isPilot() {
 				return this.ReadBits(1) != 0;
 			}
+
+			bool print = debugString != null;
+            if (print)
+            {
+				debugString.Append($"{this.ReadCount}: playerstate ");
+			}
+
 			var fields = clientHandler.GetPlayerStateFields(isVehicle, isPilot);
 			int lc = this.ReadByte();
 			int* fromF, toF;
@@ -594,11 +633,23 @@ namespace JKClient {
 							trunc = this.ReadBits(Message.FloatIntBits);
 							trunc -= Message.FloatIntBias;
 							*(float*)toF = trunc;
+							if (print)
+							{
+								debugString.Append($"{fields[i].Name}:{trunc} ");
+							}
 						} else {
 							*toF = this.ReadBits(32);
+							if (print)
+							{
+								debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+							}
 						}
 					} else {
-						*toF = this.ReadBits(bits);
+						*toF = this.ReadBits(bits); 
+						if (print)
+						{
+							debugString.Append($"{fields[i].Name}:{*toF} ");
+						}
 					}
 					fields[i].Adjust?.Invoke(toF);
 				}
@@ -651,6 +702,11 @@ namespace JKClient {
 			}
 			if (fromHandle.IsAllocated) {
 				fromHandle.Free();
+			}
+
+			if (print)
+			{
+				debugString.Append("\n");
 			}
 		}
 

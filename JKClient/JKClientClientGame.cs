@@ -11,6 +11,10 @@ namespace JKClient {
 		public byte[] oldGsStringData;
 		public byte[] newGsStringData;
 	}
+	public struct NetDebug
+	{
+		public string debugString;
+	}
 
 	public sealed partial class JKClient : IJKClientImport {
 		public event EventHandler<EntityEventArgs> EntityEvent;
@@ -180,7 +184,7 @@ namespace JKClient {
 				this.ServerInfoChanged?.Invoke(this.ServerInfo);
 			}
 #if DEBUG
-			if(this.DebugEventHappened.GetInvocationList().Length > 0)
+			if(this.DebugConfigStrings && this.DebugEventHappened.GetInvocationList().Length > 0)
             {
 				// Check back if the configstring was correctly written.
 				string shouldString = command.Argv(2);

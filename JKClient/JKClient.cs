@@ -130,6 +130,10 @@ namespace JKClient {
         {
 			this.DebugEventHappened?.Invoke(this, o);
 		}
+		public bool DebugConfigStrings { get; set; } = false;
+		public bool DebugNet { get; set; } = false;
+		private StringBuilder showNetString = null;
+
 		public event EventHandler Disconnected;
 		internal void OnDisconnected(EventArgs eventArgs)
         {

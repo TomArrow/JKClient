@@ -62,6 +62,18 @@ namespace JKClient {
 		}
 
 		private void ParseServerMessage(in Message msg) {
+			if (this.DebugNet && showNetString == null)
+            {
+				showNetString = new StringBuilder();
+            } else if(!this.DebugNet && showNetString!= null)
+            {
+				showNetString = null;
+			} else if(showNetString != null)
+            {
+				showNetString.Clear();
+				showNetString.Append("------------------\n");
+            }
+
 			msg.Bitstream();
 			this.reliableAcknowledge = msg.ReadLong();
 			if (this.reliableAcknowledge < this.reliableSequence - this.MaxReliableCommands) {
@@ -109,6 +121,11 @@ namespace JKClient {
 					break;
 				}
 			}
+
+			if(showNetString != null)
+            {
+				this.OnDebugEventHappened(new NetDebug() { debugString = showNetString.ToString() });
+            }
 		}
 		private unsafe void ParseGamestate(in Message msg) {
 			this.connectPacketCount = 0;
@@ -132,6 +149,10 @@ namespace JKClient {
 						throw new JKClientException("MaxGameStateChars exceeded");
 					}
 					string csStr = Common.ToString(s);
+					if(showNetString != null)
+                    {
+						showNetString.Append($"{i}:{csStr}\n");
+                    }
 					this.ClientHandler.AdjustGameStateConfigstring(i, csStr);
 					this.gameState.StringOffsets[i] = this.gameState.DataCount;
 					fixed (sbyte *stringData = this.gameState.StringData) {
@@ -145,7 +166,7 @@ namespace JKClient {
 					}
 					fixed (EntityState *nes = &EntityState.Null) {
 						fixed (EntityState *bl = &this.entityBaselines[newnum]) {
-							msg.ReadDeltaEntity(nes, bl, newnum, this.ClientHandler);
+							msg.ReadDeltaEntity(nes, bl, newnum, this.ClientHandler, showNetString);
 						}
 					}
 				} else {
@@ -297,6 +318,10 @@ namespace JKClient {
 			if (this.serverCommandSequence >= seq) {
 				return;
 			}
+			if(showNetString != null)
+            {
+				showNetString.Append($"{seq}: {Common.ToString(s)}\n");
+            }
 			this.serverCommandSequence = seq;
 			int index = seq & (this.MaxReliableCommands-1);
 			Array.Copy(s, 0, this.serverCommands[index], 0, Common.MaxStringChars);
@@ -434,9 +459,9 @@ namespace JKClient {
 
 			msg.ReadData(null, len);
 			if (this.ClientHandler.CanParseSnapshot()) {
-				msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->PlayerState : null, &newSnap.PlayerState, false, this.ClientHandler);
+				msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->PlayerState : null, &newSnap.PlayerState, false, this.ClientHandler,showNetString);
 				if (this.ClientHandler.CanParseVehicle && newSnap.PlayerState.VehicleNum != 0) {
-					msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->VehiclePlayerState : null, &newSnap.VehiclePlayerState, true, this.ClientHandler);
+					msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->VehiclePlayerState : null, &newSnap.VehiclePlayerState, true, this.ClientHandler, showNetString);
 				}
 				this.ParsePacketEntities(in msg, in oldSnap, &newSnap);
 			}
@@ -493,11 +518,11 @@ namespace JKClient {
 						oldindex++;
 					} else if (oldnum == newnum) {
 						oldindex++;
-						msg.ReadDeltaEntity(oldstate, newstate, newnum, this.ClientHandler);
+						msg.ReadDeltaEntity(oldstate, newstate, newnum, this.ClientHandler, showNetString);
 						newnum = msg.ReadBits(Common.GEntitynumBits);
 					} else if (oldnum > newnum) {
 						fixed (EntityState *bl = &this.entityBaselines[newnum]) {
-							msg.ReadDeltaEntity(bl, newstate, newnum, this.ClientHandler);
+							msg.ReadDeltaEntity(bl, newstate, newnum, this.ClientHandler, showNetString);
 						}
 						newnum = msg.ReadBits(Common.GEntitynumBits);
 					}

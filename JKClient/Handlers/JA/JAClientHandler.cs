@@ -6,7 +6,7 @@ namespace JKClient {
 	public class JAClientHandler : JANetHandler, IClientHandler {
 		private const int MaxConfigstringsBase = 1700;
 		private const int MaxConfigstringsOJP = 2200;
-		private GameMod gameMod = GameMod.Undefined;
+		internal GameMod gameMod { get; private set; } = GameMod.Undefined;
 		public virtual ClientVersion Version { get; private set; }
 		public virtual int MaxReliableCommands => 128;
 		public virtual int MaxConfigstrings { get; private set; } = JAClientHandler.MaxConfigstringsBase;
@@ -40,7 +40,14 @@ namespace JKClient {
 			}
 		}
 		public virtual ClientGame CreateClientGame(IJKClientImport client, int serverMessageNum, int serverCommandSequence, int clientNum) {
-			return new JAClientGame(client, serverMessageNum, serverCommandSequence, clientNum);
+			if (this.gameMod == GameMod.MBII)
+			{
+				return new MBIIClientGame(client, serverMessageNum, serverCommandSequence, clientNum);
+			}
+            else
+            {
+				return new JAClientGame(client, serverMessageNum, serverCommandSequence, clientNum);
+			}
 		}
 		public virtual bool CanParseSnapshot() {
 			switch (this.gameMod) {
@@ -106,7 +113,7 @@ namespace JKClient {
 			}
 			serverInfo.ForceDisable = info["g_forcePowerDisable"].Atoi() != 0;
 		}
-		private enum GameMod {
+		internal enum GameMod {
 			Undefined,
 			Base,
 			MBII,

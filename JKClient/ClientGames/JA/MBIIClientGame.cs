@@ -81,7 +81,7 @@ namespace JKClient
 						int clientNum = es.GroundEntityNum;
 						string description = this.Client.GetConfigstring(this.GetConfigstringIndex(Configstring.Sounds) + es.EventParm);
 						string message = $"<{this.ClientInfo[clientNum].Name}^7{Common.EscapeCharacter}: {description}>";
-						var command = new Command(new string[] { "chat", message });
+						var command = new Command(new string[] { "vchat", message }); // Making it a normal chat kinda interferes with normal handling of chat.
 						this.Client.ExecuteServerCommand(new CommandEventArgs(command));
 					}
 					break;

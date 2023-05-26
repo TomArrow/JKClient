@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace JKClient {
-	public sealed class NetAddress {
+	public sealed class NetAddress : IComparable {
 		private readonly int hashCode;
 		public byte []IP { get; init; }
 		public ushort Port { get; init; }
@@ -63,7 +63,23 @@ namespace JKClient {
 		public static NetAddress FromString(string address, ushort port = 0) {
 			return NetSystem.StringToAddress(address, port);
 		}
-	}
+
+        public int CompareTo(object obj) // For sorting
+        {
+			if (obj == null) return 1;
+
+			NetAddress otherAddress = obj as NetAddress;
+			if(otherAddress == null) return 1;
+			for (int i = 0; i < this.IP.Length; i++) { // compare numbers from front to back until we find a difference, then apply sorting to that difference
+				if(this.IP[i] != otherAddress.IP[i])
+                {
+					return this.IP[i].CompareTo(otherAddress.IP[i]);
+                }
+			}
+			return this.Port.CompareTo(otherAddress.Port);
+
+        }
+    }
 	public sealed class NetAddressComparer : EqualityComparer<NetAddress> {
 		public override bool Equals(NetAddress x, NetAddress y) {
 			return x == y;

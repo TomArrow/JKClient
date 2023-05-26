@@ -20,6 +20,10 @@ namespace JKClient
 
 	//TODO: remake to struct?
 	public sealed class ServerInfo {
+		public KeyValuePair<string, string>[] InfoStringValues { get; internal set; } = null;
+		public KeyValuePair<string, string>[] StatusInfoStringValues { get; internal set; } = null;
+		public KeyValuePair<string, string>[] ConfigStringInfoStringValues { get; internal set; } = null;
+		public KeyValuePair<string, string>[] SystemConfigStringInfoStringValues { get; internal set; } = null;
 		internal List<Player> players = new List<Player> ();
 		public ReadOnlyCollection<Player> Players { get {
 				return players.AsReadOnly();
@@ -56,6 +60,7 @@ namespace JKClient
 		internal bool InfoSet;
 		internal long Start;
 		internal void SetInfo(in InfoString info) {
+			InfoStringValues = info.ToArray();
 			if (info.Count <= 0) {
 				return;
 			}
@@ -71,6 +76,7 @@ namespace JKClient
 			this.InfoSet = true;
 		}
 		internal void SetConfigstringInfo(in InfoString info) {
+			ConfigStringInfoStringValues = info.ToArray();
 			if (info.Count <= 0) {
 				return;
 			}
@@ -87,6 +93,13 @@ namespace JKClient
 			this.MinPing = info["sv_minping"].Atoi();
 			this.MaxPing = info["sv_maxping"].Atoi();
 			this.InfoSet = true;
+		}
+		internal void SetSystemConfigstringInfo(in InfoString info)
+		{
+			SystemConfigStringInfoStringValues = info.ToArray();
+		}
+		internal void SetStatusInfo(in InfoString info) {
+			StatusInfoStringValues = info.ToArray();
 		}
 		public static bool operator ==(in ServerInfo serverInfo1, in ServerInfo serverInfo2) {
 			return serverInfo1?.Address == serverInfo2?.Address;

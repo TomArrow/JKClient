@@ -39,6 +39,17 @@ namespace JKClient {
 			}
 			return builder.ToString();
 		}
+		public KeyValuePair<string,string>[] ToArray() {
+			if (this.Count <= 0) {
+				return new KeyValuePair<string, string>[0];
+			}
+			KeyValuePair<string, string>[] kvpa = new KeyValuePair<string, string>[this.Count];
+			int index = 0;
+			foreach (var keyValuePair in this) {
+				kvpa[index++] = keyValuePair;
+			}
+			return kvpa;
+		}
 		private class InfoStringComparer : EqualityComparer<string> {
 			public override bool Equals(string x, string y) {
 				return x.Equals(y, StringComparison.OrdinalIgnoreCase);

@@ -244,6 +244,7 @@ namespace JKClient {
 						playersCount++;
 					}
 				}
+				serverInfo.SetStatusInfo(info);
 				serverInfo.RealClients = serverInfo.Clients = playersCount;
 				this.BrowserHandler.HandleStatusResponse(serverInfo, info);
 				serverInfo.StatusResponseReceived = true;

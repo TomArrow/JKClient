@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 namespace JKClient {
 	public sealed class ServerBrowser : NetClient {
 		public long RefreshTimeout { get; init; } = 3000L;
+		public bool ForceStatus { get; init; } = false;
 		private readonly List<ServerAddress> masterServers;
 		private readonly ConcurrentDictionary<NetAddress, ServerInfo> globalServers;
 		private TaskCompletionSource<IEnumerable<ServerInfo>> getListTCS, refreshListTCS;
@@ -243,7 +244,7 @@ namespace JKClient {
 						playersCount++;
 					}
 				}
-				serverInfo.Clients = playersCount;
+				serverInfo.RealClients = serverInfo.Clients = playersCount;
 				this.BrowserHandler.HandleStatusResponse(serverInfo, info);
 				serverInfo.StatusResponseReceived = true;
 				serverInfo.StatusResponseReceivedTime = DateTime.Now;
@@ -265,7 +266,7 @@ namespace JKClient {
 				serverInfo.Ping = (int)(Common.Milliseconds - serverInfo.Start);
 				serverInfo.SetInfo(info);
 				this.BrowserHandler.HandleInfoPacket(serverInfo, info);
-				if (this.BrowserHandler.NeedStatus) {
+				if (this.BrowserHandler.NeedStatus || this.ForceStatus) {
 					this.OutOfBandPrint(serverInfo.Address, "getstatus");
 				}
 				serverInfo.InfoPacketReceived = true;

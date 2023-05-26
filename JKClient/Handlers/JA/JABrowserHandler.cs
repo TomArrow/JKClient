@@ -33,7 +33,7 @@ namespace JKClient {
 			serverInfo.ForceDisable = info["fdisable"].Atoi() != 0;
 			if (info.ContainsKey("g_humanplayers")) {
 				this.NeedStatus = false;
-				serverInfo.Clients = info["g_humanplayers"].Atoi();
+				serverInfo.RealClients = serverInfo.Clients = info["g_humanplayers"].Atoi();
 			}
 		}
 		public virtual void HandleStatusResponse(in ServerInfo serverInfo, in InfoString info) {

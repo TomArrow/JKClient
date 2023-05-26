@@ -7,10 +7,10 @@ namespace JKClient
 {
 	public struct Player
     {
-		public int score { get; set; }
-		public int ping { get; set; }
-		public string name { get; set; }
-		public bool isBot { get; set; }
+		public int score { get; internal set; }
+		public int ping { get; internal set; }
+		public string name { get; internal set; }
+		public bool isBot { get; internal set; }
 		public override string ToString()
         {
 			string botStringPart = isBot ? ",bot" : "";
@@ -34,6 +34,7 @@ namespace JKClient
 		public string Game { get; internal set; }
 		public string GameName { get; internal set; }
 		public GameType GameType { get; internal set; }
+		public int? RealClients { get; internal set; } = null;
 		public int Clients { get; internal set; }
 		public int ClientsIncludingBots { get; internal set; }
 		public int MaxClients { get; internal set; }

@@ -120,6 +120,13 @@ namespace JKClient {
 					continue;
 				}
 				this.OutOfBandPrint(address, $"getservers {this.Protocol}");
+				if((this.NetHandler as IBrowserHandler).AdditionalProtocols != null)
+                {
+					foreach(int additionalProtocol in (this.NetHandler as IBrowserHandler).AdditionalProtocols)
+                    {
+						this.OutOfBandPrint(address, $"getservers {additionalProtocol}");
+					}
+                }
 			}
 			return await this.getListTCS.Task;
 		}

@@ -6,6 +6,7 @@ namespace JKClient {
 		private const string MasterJKHub = "master.jkhub.org";
 		private const ushort PortMasterJA = 29060;
 		public virtual bool NeedStatus { get; private set; }
+		public int[] AdditionalProtocols { get; private set; } = null;
 		public JABrowserHandler(ProtocolVersion protocol) : base(protocol) {}
 		public virtual IEnumerable<ServerBrowser.ServerAddress> GetMasterServers() {
 			return new ServerBrowser.ServerAddress[] {

@@ -7,7 +7,9 @@ namespace JKClient {
 		private const string MasterMaverickServers = "master.maverickservers.com";
 		private const ushort PortMasterQ3 = 27950;
 		public virtual bool NeedStatus { get; private set; }
-		public Q3BrowserHandler(ProtocolVersion protocol) : base(protocol) {}
+		public int[] AdditionalProtocols { get; private set; } = null;
+
+        public Q3BrowserHandler(ProtocolVersion protocol) : base(protocol) {}
 		public virtual IEnumerable<ServerBrowser.ServerAddress> GetMasterServers() {
 			return new ServerBrowser.ServerAddress[] {
 				new ServerBrowser.ServerAddress(Q3BrowserHandler.MasterQuake3Arena, Q3BrowserHandler.PortMasterQ3),

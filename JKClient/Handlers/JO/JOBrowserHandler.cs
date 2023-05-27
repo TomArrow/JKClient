@@ -7,7 +7,19 @@ namespace JKClient {
 		private const string MasterJK2MV = "master.jk2mv.org";
 		private const ushort PortMasterJO = 28060;
 		public virtual bool NeedStatus { get; private set; }
-		public JOBrowserHandler(ProtocolVersion protocol) : base(protocol) {}
+		public int[] AdditionalProtocols { get; private set; } = null;
+		public JOBrowserHandler(ProtocolVersion protocol, bool allProtocols = false) : base(protocol) {
+            if (allProtocols)
+            {
+				if(protocol == ProtocolVersion.Protocol16)
+                {
+					AdditionalProtocols = new int[] { (int)ProtocolVersion.Protocol15};
+                } else if(protocol == ProtocolVersion.Protocol15)
+                {
+					AdditionalProtocols = new int[] { (int)ProtocolVersion.Protocol16};
+                }
+            }
+		}
 		public virtual IEnumerable<ServerBrowser.ServerAddress> GetMasterServers() {
 			return new ServerBrowser.ServerAddress[] {
 				new ServerBrowser.ServerAddress(JOBrowserHandler.MasterJK2RavenSoftware, JOBrowserHandler.PortMasterJO),

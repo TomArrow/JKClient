@@ -155,6 +155,25 @@ namespace JKClient {
 			encoding = encoding ?? Common.Encoding;
 			return encoding.GetString(s).TrimEnd('\0');
 		}
+		internal static unsafe sbyte[] SByteFromString(string theString, Encoding encoding = null) // By TA. Kinda ugly? Hope it works ig.
+		{
+			if (theString.Length == 0) return null;
+			bool allowAll = encoding != null || Common.AllowAllEncodingCharacters;
+			encoding = encoding ?? Common.Encoding;
+			byte[] bytes = encoding.GetBytes(theString);
+			byte[] bytesFiltered = null;
+			fixed (byte* b = bytes)
+            {
+				bytesFiltered = Common.FilterUnusedEncodingCharacters(b, bytes.Length, allowAll);
+			}
+			sbyte[] sbytes = new sbyte[bytesFiltered.Length+1];
+			sbytes[bytesFiltered.Length] = 0;
+			fixed(sbyte* sb = sbytes)
+            {
+				Marshal.Copy(bytesFiltered,0,(IntPtr)sb,bytesFiltered.Length);
+			}
+			return sbytes;
+		}
 		internal static unsafe string ToString(sbyte* b, int len, Encoding encoding = null) {
 			return Common.ToString((byte*)b, len, encoding);
 		}

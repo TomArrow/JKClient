@@ -998,6 +998,35 @@ namespace JKClient {
 			return DemoName;
         }
 
+		Message constructMetaMessage()
+        {
+			byte[] data = new byte[ClientHandler.MaxMessageLength];
+			var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
+			msg.Bitstream(); 
+			msg.WriteLong(reliableSequence);
+			StringBuilder sb = new StringBuilder();
+			sb.Append("{"); // original filename
+			//sb.Append("\"of\":\""); // original filename // Maybe don't do this as someone might use this to record demos and then rename, then it doesn't count as original filename anymore? And we have time after all.
+			//sb.Append(this.AbsoluteDemoName);
+			//sb.Append("\","); // original start time
+			sb.Append("\"wr\":\""); // writer
+			sb.Append("jkclient_demoRec"); // jkClient_demoRec
+			sb.Append("\","); // original start time
+			sb.Append("\"ost\":\""); // original start time
+			sb.Append(((DateTimeOffset)this.DemoName.time.ToUniversalTime()).ToUnixTimeSeconds());
+			if(this.serverAddress != null)
+            {
+				sb.Append("\",\"oip\":\""); // original IP
+				sb.Append(this.serverAddress.ToString());
+			}
+			sb.Append("\"}");
+			string metaData = sb.ToString();
+			int eofOperation = ClientHandler is JOClientHandler ? (int)ServerCommandOperations.EOF - 1 : (int)ServerCommandOperations.EOF;
+			HiddenMetaStuff.createMetaMessage(msg, metaData, eofOperation);
+			return msg;
+		}
+
+
 		static Mutex demoUniqueFilenameMutex = new Mutex();
 
 		// Demo recording
@@ -1054,9 +1083,18 @@ namespace JKClient {
 					 //DemoSkipPacket = false;
 					DemoLastWrittenSequenceNumber = 0;
 
+					int len;
+
+					// Metadata
+					Message metaMsg = constructMetaMessage();
+					len = this.serverMessageSequence - 2;
+					Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+					len = metaMsg.CurSize;
+					Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+					Demofile.Write(metaMsg.Data, 0, metaMsg.CurSize);
+
 					//byte[] data = new byte[Message.MaxLength];
 					byte[] data = new byte[ClientHandler.MaxMessageLength];
-
 
 					// write out the gamestate message
 					var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
@@ -1069,7 +1107,6 @@ namespace JKClient {
 					msg.WriteByte((int)ServerCommandOperations.Gamestate);
 					msg.WriteLong(serverCommandSequence);
 
-					int len;
 
 					// configstrings
 					for (int i = 0; i < ClientHandler.MaxConfigstrings; i++)

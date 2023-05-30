@@ -3,11 +3,147 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 
 namespace JKClient {
 
+
+
+	static class HiddenMetaStuff
+	{
+		static readonly Dictionary<int, int> demoEofValues = new Dictionary<int, int>()
+		{
+			{ 14,8},
+			{ 15,9},
+			{ 16,9},
+			{ 25,10},
+			{ 26,10},
+			{ 66,8},
+			{ 67,8},
+			{ 68,8},
+		};
+
+		public const string postEOFMetadataMarker = "HIDDENMETA";
+		public static readonly int metaMarkerLength = postEOFMetadataMarker.Length;
+		public const int maxBytePerByteSaved = 2;
+		public static readonly int metaMarkerPresenceMinimumByteLengthExtra = metaMarkerLength * maxBytePerByteSaved;
+
+		public static string getMetaDataFromDemoFile(string demoPath)
+		{
+			string lowerExtension = Path.GetExtension(demoPath).Trim().ToLower();
+			if (!lowerExtension.StartsWith(".dm_"))
+			{
+				return null;
+			}
+
+			int protocolNumber = 0;
+			string protocolNumberString = lowerExtension.Substring(4);
+			if (!int.TryParse(protocolNumberString, out protocolNumber))
+			{
+				return null;
+			}
+
+			if (!demoEofValues.ContainsKey(protocolNumber))
+			{
+				return null;
+			}
+
+			int eofValue = demoEofValues[protocolNumber];
+
+#if !DEBUG
+			try
+            {
+#endif
+
+			using (FileStream fs = new FileStream(demoPath, FileMode.Open, FileAccess.Read, FileShare.None))
+			{
+				return ParseDemoUntilMetaOrNothing(fs, fs.Length, eofValue);
+
+			}
+#if !DEBUG
+			} catch(Exception e)
+			{
+				MessageBox.Show("Error trying to read from demo file: "+e.ToString());
+				return null;
+			}
+#endif
+		}
+
+		static public void createMetaMessage(Message emptyMessage,string meta, int eofValue)
+        {
+			int requiredCursize = emptyMessage.CurSize + metaMarkerPresenceMinimumByteLengthExtra; // We'll just set it to this value at the end if it ends up smaller.
+
+			emptyMessage.WriteByte(eofValue);
+			for (int i = 0; i < metaMarkerLength; i++)
+			{
+				emptyMessage.WriteByte(postEOFMetadataMarker[i]);
+			}
+			emptyMessage.WriteBigString(Common.SByteFromString(meta));
+
+			emptyMessage.WriteByte(eofValue);
+
+			if (emptyMessage.CurSize < requiredCursize)
+			{
+				emptyMessage.CurSize = requiredCursize;
+			}
+		}
+
+		static string ParseDemoUntilMetaOrNothing(FileStream fs, long demoSize, int eofValue)
+		{
+			long oldSize = demoSize;
+
+			var msg = new Message(new byte[49152], sizeof(byte) * 49152);
+			Common.MemSet(msg.Data, 0, sizeof(byte) * msg.MaxSize);
+			using (BinaryReader br = new BinaryReader(fs))
+			{
+				int serverMessageSequence = br.ReadInt32();
+				oldSize -= 4;
+				msg.CurSize = br.ReadInt32();
+				oldSize -= 4;
+				if (msg.CurSize < 0)
+					return null;
+				if (msg.CurSize > msg.MaxSize)
+					return null;
+				byte[] messageData = br.ReadBytes(msg.CurSize);
+				Array.Copy(messageData, msg.Data, messageData.Length);
+
+				msg.BeginReading();
+				int reliableSequenceAcknowledge = msg.ReadLong();
+				int cmdByte = msg.ReadByte();
+
+				if (cmdByte != eofValue)
+				{
+					return null;
+				}
+
+				if (msg.CurSize < msg.ReadCount + metaMarkerPresenceMinimumByteLengthExtra) // check if the metamarker can even be present, if there's enough space for it.
+				{
+					return null;
+				}
+
+				for (int i = 0; i < metaMarkerLength; i++) // check for meta marker.
+				{
+					if (msg.CurSize < msg.ReadCount + maxBytePerByteSaved)
+					{
+						return null;
+					}
+					if (postEOFMetadataMarker[i] != msg.ReadByte())
+					{
+						return null;
+					}
+				}
+
+				string metaData = msg.ReadBigStringAsString();
+				return metaData;
+
+			}
+
+
+
+		}
+	}
 
 	static class FastHuffman
 	{

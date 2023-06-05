@@ -1012,11 +1012,11 @@ namespace JKClient {
 			sb.Append("\"wr\":\""); // writer
 			sb.Append("jkclient_demoRec"); // jkClient_demoRec
 			sb.Append("\","); // original start time
-			sb.Append("\"ost\":\""); // original start time
+			sb.Append("\"ost\":"); // original start time
 			sb.Append(((DateTimeOffset)this.DemoName.time.ToUniversalTime()).ToUnixTimeSeconds());
 			if(this.serverAddress != null)
             {
-				sb.Append("\",\"oip\":\""); // original IP
+				sb.Append(",\"oip\":\""); // original IP
 				sb.Append(this.serverAddress.ToString());
 			}
 			sb.Append("\"}");

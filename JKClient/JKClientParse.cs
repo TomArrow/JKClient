@@ -297,6 +297,9 @@ namespace JKClient {
 			this.Demorecording = false;
 			this.bufferedDemoMessages.Clear();
 			this.DemoLastWrittenSequenceNumber = -1;
+			this.DemoAfkSnapsDropLastDroppedMessage = null;
+			this.DemoAfkSnapsDropLastDroppedMessageNumber = -1;
+			this.LastMessageWasDemoAFKDrop = false;
 			this.DemoName = null;
 			this.AbsoluteDemoName = null;
 			this.Demofile = null;

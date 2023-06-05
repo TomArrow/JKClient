@@ -248,6 +248,14 @@ namespace JKClient {
 				var info = new InfoString(configstring);
 				this.ClientInfo[clientNum].ClientNum = clientNum;
 				this.ClientInfo[clientNum].Team = (Team)info["t"].Atoi();
+				if (info.ContainsKey("skill"))
+                {
+					this.ClientInfo[clientNum].BotSkill = info["skill"].Atof(); // Only bots have this set
+				} else
+                {
+					this.ClientInfo[clientNum].BotSkill = -1.0f;
+
+				}
 				this.ClientInfo[clientNum].Name = info["n"];
 				this.ClientInfo[clientNum].InfoValid = true;
 			}

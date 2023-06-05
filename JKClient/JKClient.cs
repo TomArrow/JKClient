@@ -98,6 +98,11 @@ namespace JKClient {
 		int Demowaiting;   // don't record until a non-delta message is received. Changed to int. 0=not waiting. 1=waiting for delta message with correct deltanum. 2= waiting for full snapshot
 		const double DemoRecordBufferedReorderTimeout = 10;
 		int DemoLastWrittenSequenceNumber = -1;
+
+		BufferedDemoMessageContainer DemoAfkSnapsDropLastDroppedMessage = null; // With afk snap skipping, we wanna always keep the last one and write it when a change is detected, so that playing the demo doesn't result in unnatural movement from longer interpolation times.
+		int DemoAfkSnapsDropLastDroppedMessageNumber = -1;
+		bool LastMessageWasDemoAFKDrop = false;
+		
 		bool DemoSkipPacket;
 		bool FirstDemoFrameSkipped;
 		TaskCompletionSource<bool> demoRecordingStartPromise = null;
@@ -180,6 +185,9 @@ namespace JKClient {
 				this.clientForceSnaps = value;
 			}
 		}
+
+		public bool AfkDropSnaps { get; set; } = false;
+		public int AfkDropSnapsMinFPS { get; set; } = 2;
 		public Guid Guid {
 			get => Guid.TryParse(this.userInfo[this.GuidKey], out Guid guid) ? guid : Guid.Empty;
 			set {
@@ -388,12 +396,128 @@ namespace JKClient {
 			}
 		}
 
+
+		private unsafe bool MessageCheckSuperSkippable(Message msg, int deltaNum)
+        {
+
+			bool isPilot()
+			{
+				return msg.ReadBits(1) != 0;
+			}
+
+			// Do more investigation. See if the delta snapshot contains any new info, or if all entities have just remained exactly same. If there is not a single changed entity or playerstate thingie,
+			// mark superSkippable
+			int snapFlags = msg.ReadByte();
+
+			// Areabytess
+			int len = msg.ReadByte();
+			msg.ReadData(null, len);
+
+			// If any fields changed, not super skippable
+			var fields = this.ClientHandler.GetPlayerStateFields(true, isPilot);
+			int lc = msg.ReadByte();
+			if (lc > 0) {
+				for (int i = 0; i < lc; i++)
+				{
+					if (msg.ReadBits(1) != 0)
+					{
+						if (fields[i].Name != nameof(PlayerState.CommandTime))
+						{
+							return false;
+						} else
+                        {
+							int bits = fields[i].Bits;
+							msg.ReadBits( bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits); // Very short form of reading a field and discarding it the result.
+						}
+
+					}
+				}
+			}
+
+			// If any additional values/stats changed, not super skippable
+			if (msg.ReadBits(1) != 0) return false;
+
+			// Sad, since nothing changed we have to check if the PS we'd be deltaing from has vehiclenum for JKA
+			if (this.ClientHandler.CanParseVehicle) 
+            {
+				var oldSnapHandle = GCHandle.Alloc(this.snapshots, GCHandleType.Pinned);
+				var oldSnap = ((ClientSnapshot*)oldSnapHandle.AddrOfPinnedObject()) + (deltaNum & JKClient.PacketMask);
+				if (oldSnap->PlayerState.VehicleNum != 0) {
+					// If any fields changed, not super skippable
+					lc = msg.ReadByte();
+					if (lc > 0) {
+						var vehFields = this.ClientHandler.GetPlayerStateFields(true, isPilot);
+						// Some fields changed
+						// We will allow a change for "CommandTime" because that one is updated even if someone is afk.
+						for (int i = 0; i < lc; i++)
+                        {
+							if (msg.ReadBits(1) != 0)
+							{
+								if (vehFields[i].Name != nameof(PlayerState.CommandTime))
+								{
+									return false;
+								}
+								else
+								{
+									int bits = vehFields[i].Bits;
+									msg.ReadBits(bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits); // Very short form of reading a field and discarding it the result.
+								}
+
+							}
+						}
+					}
+
+					// If any additional values/stats changed, not super skippable
+					if (msg.ReadBits(1) != 0) return false;
+				}
+			}
+
+			// Entities
+			int safetyIndex = -1; // Safety index should NEVER be needed but a malformed message could result in this and cause an infinite loop perhaps? Though at that point we likely have other problems...
+			var eFields = this.ClientHandler.GetEntityStateFields();
+			int entityStateCommandTimeOffset = Marshal.OffsetOf<EntityState>(nameof(EntityState.Position)).ToInt32() + Marshal.OffsetOf<Trajectory>(nameof(Trajectory.Time)).ToInt32();
+			while (true && ++safetyIndex <= Common.MaxGEntities)
+            {
+				int newnum = msg.ReadBits(Common.GEntitynumBits);
+				if (newnum == Common.MaxGEntities - 1) break;
+				if (msg.ReadBits(1) == 1) return false; // It's a removal, hence a change.
+				if (msg.ReadBits(1) == 1) {
+					// It has chnaged fields, hence a change.
+					// But we might allow commandtime change.
+					lc = msg.ReadByte();for (int i = 0; i < lc; i++)
+					{
+						if (msg.ReadBits(1) != 0)
+						{
+							if (eFields[i].Offset != entityStateCommandTimeOffset)
+							{
+								return false;
+							}
+							else
+							{
+								int bits = eFields[i].Bits;
+								if(msg.ReadBits(1) != 0)
+								{
+									msg.ReadBits(bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits);
+                                }
+							}
+
+						}
+					}
+				}
+
+			}
+			return safetyIndex <= Common.MaxGEntities; // Uh. Hm. If safetyIndex is > Common.MaxGEntities (or anywhere close really) we have some messed up message to deal with, so would be better to discard anyway ig? lol whatever we're not determining that here.
+
+		}
+
 		// Basically: Is this message's first server command a snapshot (indicating no gamestate/commands in this message)?
 		// And: Is the snapshot delta? 
 		// We don't ever wanna skip messasges with gamestate or commands, or with non-delta messages.
 		// But we can skip delta messages to artificially limit snaps.
-		private bool MessageIsSkippable(in Message msg, int newSnapNum, ref int serverTimeHere)
+		// Superskippable: delta snapshot with no changes.
+		private bool MessageIsSkippable(in Message msg, int newSnapNum, ref int serverTimeHere, ref bool superSkippable)
         {
+			superSkippable = false;
 			bool canSkip = false;
 			// Pre-parse a bit of the messsage to see if it contains anything but snapshot as first thing
 			msg.SaveState();
@@ -436,6 +560,12 @@ namespace JKClient {
 					{
 						Stats.messagesSkippable++;
 						canSkip = true; // This is the only situation where we wanna skip. Message contains no gamestate or commands, only snapshot, and it's a delta snapshot.
+
+						superSkippable = MessageCheckSuperSkippable(msg, theDeltaNum);
+                        if (superSkippable)
+                        {
+							Stats.messagesSuperSkippable++;
+						}
 					}
 					else
 					{
@@ -471,10 +601,20 @@ namespace JKClient {
 				int sequenceNumber =0;
 				bool validButOutOfOrder=false;
 				bool process = this.netChannel.Process(msg, ref sequenceNumber, ref validButOutOfOrder);
+				bool detectSuperSkippable = true;
 
 				// Save to demo queue
 				if(process || validButOutOfOrder)
                 {
+					bool LastMessageWasDemoAFKDropRemember = LastMessageWasDemoAFKDrop;
+					LastMessageWasDemoAFKDrop = false;
+
+                    if (!LastMessageWasDemoAFKDropRemember)
+                    {
+						DemoAfkSnapsDropLastDroppedMessage = null;
+						DemoAfkSnapsDropLastDroppedMessageNumber = -1;
+                    }
+
 					this.Decode(msg);
 
 					Stats.totalMessages++;
@@ -484,35 +624,99 @@ namespace JKClient {
 					}
 
 					// Clientside snaps limiting if requested
-					if (process && clientForceSnaps)
+					if (process && (clientForceSnaps || AfkDropSnaps))
 					{
 						int newSnapNum = *(int*)b;
 						int newServerTime = 0;
 
-						if (MessageIsSkippable(in msg, newSnapNum, ref newServerTime))
+						bool didWeSkipThis = false;
+						bool superSkippable = false;
+						if (MessageIsSkippable(in msg, newSnapNum, ref newServerTime, ref superSkippable))
 						{
+							bool wasExplicitlyNotSkipped = false;
 							int oldServerTime = this.snap.ServerTime;
 							int timeDelta = newServerTime - oldServerTime;
-							int minDelta = 1000 / this.desiredSnaps;
+							if (clientForceSnaps)
+                            {
+								int minDelta = 1000 / this.desiredSnaps;
 
-							// Give it a bit of tolerance. 5 percent
-							// Because for example snaps 2 will result in time distances like 493 instead of 500 ms.
-							// That's technically only 2 percent. But whatever, let's give it 5 percent tolerance.
-							// And it's rounded anyway. So it'd only apply with minDelta 20+ ms anyway, which would be 50 fps. So if we requesst 50fps, it might allow 52 fps.
-							minDelta -= minDelta / 20;
+								// Give it a bit of tolerance. 5 percent
+								// Because for example snaps 2 will result in time distances like 493 instead of 500 ms.
+								// That's technically only 2 percent. But whatever, let's give it 5 percent tolerance.
+								// And it's rounded anyway. So it'd only apply with minDelta 20+ ms anyway, which would be 50 fps. So if we requesst 50fps, it might allow 52 fps.
+								minDelta -= minDelta / 20;
 
-							if (timeDelta < minDelta)
-							{
-								Stats.messagesSkipped++;
-								return; // We're skipping this one.
-                            }
-                            else
+								if (timeDelta < minDelta)
+								{
+									didWeSkipThis = true;
+									Stats.messagesSkipped++;
+									return; // We're skipping this one.
+								}
+								else
+								{
+									//Stats.messagesNotSkippedTime++;
+									wasExplicitlyNotSkipped = true;
+								}
+							}
+							if(!didWeSkipThis && AfkDropSnaps)
+                            {
+                                if (superSkippable) { 
+
+									int maxDelta = 1000 / this.AfkDropSnapsMinFPS;
+									// Afk works with min fps instead of maxfps. Because we'd love to skip ALL afk messages ofc. 
+									// But if we skip too many, we start getting non-delta packs. So find a compromise that makes sense.
+									// It also depends on ping and sv_fps/server snaps. Server keeps a certain amount of PACKET_BACKUP.
+									// Once server runs out of PACKET_BACKUP, we start getting non-delta snaps, which take up more space.
+									// For now, we leave it up to the user to choose a reasonable setting. But we could maybe automate it at some point.
+									if(timeDelta <= maxDelta)
+									{
+										DemoAfkSnapsDropLastDroppedMessage = new BufferedDemoMessageContainer()
+										{
+											msg = msg.Clone(),
+											time = DateTime.Now,
+											containsFullSnapshot = false // To be determined
+										};
+										DemoAfkSnapsDropLastDroppedMessageNumber = sequenceNumber;
+										LastMessageWasDemoAFKDrop = true;
+										didWeSkipThis = true;
+										Stats.messagesSkipped++;
+										return; // We're skipping this one.
+									}
+									else
+									{
+										//Stats.messagesNotSkippedTime++;
+										wasExplicitlyNotSkipped = true;
+									}
+                                }
+								
+							}
+                            if (wasExplicitlyNotSkipped)
                             {
 								Stats.messagesNotSkippedTime++;
+							}
+						}
 
+
+						if (LastMessageWasDemoAFKDropRemember && Demorecording && !didWeSkipThis && DemoAfkSnapsDropLastDroppedMessageNumber != -1 && DemoAfkSnapsDropLastDroppedMessage != null)
+						{
+							lock (bufferedDemoMessages)
+							{
+								if (bufferedDemoMessages.ContainsKey(DemoAfkSnapsDropLastDroppedMessageNumber))
+								{
+									// VERY WEIRD. 
+								}
+								else
+								{
+									bufferedDemoMessages.Add(DemoAfkSnapsDropLastDroppedMessageNumber, DemoAfkSnapsDropLastDroppedMessage);
+									/*if (validButOutOfOrder)
+									{
+										this.Stats.messagesDropped--;
+									}*/ // Hmm might need some handling for better stats when using this afk dropping stuff? Oh well.
+								}
 							}
 						}
 					}
+					
 
 					if (Demorecording)
 					{

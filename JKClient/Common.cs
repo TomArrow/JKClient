@@ -141,6 +141,9 @@ namespace JKClient {
 		public static int Atoi(this string str) {
 			return int.TryParse(str, out int integer) ? integer : 0;
 		}
+		public static float Atof(this string str) {
+			return float.TryParse(str, out float number) ? number : 0;
+		}
 		internal static int HashKey(sbyte []str, int maxlen) {
 			int hash = 0;
 			for (int i = 0; i < maxlen && str[i] != 0; i++) {

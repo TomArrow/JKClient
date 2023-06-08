@@ -991,7 +991,9 @@ namespace JKClient {
 		}
 		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler, StringBuilder debugString = null) {
 			GCHandle fromHandle;
+			bool delta = true;
 			if (from == null) {
+				delta = false;
 				fromHandle = GCHandle.Alloc(PlayerState.Null, GCHandleType.Pinned);
 				from = (PlayerState *)fromHandle.AddrOfPinnedObject();
 			} else {
@@ -1051,6 +1053,7 @@ namespace JKClient {
 				*toF = *fromF;
 				//fields[i].Adjust?.Invoke(toF);
 			}
+			int tmpValue = 0;
 			if (this.ReadBits(1) != 0) {
 				if (this.ReadBits(1) != 0) {
 					int bits = this.ReadShort();
@@ -1059,9 +1062,19 @@ namespace JKClient {
 							if (i == 4
 								&& (clientHandler.Protocol == (int)ProtocolVersion.Protocol25
 								|| clientHandler.Protocol == (int)ProtocolVersion.Protocol26)) {
-								to->Stats[i] = this.ReadBits(19);
+								tmpValue = this.ReadBits(19);
+								if (print && (tmpValue != to->Stats[i] || !delta))
+                                {
+									debugString.Append($"stats[{i}]:{tmpValue} ");
+								}
+								to->Stats[i] = tmpValue;
 							} else {
-								to->Stats[i] = this.ReadShort();
+								tmpValue = this.ReadShort();
+								if (print && (tmpValue != to->Stats[i] || !delta))
+								{
+									debugString.Append($"stats[{i}]:{tmpValue} ");
+								}
+								to->Stats[i] = tmpValue;
 							}
 						}
 					}
@@ -1070,7 +1083,12 @@ namespace JKClient {
 					int bits = this.ReadShort();
 					for (int i = 0; i < 16; i++) {
 						if ((bits & (1<<i)) != 0) {
-							to->Persistant[i] = this.ReadShort();
+							tmpValue = this.ReadShort();
+							if (print && (tmpValue != to->Persistant[i] || !delta))
+							{
+								debugString.Append($"persistant[{i}]:{tmpValue} ");
+							}
+							to->Persistant[i] = tmpValue;
 						}
 					}
 				}
@@ -1078,7 +1096,12 @@ namespace JKClient {
 					int bits = this.ReadShort();
 					for (int i = 0; i < 16; i++) {
 						if ((bits & (1<<i)) != 0) {
-							to->Ammo[i] = this.ReadShort();
+							tmpValue  = this.ReadShort();
+							if (print && (tmpValue != to->Ammo[i] || !delta))
+							{
+								debugString.Append($"ammo[{i}]:{tmpValue} ");
+							}
+							to->Ammo[i] = tmpValue;
 						}
 					}
 				}
@@ -1086,7 +1109,12 @@ namespace JKClient {
 					int bits = this.ReadShort();
 					for (int i = 0; i < 16; i++) {
 						if ((bits & (1<<i)) != 0) {
-							to->PowerUps[i] = this.ReadLong();
+							tmpValue = this.ReadLong();
+							if (print && (tmpValue != to->PowerUps[i] || !delta))
+							{
+								debugString.Append($"powerups[{i}]:{tmpValue} ");
+							}
+							to->PowerUps[i] = tmpValue;
 						}
 					}
 				}

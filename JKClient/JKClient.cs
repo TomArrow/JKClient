@@ -414,7 +414,7 @@ namespace JKClient {
 			msg.ReadData(null, len);
 
 			// If any fields changed, not super skippable
-			var fields = this.ClientHandler.GetPlayerStateFields(true, isPilot);
+			var fields = this.ClientHandler.GetPlayerStateFields(false, isPilot);
 			int lc = msg.ReadByte();
 			if (lc > 0) {
 				for (int i = 0; i < lc; i++)
@@ -633,6 +633,14 @@ namespace JKClient {
 						bool superSkippable = false;
 						if (MessageIsSkippable(in msg, newSnapNum, ref newServerTime, ref superSkippable))
 						{
+							// TODO Measure round trip from client to server and back 
+							// Then subtract that from measured PACKET_BACKUP(32)/sv snaps
+							// Then give a bit of safety delay (50ms?)
+							// and make that the maximum time that is skipped
+							// Reason: If we go past the server's PACKET_BACKUP, we start getting non-delta snaps. Bad, those are big and unskippabble.
+							// Roundtrip because it seems that just measuring my own ping to Australia for example and duplicating it doesn't yield the correct
+							// value to prevent non-delta snaps. The actual fps value can be lower than that number would suggest.
+							// How to measure roundtrip? Send a reliable message, remember when it was sent, and see when it is acked.
 							bool wasExplicitlyNotSkipped = false;
 							int oldServerTime = this.snap.ServerTime;
 							int timeDelta = newServerTime - oldServerTime;

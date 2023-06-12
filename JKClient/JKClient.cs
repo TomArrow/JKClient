@@ -120,8 +120,8 @@ namespace JKClient {
 
 		public ClientVersion Version => this.ClientHandler.Version;
 		
-		public event EventHandler SnapshotParsed;
-		internal void OnSnapshotParsed(EventArgs eventArgs)
+		public event EventHandler<SnapshotParsedEventArgs> SnapshotParsed;
+		internal void OnSnapshotParsed(SnapshotParsedEventArgs eventArgs)
         {
 			this.SnapshotParsed?.Invoke(this, eventArgs);
 		}

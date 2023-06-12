@@ -1,7 +1,7 @@
 ﻿using System;
 
 namespace JKClient {
-	internal class Snapshot {
+	public class Snapshot {
 		public const int MaxEntities = 256;
 		public int Flags;
 		public int ServerTime;

@@ -16,6 +16,8 @@ namespace JKClient {
 				return (int)ConfigstringJO.Scores1;
 			case Configstring.Scores2:
 				return (int)ConfigstringJO.Scores2;
+			case Configstring.FlagStatus:
+				return (int)ConfigstringJO.FlagStatus;
 			}
 			return 0;
 		}
@@ -61,6 +63,7 @@ namespace JKClient {
 			Scores1 = 6,
 			Scores2 = 7,
 			LevelStartTime = 21,
+			FlagStatus = 23,
 			Sounds = 288,
 			Players = 544
 		}

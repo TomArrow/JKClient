@@ -316,7 +316,8 @@ namespace JKClient {
 			Scores2,
 			Sounds,
 			Players,
-			LevelStartTime
+			LevelStartTime,
+			FlagStatus
 		}
 		public enum EntityFlag : int {
 			TeleportBit,

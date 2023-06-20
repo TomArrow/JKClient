@@ -12,6 +12,8 @@ namespace JKClient {
 				return (int)ConfigstringQ3.Players;
 			case Configstring.LevelStartTime:
 				return (int)ConfigstringQ3.LevelStartTime;
+			case Configstring.FlagStatus:
+				return (int)ConfigstringQ3.FlagStatus;
 			}
 			return 0;
 		}
@@ -56,7 +58,8 @@ namespace JKClient {
 		}
 		public enum ConfigstringQ3 {
 			GameVersion = 20,
-			LevelStartTime = 21,	
+			LevelStartTime = 21,
+			FlagStatus = 23,
 			Sounds = 288,
 			Players = 544
 		}

@@ -7,9 +7,11 @@ namespace JKClient
 	public sealed class SnapshotParsedEventArgs
     {
 		public Snapshot snap;
-		internal SnapshotParsedEventArgs(Snapshot snapA)
+		public int snapNum;
+		internal SnapshotParsedEventArgs(Snapshot snapA, int snapNumA)
 		{
 			snap = snapA;
+			snapNum = snapNumA;
 		}
 	}
 }

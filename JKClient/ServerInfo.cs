@@ -44,6 +44,8 @@ namespace JKClient
 		public int MaxClients { get; internal set; }
 		public int MinPing { get; internal set; }
 		public int MaxPing { get; internal set; }
+		public int FPS { get; internal set; }
+		public int AllowDuelSuicide { get; internal set; }
 		public int Ping { get; internal set; }
 		public bool Visibile { get; internal set; }
 		public bool NeedPassword { get; internal set; }

@@ -29,7 +29,7 @@ namespace JKClient {
 												// walking will use different animations and
 												// won't generate footsteps
 			//Use					=32,			// the ol' use key returns!
-			//ForceGrip			=64,			// 
+			ForceGripJK2			=64,			// 
 			AltAttackJK2			=128,
 
 			AnyJK2					=256,			// any key whatsoever

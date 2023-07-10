@@ -499,7 +499,7 @@ namespace JKClient {
             {
 				Snapshot eventSnapsshot = new Snapshot();
 				(this as IJKClientImport).GetSnapshot(this.snap.MessageNum, ref eventSnapsshot);
-				this.OnSnapshotParsed(new SnapshotParsedEventArgs(eventSnapsshot));
+				this.OnSnapshotParsed(new SnapshotParsedEventArgs(eventSnapsshot, this.snap.MessageNum));
 			}
 		}
 		private unsafe void ParsePacketEntities(in Message msg, in ClientSnapshot *oldSnap, in ClientSnapshot *newSnap) {

@@ -3,9 +3,66 @@
 namespace JKClient {
 
 	[StructLayout(LayoutKind.Sequential, Pack = 4)]
-	internal struct ForceData
+	public struct ForceData
     {
-		// Todo
+		/*
+		public int forcePowerDebounce[NUM_FORCE_POWERS];   //for effects that must have an interval
+		public int forcePowersKnown;
+		public int forcePowersActive;
+		public int forcePowerSelected;
+		public int forceButtonNeedRelease;
+		public int forcePowerDuration[NUM_FORCE_POWERS];
+		public int forcePower;
+		public int forcePowerMax;
+		public int forcePowerRegenDebounceTime;
+		public int forcePowerLevel[NUM_FORCE_POWERS];      //so we know the max forceJump power you have
+		public int forcePowerBaseLevel[NUM_FORCE_POWERS];
+		public int forceUsingAdded;
+		public float forceJumpZStart;                    //So when you land, you don't get hurt as much
+		public float forceJumpCharge;                    //you're current forceJump charge-up level, increases the longer you hold the force jump button down
+		public int forceJumpSound;
+		public int forceJumpAddTime;
+		public int forceGripEntityNum;                 //what entity I'm gripping
+		public int forceGripDamageDebounceTime;        //debounce for grip damage
+		public float forceGripBeingGripped;              //if > level.time then client is in someone's grip
+		public int forceGripCripple;                   //if != 0 then make it so this client can't move quickly (he's being gripped)
+		public int forceGripUseTime;                   //can't use if > level.time
+		public float forceGripSoundTime;
+		public float forceGripStarted;                   //level.time when the grip was activated
+		public float forceSpeedSmash;
+		public float forceSpeedDoDamage;
+		public int forceSpeedHitIndex;                 //if we hit another player and got hurt, hurt them too
+		public int forceHealTime;
+		public int forceHealAmount;
+
+		//This hurts me somewhat to do, but there's no other real way to allow completely "dynamic" mindtricking.
+		public int forceMindtrickTargetIndex; //0-15
+		public int forceMindtrickTargetIndex2; //16-32
+		public int forceMindtrickTargetIndex3; //33-48
+		public int forceMindtrickTargetIndex4; //49-64
+
+		public int forceRageRecoveryTime;
+		public int forceDrainEntNum;
+		public float forceDrainTime;
+
+		public int forceDoInit;
+
+		public int forceSide;
+		public int forceRank;
+
+		public int forceDeactivateAll;
+
+		//public int killSoundEntIndex[TRACK_CHANNEL_MAX]; //this goes here so it doesn't get wiped over respawn
+
+		public QuakeBoolean sentryDeployed;
+		*/
+		public int SaberAnimLevel;
+		public int SaberDrawAnimLevel;
+
+		//public int suicides;
+
+		//public int privateDuelTime;
+
     }
 
 	[StructLayout(LayoutKind.Sequential, Pack = 4)]
@@ -238,6 +295,7 @@ namespace JKClient {
 
 		// Needs porting the forcedata stuff...
 		//forcedata_t fd;
+		public ForceData forceData;
 		public QuakeBoolean ForceJumpFlip;
 		public int ForceHandExtend;
 		public int ForceHandExtendTime;

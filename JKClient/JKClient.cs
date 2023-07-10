@@ -137,6 +137,8 @@ namespace JKClient {
 		}
 		public bool DebugConfigStrings { get; set; } = false;
 		public bool DebugNet { get; set; } = false;
+		// set to true if you want this client to get stuck as "Connecting"
+		public bool GhostPeer { get; init; } = false;
 		private StringBuilder showNetString = null;
 
 		public event EventHandler Disconnected;
@@ -332,6 +334,7 @@ namespace JKClient {
                     {
 						this.userInfo["engine"] = "demoBot"; // Try not to get influenced by servers blocking JKChat
                     }
+
 					string data = $"connect \"{this.userInfo}\\protocol\\{this.Protocol}\\qport\\{this.port}\\challenge\\{this.challenge}\"";
 					this.OutOfBandData(this.serverAddress, data, data.Length);
 				} else if (this.realTime - this.infoRequestTime >= JKClient.RetransmitTimeOut) // Maybe the request or answer to the request got lost somewhere... let's ask again.
@@ -815,15 +818,17 @@ namespace JKClient {
 				this.connectTime = -99999;
 				this.serverAddress = address;
 			} else if (string.Compare(c, "connectResponse", StringComparison.OrdinalIgnoreCase) == 0) {
-				if (this.Status != ConnectionStatus.Challenging) {
-					return;
+                if (!this.GhostPeer) {  // Stay in perpetual challenging mode
+					if (this.Status != ConnectionStatus.Challenging) {
+						return;
+					}
+					if (address != this.serverAddress) {
+						return;
+					}
+					this.netChannel = new NetChannel(this.net, address, this.port, this.ClientHandler.MaxMessageLength);
+					this.Status = ConnectionStatus.Connected;
+					this.lastPacketSentTime = -9999;
 				}
-				if (address != this.serverAddress) {
-					return;
-				}
-				this.netChannel = new NetChannel(this.net, address, this.port, this.ClientHandler.MaxMessageLength);
-				this.Status = ConnectionStatus.Connected;
-				this.lastPacketSentTime = -9999;
 			} else if (string.Compare(c, "disconnect", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.netChannel == null) {
 					return;
@@ -924,9 +929,13 @@ namespace JKClient {
 				this.outPackets[packetNum].CommandNumber = this.cmdNumber;
 				msg.WriteByte((int)ClientCommandOperations.EOF);
 				this.Encode(msg);
-				this.netChannel.Transmit(msg.CurSize, msg.Data);
-				while (this.netChannel.UnsentFragments) {
-					this.netChannel.TransmitNextFragment();
+                if (!this.GhostPeer) // As a ghost peer we want to get stuck in CON_CONNECTING forever. Hack for rare circumstances
+                {
+					this.netChannel.Transmit(msg.CurSize, msg.Data);
+					while (this.netChannel.UnsentFragments)
+					{
+						this.netChannel.TransmitNextFragment();
+					}
 				}
 			}
 		}

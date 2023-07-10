@@ -358,9 +358,9 @@ namespace JKClient {
 			{ nameof(PlayerState.TorsoTimer), 16  },
 			{ nameof(PlayerState.LegsTimer), 16  },
 			{ nameof(PlayerState.ViewHeight), -8  },
-			{	0	,	4	},
+			{   nameof(PlayerState.forceData), Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.SaberAnimLevel)).ToInt32()   ,	4	},
 			{ nameof(PlayerState.RocketLockIndex), Common.GEntitynumBits  },
-			{ 0, 4  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData), Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.SaberDrawAnimLevel)).ToInt32(), 4  }, //  Replace FdType with real type and double check. 
 			{ nameof(PlayerState.GenericEnemyIndex), 32  },
 			{	nameof(PlayerState.Events)  ,   sizeof(int)*0	,   10	},
 			{	nameof(PlayerState.Events)	,	sizeof(int)*1	,	10	},
@@ -572,8 +572,8 @@ namespace JKClient {
 			{ nameof(PlayerState.Speed), 0  },
 			{ nameof(PlayerState.GroundEntityNum), Common.GEntitynumBits  },
 			{ nameof(PlayerState.ViewHeight), -8  },
-			{ 0, 4  }, //  Replace FdType with real type and double check. 
-			{ 0, 4  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData), Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.SaberAnimLevel)).ToInt32(), 4  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData), Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.SaberDrawAnimLevel)).ToInt32(), 4  }, //  Replace FdType with real type and double check. 
 			{ nameof(PlayerState.GenericEnemyIndex), 32  },
 			{ nameof(PlayerState.customRGBA), 8  },
 			{ nameof(PlayerState.MovementDirection), 4  },

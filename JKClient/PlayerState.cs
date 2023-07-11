@@ -5,63 +5,63 @@ namespace JKClient {
 	[StructLayout(LayoutKind.Sequential, Pack = 4)]
 	public struct ForceData
     {
-		/*
-		public int forcePowerDebounce[NUM_FORCE_POWERS];   //for effects that must have an interval
-		public int forcePowersKnown;
-		public int forcePowersActive;
-		public int forcePowerSelected;
-		public int forceButtonNeedRelease;
-		public int forcePowerDuration[NUM_FORCE_POWERS];
-		public int forcePower;
-		public int forcePowerMax;
-		public int forcePowerRegenDebounceTime;
-		public int forcePowerLevel[NUM_FORCE_POWERS];      //so we know the max forceJump power you have
-		public int forcePowerBaseLevel[NUM_FORCE_POWERS];
-		public int forceUsingAdded;
-		public float forceJumpZStart;                    //So when you land, you don't get hurt as much
-		public float forceJumpCharge;                    //you're current forceJump charge-up level, increases the longer you hold the force jump button down
-		public int forceJumpSound;
-		public int forceJumpAddTime;
-		public int forceGripEntityNum;                 //what entity I'm gripping
-		public int forceGripDamageDebounceTime;        //debounce for grip damage
-		public float forceGripBeingGripped;              //if > level.time then client is in someone's grip
-		public int forceGripCripple;                   //if != 0 then make it so this client can't move quickly (he's being gripped)
-		public int forceGripUseTime;                   //can't use if > level.time
-		public float forceGripSoundTime;
-		public float forceGripStarted;                   //level.time when the grip was activated
-		public float forceSpeedSmash;
-		public float forceSpeedDoDamage;
-		public int forceSpeedHitIndex;                 //if we hit another player and got hurt, hurt them too
-		public int forceHealTime;
-		public int forceHealAmount;
+		
+		public unsafe fixed int ForcePowerDebounce[18];   //for effects that must have an interval
+		public int ForcePowersKnown;
+		public int ForcePowersActive;
+		public int ForcePowerSelected;
+		public int ForceButtonNeedRelease;
+		public unsafe fixed int ForcePowerDuration[18];
+		public int ForcePower;
+		public int ForcePowerMax;
+		public int ForcePowerRegenDebounceTime;
+		public unsafe fixed int ForcePowerLevel[18];      //so we know the max forceJump power you have
+		public unsafe fixed int ForcePowerBaseLevel[18];
+		public int ForceUsingAdded;
+		public float ForceJumpZStart;                    //So when you land, you don't get hurt as much
+		public float ForceJumpCharge;                    //you're current forceJump charge-up level, increases the longer you hold the force jump button down
+		public int ForceJumpSound;
+		public int ForceJumpAddTime;
+		public int ForceGripEntityNum;                 //what entity I'm gripping
+		public int ForceGripDamageDebounceTime;        //debounce for grip damage
+		public float ForceGripBeingGripped;              //if > level.time then client is in someone's grip
+		public int ForceGripCripple;                   //if != 0 then make it so this client can't move quickly (he's being gripped)
+		public int ForceGripUseTime;                   //can't use if > level.time
+		public float ForceGripSoundTime;
+		public float ForceGripStarted;                   //level.time when the grip was activated
+		public float ForceSpeedSmash;
+		public float ForceSpeedDoDamage;
+		public int ForceSpeedHitIndex;                 //if we hit another player and got hurt, hurt them too
+		public int ForceHealTime;
+		public int ForceHealAmount;
 
 		//This hurts me somewhat to do, but there's no other real way to allow completely "dynamic" mindtricking.
-		public int forceMindtrickTargetIndex; //0-15
-		public int forceMindtrickTargetIndex2; //16-32
-		public int forceMindtrickTargetIndex3; //33-48
-		public int forceMindtrickTargetIndex4; //49-64
+		public int ForceMindtrickTargetIndex; //0-15
+		public int ForceMindtrickTargetIndex2; //16-32
+		public int ForceMindtrickTargetIndex3; //33-48
+		public int ForceMindtrickTargetIndex4; //49-64
 
-		public int forceRageRecoveryTime;
-		public int forceDrainEntNum;
-		public float forceDrainTime;
+		public int ForceRageRecoveryTime;
+		public int ForceDrainEntNum;
+		public float ForceDrainTime;
 
-		public int forceDoInit;
+		public int ForceDoInit;
 
-		public int forceSide;
-		public int forceRank;
+		public int ForceSide;
+		public int ForceRank;
 
-		public int forceDeactivateAll;
+		public int ForceDeactivateAll;
 
-		//public int killSoundEntIndex[TRACK_CHANNEL_MAX]; //this goes here so it doesn't get wiped over respawn
+		public unsafe fixed int KillSoundEntIndex[6]; //this goes here so it doesn't get wiped over respawn
 
-		public QuakeBoolean sentryDeployed;
-		*/
+		public QuakeBoolean SentryDeployed;
+		
 		public int SaberAnimLevel;
 		public int SaberDrawAnimLevel;
 
-		//public int suicides;
+		public int Suicides;
 
-		//public int privateDuelTime;
+		public int PrivateDuelTime;
 
     }
 

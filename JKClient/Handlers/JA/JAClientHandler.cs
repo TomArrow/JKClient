@@ -353,7 +353,7 @@ namespace JKClient {
 			{ nameof(PlayerState.TorsoAnim), 16  },
 			{	nameof(PlayerState.GroundEntityNum)	,	Common.GEntitynumBits	},
 			{   nameof(PlayerState.EntityFlags) ,	32	},
-			{	0	,	8	},
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePower)).ToInt32(), 8  }, //  Replace ForceData with real type and double check. 
 			{   nameof(PlayerState.EventSequence) ,	16	},
 			{ nameof(PlayerState.TorsoTimer), 16  },
 			{ nameof(PlayerState.LegsTimer), 16  },
@@ -386,17 +386,17 @@ namespace JKClient {
 			{ nameof(PlayerState.DeltaAngles),  sizeof(int)*2, 16  }, // Replace sizeof type. 
 			{ nameof(PlayerState.SaberCanThrow), 1  },
 			{ nameof(PlayerState.ViewAngles),  sizeof(float)*2, 0  }, // Replace sizeof type. 
-			{ 0, 32  }, //  Replace FdType with real type and double check. 
-			{ 0, 2  }, //  Replace FdType with real type and double check. 
-			{ 0, 32  }, //  Replace FdType with real type and double check. 
-			{ 0, 8  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowersKnown)).ToInt32(), 32  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowerLevel)).ToInt32(), 2  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowerDebounce)).ToInt32(), 32  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowerSelected)).ToInt32(), 8  }, //  Replace ForceData with real type and double check.
 			{ nameof(PlayerState.torsoFlip), 1  },
 			{   nameof(PlayerState.ExternalEvent) ,	10	},
 			{ nameof(PlayerState.DamageYaw), 8  },
 			{ nameof(PlayerState.DamageCount), 8  },
 			{ nameof(PlayerState.InAirAnim), 1  },
 			{   nameof(PlayerState.EventParms)  ,   sizeof(int)*1   ,   8	},
-			{	0	,	2	},
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceSide)).ToInt32(), 2  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.SaberAttackChainCount), 4  },
 			{	nameof(PlayerState.PlayerMoveType)	,	8	},
 			{	nameof(PlayerState.ExternalEventParm)	,	8	},
@@ -409,7 +409,7 @@ namespace JKClient {
 			{ nameof(PlayerState.RocketTargetTime), 32  },
 			{ nameof(PlayerState.ActiveForcePass), 6  },
 			{ nameof(PlayerState.ElectrifyTime), 32  },
-			{ 0, 0  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceJumpZStart)).ToInt32(), 0  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.LoopSound), 16  },
 			{ nameof(PlayerState.hasLookTarget), 1  },
 			{ nameof(PlayerState.SaberBlocked), 8  },
@@ -417,7 +417,7 @@ namespace JKClient {
 			{ nameof(PlayerState.RocketLockTime), 32  },
 			{ nameof(PlayerState.ForceHandExtend), 8  },
 			{ nameof(PlayerState.SaberHolstered), 2  },
-			{ 0, 32  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowersActive)).ToInt32(), 32  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.DamagePitch), 8  },
 			{   nameof(PlayerState.VehicleNum) ,	Common.GEntitynumBits	},
 			{ nameof(PlayerState.Generic1), 8  },
@@ -431,22 +431,21 @@ namespace JKClient {
 			{ nameof(PlayerState.brokenLimbs), 8  },
 			{ nameof(PlayerState.ZoomLocked), 1  },
 			{ nameof(PlayerState.ZoomFov), 0  },
-			{ 0, 32  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceRageRecoveryTime)).ToInt32(), 32  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.FallingToDeath), 32  },
-			{0, 16  }, //  Replace FdType with real type and double check. 
-			{ 0, 16  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceMindtrickTargetIndex)).ToInt32(), 16  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceMindtrickTargetIndex2)).ToInt32(), 16  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.lastHitLoc),  sizeof(float)*2, 0  }, // Replace sizeof type. 
-			{ 0, 16  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceMindtrickTargetIndex3)).ToInt32(), 16  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.lastHitLoc), 0  },
-			{ nameof(PlayerState.eFlags2), 10  },
-			{ 0, 16  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.eFlags2), 10  },{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceMindtrickTargetIndex4)).ToInt32(), 16  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.lastHitLoc),  sizeof(float)*1, 0  }, // Replace sizeof type. 
-			{ 0, 1  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.SentryDeployed)).ToInt32(), 1  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.SaberLockTime), 32  },
 			{ nameof(PlayerState.SaberLockFrame), 16  },
-			{ 0, 2  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowerLevel)).ToInt32(), 2  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.SaberLockEnemy), Common.GEntitynumBits  },
-			{ 0, 1  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceGripCripple)).ToInt32(), 1  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.EmplacedIndex), Common.GEntitynumBits  },
 			{ nameof(PlayerState.HolocronBits), 32  },
 			{ nameof(PlayerState.IsJediMaster), 1  },
@@ -534,7 +533,7 @@ namespace JKClient {
 			{ nameof(PlayerState.WeaponChargeSubtractTime), 32  },
 			{ nameof(PlayerState.WeaponChargeTime), 32  },
 			{ nameof(PlayerState.RocketTargetTime), 32  },
-			{0, 0  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceJumpZStart)).ToInt32(), 0  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.RocketLockTime), 32  },
 			{ nameof(PlayerState.VehicleNum), Common.GEntitynumBits  },
 			{ nameof(PlayerState.Generic1), 8  },
@@ -548,21 +547,21 @@ namespace JKClient {
 			{ nameof(PlayerState.jetpackFuel), 8  },
 			{ nameof(PlayerState.cloakFuel), 8  },
 			{ nameof(PlayerState.SaberCanThrow), 1  },
-			{ 0, 32  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowerDebounce)).ToInt32(), 32  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.torsoFlip), 1  },
 			{ nameof(PlayerState.legsFlip), 1  },
-			{0, 32  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowersActive)).ToInt32(), 32  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.HasDetPackPlanted), 1  },
-			{ 0, 32  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceRageRecoveryTime)).ToInt32(), 32  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.SaberInFlight), 1  },
-			{ 0, 16  }, //  Replace FdType with real type and double check. 
-			{ 0, 16  }, //  Replace FdType with real type and double check. 
-			{ 0, 16  }, //  Replace FdType with real type and double check. 
-			{ 0, 16  }, //  Replace FdType with real type and double check. 
-			{ 0, 1  }, //  Replace FdType with real type and double check. 
-			{0, 2  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceMindtrickTargetIndex)).ToInt32(), 16  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceMindtrickTargetIndex2)).ToInt32(), 16  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceMindtrickTargetIndex3)).ToInt32(), 16  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceMindtrickTargetIndex4)).ToInt32(), 16  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.SentryDeployed)).ToInt32(), 1  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowerLevel)).ToInt32(), 2  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.HolocronBits), 32  },
-			{ 0, 8  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePower)).ToInt32(), 8  }, //  Replace ForceData with real type and double check. 
 		 // Not detected
 		//===THE REST OF THESE SHOULD NOT BE RELEVANT, BUT, FOR SAFETY, INCLUDE THEM ANYWAY, JUST AT THE BOTTOM=============================================================== // Not detected
 			{ nameof(PlayerState.Velocity), 0  },
@@ -587,13 +586,13 @@ namespace JKClient {
 			{ nameof(PlayerState.DuelIndex), Common.GEntitynumBits  },
 			{ nameof(PlayerState.customRGBA),  sizeof(int)*2, 8  }, // Replace sizeof type. 
 			{ nameof(PlayerState.Gravity), 16  },
-			{ 0, 32  }, //  Replace FdType with real type and double check. 
-			{ 0, 2  }, //  Replace FdType with real type and double check. 
-			{ 0, 8  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowersKnown)).ToInt32(), 32  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowerLevel)).ToInt32(), 2  }, //  Replace ForceData with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForcePowerSelected)).ToInt32(), 8  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.DamageYaw), 8  },
 			{ nameof(PlayerState.DamageCount), 8  },
 			{ nameof(PlayerState.InAirAnim), 1  },
-			{ 0, 2  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceSide)).ToInt32(), 2  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.SaberAttackChainCount), 4  },
 			{ nameof(PlayerState.lookTarget), Common.GEntitynumBits  },
 			{ nameof(PlayerState.moveDir),  sizeof(float)*1, 0  }, // Replace sizeof type. 
@@ -624,7 +623,7 @@ namespace JKClient {
 			{ nameof(PlayerState.SaberLockTime), 32  },
 			{ nameof(PlayerState.SaberLockFrame), 16  },
 			{ nameof(PlayerState.SaberLockEnemy), Common.GEntitynumBits  },
-			{0, 1  }, //  Replace FdType with real type and double check. 
+			{ nameof(PlayerState.forceData),  Marshal.OffsetOf(typeof(ForceData),nameof(ForceData.ForceGripCripple)).ToInt32(), 1  }, //  Replace ForceData with real type and double check. 
 			{ nameof(PlayerState.EmplacedIndex), Common.GEntitynumBits  },
 			{ nameof(PlayerState.IsJediMaster), 1  },
 			{ nameof(PlayerState.ForceRestricted), 1  },

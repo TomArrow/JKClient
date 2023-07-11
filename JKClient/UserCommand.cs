@@ -32,13 +32,13 @@ namespace JKClient {
 			ForceGripJK2			=64,			// 
 			AltAttackJK2			=128,
 
-			AnyJK2					=256,			// any key whatsoever
+			AnyJK2					=256,           // any key whatsoever
 
 			//ForcePower			=512,			// use the "active" force power
 
 			//ForceLightning		=1024,
 
-			//ForceDrain			=2048*/
+			ForceDrainJK2 = 2048
 		}
 	}
 }

@@ -240,6 +240,7 @@ namespace JKClient {
 			snapshot.ServerTime = clSnapshot.ServerTime;
 			snapshot.PlayerState = clSnapshot.PlayerState;
 			snapshot.VehiclePlayerState = clSnapshot.VehiclePlayerState;
+			snapshot.ping = clSnapshot.ping;
 			snapshot.NumEntities = Math.Min(clSnapshot.NumEntities, Snapshot.MaxEntities);
 			for (int i = 0; i < snapshot.NumEntities; i++) {
 				int entNum = (clSnapshot.ParseEntitiesNum + i) & (JKClient.MaxParseEntities-1);

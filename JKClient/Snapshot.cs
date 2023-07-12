@@ -8,6 +8,7 @@ namespace JKClient {
 		public PlayerState PlayerState;
 		public PlayerState VehiclePlayerState;
 		public int NumEntities;
+		public int ping;
 		public EntityState []Entities { get; init; } = new EntityState[Snapshot.MaxEntities];
 		public int ServerCommandSequence;
 	}

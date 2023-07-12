@@ -4,7 +4,7 @@ using System.Text;
 
 namespace JKClient {
 	public sealed partial class JKClient {
-		private const int PacketBackup = 32;
+		private const int PacketBackup = 256;
 		private const int PacketMask = (JKClient.PacketBackup-1);
 		private const int MaxParseEntities = 2048;
 #region ClientActive
@@ -495,7 +495,19 @@ namespace JKClient {
 
 			}
 
-			if(this.SnapshotParsed.GetInvocationList().Length > 0)
+			this.snap.ping = 999;
+			// calculate ping time
+			for (int i = 0; i < JKClient.PacketBackup; i++)
+			{
+				int packetNum = (this.netChannel.OutgoingSequence - 1 - i) & (JKClient.PacketBackup-1);
+				if (this.snap.PlayerState.CommandTime >= this.outPackets[packetNum].ServerTime)
+				{
+					this.snap.ping = this.realTime - this.outPackets[packetNum].RealTime;
+					break;
+				}
+			}
+
+			if (this.SnapshotParsed.GetInvocationList().Length > 0)
             {
 				Snapshot eventSnapsshot = new Snapshot();
 				(this as IJKClientImport).GetSnapshot(this.snap.MessageNum, ref eventSnapsshot);

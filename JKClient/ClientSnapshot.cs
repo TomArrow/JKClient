@@ -14,5 +14,6 @@ namespace JKClient {
 		public int NumEntities;
 		public int ParseEntitiesNum;
 		public int ServerCommandNum;
+		public int ping;
 	}
 }

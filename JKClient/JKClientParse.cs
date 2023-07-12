@@ -479,6 +479,20 @@ namespace JKClient {
 			for (;oldMessageNum < newSnap.MessageNum; oldMessageNum++) {
 				this.snapshots[oldMessageNum & JKClient.PacketMask].Valid = false;
 			}
+
+
+			newSnap.ping = 999;
+			// calculate ping time
+			for (int i = 0; i < JKClient.PacketBackup; i++)
+			{
+				int packetNum = (this.netChannel.OutgoingSequence - 1 - i) & (JKClient.PacketBackup - 1);
+				if (this.snap.PlayerState.CommandTime >= this.outPackets[packetNum].ServerTime)
+				{
+					newSnap.ping = this.realTime - this.outPackets[packetNum].RealTime;
+					break;
+				}
+			}
+
 			this.snap = newSnap;
 			this.snapshots[this.snap.MessageNum & JKClient.PacketMask] = this.snap;
 			this.newSnapshots = true;
@@ -495,17 +509,6 @@ namespace JKClient {
 
 			}
 
-			this.snap.ping = 999;
-			// calculate ping time
-			for (int i = 0; i < JKClient.PacketBackup; i++)
-			{
-				int packetNum = (this.netChannel.OutgoingSequence - 1 - i) & (JKClient.PacketBackup-1);
-				if (this.snap.PlayerState.CommandTime >= this.outPackets[packetNum].ServerTime)
-				{
-					this.snap.ping = this.realTime - this.outPackets[packetNum].RealTime;
-					break;
-				}
-			}
 
 			if (this.SnapshotParsed.GetInvocationList().Length > 0)
             {

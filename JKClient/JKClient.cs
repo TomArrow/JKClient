@@ -164,6 +164,19 @@ namespace JKClient {
 				this.UpdateUserInfo();
 			}
 		}
+		public string Skin {
+			get => this.userInfo["model"];
+			set {
+				string skin = value;
+				if (string.IsNullOrEmpty(skin)) {
+					skin = "kyle/default";
+				}/* else if (name.Length > 31) { // Let me choose pls :)
+					name = name.Substring(0, 31);
+				}*/
+				this.userInfo["model"] = skin;
+				this.UpdateUserInfo();
+			}
+		}
 		public string Password {
 			get => this.userInfo["password"];
 			set {

@@ -327,6 +327,7 @@ namespace JKClient {
 			None,
 			VoiceCommandSound,
 			Obituary,
+			ForceDrained,
 			CtfMessage,
 			Bits = 0x300
 		}

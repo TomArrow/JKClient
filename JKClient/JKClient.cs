@@ -48,8 +48,10 @@ namespace JKClient {
 		private const string DefaultName = "AssetslessClient";
 		private readonly string jaPlusClientSupportFlagsExplanation = ((int)(jaPlusClientSupportFlags_t.CSF_SCOREBOARD_KD | jaPlusClientSupportFlags_t.CSF_SCOREBOARD_LARGE | jaPlusClientSupportFlags_t.CSF_GRAPPLE_SWING)).ToString("X"); // This is what jaPlusClientSupportFlags is, but I can't do that because ToString() can't be assigned to constant
 		private const string jaPlusClientSupportFlags = "7";
-		private const string forcePowersJKClientDefault = "7-1-032330000000001333";
-		private const string forcePowersAllDark = "200-2-033330333000033333";
+		public const string forcePowersJKClientDefault = "7-1-032330000000001333";
+		public const string forcePowersAllDark = "200-2-033330333000033333";
+		public const string forcePowersAllLight = "200-1-333333000330003333";
+		private long skipUserInfoChangeCount = 0;
 		private const string UserInfo = "\\name\\" + JKClient.DefaultName + "\\rate\\200000\\snaps\\1000\\model\\kyle/default\\forcepowers\\"+ forcePowersAllDark + "\\color1\\4\\color2\\4\\handicap\\100\\teamtask\\0\\sex\\male\\password\\\\cg_predictItems\\1\\saber1\\single_1\\saber2\\none\\char_color_red\\255\\char_color_green\\255\\char_color_blue\\255\\engine\\jkclient_demoRec\\cjp_client\\1.4JAPRO\\csf\\"+ jaPlusClientSupportFlags + "\\assets\\0"; // cjp_client: Pretend to be jaPRO for more scoreboard stats
 		private readonly Random random = new Random();
 		private readonly int port;
@@ -151,6 +153,14 @@ namespace JKClient {
 		private int MaxReliableCommands => this.ClientHandler.MaxReliableCommands;
 		private string GuidKey => this.ClientHandler.GuidKey;
 #endregion
+		// Use this if you wwant to do multiple userinfo related edits and avoid spamming userinfo updates to the server. Just tell it howw many upcoming changes to skip
+		public void SkipUserInfoUpdatesAfterNextNChanges(int countSkips)
+        {
+			for (int i = 0; i < countSkips; i++){
+
+				Interlocked.Increment(ref skipUserInfoChangeCount);
+			}
+        }
 		public string Name {
 			get => this.userInfo["name"];
 			set {
@@ -318,11 +328,21 @@ namespace JKClient {
 				this.UpdateUserInfo();
 			}
 		}
-		private void UpdateUserInfo() {
+		public string GetUserInfoKeyValue(string key) {
+			key = key.ToLower();
+			return this.userInfo[key];
+		}
+		private void UpdateUserInfo(bool skippable = true) {
 			if (this.Status < ConnectionStatus.Challenging) {
 				return;
 			}
-			this.ExecuteCommand($"userinfo \"{userInfo}\"");
+			if(skippable && Interlocked.Read(ref skipUserInfoChangeCount) > 0)
+            {
+				Interlocked.Decrement(ref skipUserInfoChangeCount);
+			} else
+            {
+				this.ExecuteCommand($"userinfo \"{userInfo}\"");
+			}
 		}
 		private void CheckForResend() {
 			if (this.Status != ConnectionStatus.Connecting && this.Status != ConnectionStatus.Challenging) {

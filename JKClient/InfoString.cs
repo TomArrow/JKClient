@@ -1,9 +1,10 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Text;
 
 namespace JKClient {
-	public sealed class InfoString : Dictionary<string, string> {
+	public sealed class InfoString : ConcurrentDictionary<string, string> {
 		private const char Delimiter = '\\';
 		public new string this[string key] {
 			get => this.ContainsKey(key) ? base[key] : string.Empty;

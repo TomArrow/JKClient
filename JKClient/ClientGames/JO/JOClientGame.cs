@@ -28,6 +28,8 @@ namespace JKClient {
 						return EntityEvent.Obituary;
 					case EntityEventJO.CtfMessage:
 						return EntityEvent.CtfMessage;
+					case EntityEventJO.ForceDrained:
+						return EntityEvent.ForceDrained;
 					default:
 						break;
 				}

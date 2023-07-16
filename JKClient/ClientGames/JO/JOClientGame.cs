@@ -30,6 +30,8 @@ namespace JKClient {
 						return EntityEvent.CtfMessage;
 					case EntityEventJO.ForceDrained:
 						return EntityEvent.ForceDrained;
+					case EntityEventJO.Jump:
+						return EntityEvent.Jump;
 					default:
 						break;
 				}

@@ -329,6 +329,7 @@ namespace JKClient {
 			Obituary,
 			ForceDrained,
 			CtfMessage,
+			Jump,
 			Bits = 0x300
 		}
 		public enum EntityType : int

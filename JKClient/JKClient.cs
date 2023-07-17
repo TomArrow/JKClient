@@ -38,7 +38,7 @@ namespace JKClient {
 		CSF_WEAPONDUEL = (int)0x00000020u,
 	}
 
-	public delegate void UserCommandGeneratedEventHandler(object sender, ref UserCommand modifiableCommand);
+	public delegate void UserCommandGeneratedEventHandler(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand);
 	public sealed partial class JKClient : NetClient {
 		public volatile int SnapOrderTolerance = 100;
 		public volatile bool SnapOrderToleranceDemoSkipPackets = false;
@@ -130,9 +130,9 @@ namespace JKClient {
 			this.SnapshotParsed?.Invoke(this, eventArgs);
 		}
 		public event UserCommandGeneratedEventHandler UserCommandGenerated;
-		internal void OnUserCommandGenerated(ref UserCommand cmd)
+		internal void OnUserCommandGenerated(ref UserCommand cmd, in UserCommand previousCmd)
         {
-			this.UserCommandGenerated?.Invoke(this, ref cmd);
+			this.UserCommandGenerated?.Invoke(this, ref cmd, in previousCmd);
 		}
 		public event EventHandler<object> DebugEventHappened; // Has nothing to do with q3 engine events. It's just for some special cases to comfortably debug stuff.
 		internal void OnDebugEventHappened(object o)
@@ -904,7 +904,7 @@ namespace JKClient {
 			this.cmds[this.cmdNumber & UserCommand.CommandMask] = default;
 			this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime = this.clServerTime;
 
-			OnUserCommandGenerated(ref this.cmds[this.cmdNumber & UserCommand.CommandMask]);
+			OnUserCommandGenerated(ref this.cmds[this.cmdNumber & UserCommand.CommandMask], in this.cmds[(this.cmdNumber-1) & UserCommand.CommandMask]);
 		}
 		private void SendCommand() {
 			if (this.Status < ConnectionStatus.Connected) {

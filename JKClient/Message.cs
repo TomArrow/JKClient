@@ -65,7 +65,7 @@ namespace JKClient {
 #if !DEBUG
 			} catch(Exception e)
 			{
-				MessageBox.Show("Error trying to read from demo file: "+e.ToString());
+				//MessageBox.Show("Error trying to read from demo file: "+e.ToString());
 				return null;
 			}
 #endif

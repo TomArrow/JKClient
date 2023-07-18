@@ -25,6 +25,12 @@ namespace JKClient {
 
 		private readonly StringBuilder bigInfoString = new StringBuilder(Common.BigInfoString, Common.BigInfoString);
 
+
+		private void FirstSnapshot()
+        {
+			this.clServerTimeDelta = this.snap.ServerTime - this.realTime;
+			this.clOldServerTime = this.snap.ServerTime;
+		}
 		private void AdjustTimeDelta()
         {
 			const int RESET_TIME = 500;
@@ -76,6 +82,7 @@ namespace JKClient {
 					if ((this.snap.Flags & ClientSnapshot.NotActive) != 0) {
 						return;
 					}
+					this.FirstSnapshot();
 					this.Status = ConnectionStatus.Active;
 					this.connectTCS?.TrySetResult(true);
 				}

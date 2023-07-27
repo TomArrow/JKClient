@@ -344,7 +344,7 @@ namespace JKClient {
 		public Message msg;
 		public DateTime time;
 		public bool containsFullSnapshot;
-		public int serverTime;
+		public int? serverTime = null;
 	}
 
 	internal sealed class Message {

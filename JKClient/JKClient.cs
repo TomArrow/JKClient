@@ -114,7 +114,9 @@ namespace JKClient {
 		Mutex DemofileLock = new Mutex();
 		FileStream Demofile;
 		Int64 DemoLastFullFlush = 0;
+		DateTime DemoLastFullFlushTime = DateTime.Now;
 		public Int64 DemoFlushInterval = 200 * 1000; // 200 KB. At the very least every 200 KB a write to disk is forced.
+		public Int64 DemoFlushTimeInterval = 60000; // 60 seconds. At the very least every 60 sseconds a write to disk is forced.
 #endregion
 #region ClientStatic
 		private int realTime = 0;
@@ -256,6 +258,7 @@ namespace JKClient {
 			base.OnStart();
 		}
 		private protected override void OnStop(bool afterFailure) {
+			this.StopRecord_f();
 			this.connectTCS?.TrySetCanceled();
 			this.connectTCS = null;
 			this.Status = ConnectionStatus.Disconnected;
@@ -720,6 +723,7 @@ namespace JKClient {
 										{
 											msg = msg.Clone(),
 											time = DateTime.Now,
+											serverTime = newServerTime,
 											containsFullSnapshot = false // To be determined
 										};
 										DemoAfkSnapsDropLastDroppedMessageNumber = sequenceNumber;
@@ -1074,7 +1078,7 @@ namespace JKClient {
 		Dumps the current net message, prefixed by the length
 		====================
 		*/
-		void WriteDemoMessage(Message msg, int headerBytes,int sequenceNumber)
+		void WriteDemoMessage(Message msg, int headerBytes,int sequenceNumber, int? serverTime)
 		{
 			int len, swlen;
 
@@ -1095,16 +1099,22 @@ namespace JKClient {
 				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
 				Demofile.Write(msg.Data, headerBytes, len);
 
+                if (serverTime.HasValue) // This messsage contains a snapshot. Update the server time of actually written messages (we write delayed for reordering)
+                {
+					currentDemoWrittenServerTime = serverTime.Value;
+					this.UpdateDemoTime();
+				}
 
 				if (demoFirstPacketRecordedPromise != null)
 				{
 					demoFirstPacketRecordedPromise.SetResult(true); // Just in case the outside code wants to do something particular once actual packets are being recorded.
 					demoFirstPacketRecordedPromise = null;
 				}
-                if ((DemoLastFullFlush + DemoFlushInterval) < Demofile.Position)
+                if ((DemoLastFullFlush + DemoFlushInterval) < Demofile.Position || (DateTime.Now-DemoLastFullFlushTime).TotalMilliseconds > DemoFlushTimeInterval)
                 {
 					Demofile.Flush(true);
 					DemoLastFullFlush = Demofile.Position;
+					DemoLastFullFlushTime = DateTime.Now;
 					Stats.demoSizeFullFlushed = DemoLastFullFlush;
 				}
 				Stats.demoSize = Demofile.Position;
@@ -1133,7 +1143,7 @@ namespace JKClient {
 				{
 					// While we have all the messages without any gaps, we can just dump them all into the demo file.
 					Message tmpMsg = bufferedDemoMessages[DemoLastWrittenSequenceNumber + 1].msg;
-					WriteDemoMessage(tmpMsg, tmpMsg.ReadCount, DemoLastWrittenSequenceNumber + 1);
+					WriteDemoMessage(tmpMsg, tmpMsg.ReadCount, DemoLastWrittenSequenceNumber + 1, bufferedDemoMessages[DemoLastWrittenSequenceNumber + 1].serverTime);
 					DemoLastWrittenSequenceNumber = DemoLastWrittenSequenceNumber + 1;
 					bufferedDemoMessages.Remove(DemoLastWrittenSequenceNumber);
 				}
@@ -1152,7 +1162,7 @@ namespace JKClient {
 					//if (forceWriteAll || tmpIt->second.time + cl_demoRecordBufferedReorderTimeout->integer < Com_RealTime(NULL)) {
 					if (forceWriteAll || ((DateTime.Now - tmpMsg.Value.time).TotalSeconds) > DemoRecordBufferedReorderTimeout)
 					{
-						WriteDemoMessage(tmpMsg.Value.msg, tmpMsg.Value.msg.ReadCount, tmpMsg.Key);
+						WriteDemoMessage(tmpMsg.Value.msg, tmpMsg.Value.msg.ReadCount, tmpMsg.Key, tmpMsg.Value.serverTime);
 						DemoLastWrittenSequenceNumber = tmpMsg.Key;
 						itemsToErase.Add(tmpMsg.Key);
 					}
@@ -1202,6 +1212,7 @@ namespace JKClient {
 				Demofile.Dispose();
 				Demofile = null;
 				DemoLastFullFlush = 0;
+				DemoLastFullFlushTime = DateTime.Now;
 				Demorecording = false;
 				Demowaiting = 0;
 				//Com_Printf("Stopped demo.\n");
@@ -1324,6 +1335,7 @@ namespace JKClient {
 					//Com_Printf("recording to %s.\n", name);
 					Directory.CreateDirectory(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demos"));
 					DemoLastFullFlush = 0;
+					DemoLastFullFlushTime = DateTime.Now;
 					Demofile = new FileStream(name,FileMode.CreateNew,FileAccess.Write,FileShare.Read);
 					/*if (!Demofile)
 					{
@@ -1462,6 +1474,7 @@ namespace JKClient {
 
 					Demofile.Flush(true);
 					DemoLastFullFlush = Demofile.Position;
+					DemoLastFullFlushTime = DateTime.Now;
 					Stats.demoSize = Demofile.Position;
 					Stats.demoSizeFullFlushed = DemoLastFullFlush;
 

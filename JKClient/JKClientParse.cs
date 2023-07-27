@@ -3,6 +3,15 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 namespace JKClient {
+
+	internal class DemoTimeTracker
+    {
+		public int DemoCurrentTime = 0;
+		public int DemoBaseTime = 0;
+		public int DemoStartTime = 0;
+		public int LastKnownTime = 0;
+	}
+
 	public sealed partial class JKClient {
 		private const int PacketBackup = 256;
 		private const int PacketMask = (JKClient.PacketBackup-1);
@@ -16,10 +25,12 @@ namespace JKClient {
 		private int clOldServerTime = 0; // What we wanna send in commands
 		private int clServerTimeDelta = 0; // What we wanna send in commands
 
-		public int DemoCurrentTime { get; private set; } = 0;
-		private int DemoBaseTime = 0;
-		private int DemoStartTime = 0;
-		private int LastKnownTime = 0;
+		public int DemoCurrentTimeApproximate => this.demoTimeTrackerApproximate.DemoCurrentTime;
+		public int DemoCurrentTimeRealDelayed => this.demoTimeTrackerRealDelayed.DemoCurrentTime; // Due to delayed writing, this value might be a bit old.
+
+		private int? currentDemoWrittenServerTime = null;
+		DemoTimeTracker demoTimeTrackerApproximate = new DemoTimeTracker();
+		DemoTimeTracker demoTimeTrackerRealDelayed = new DemoTimeTracker();
 
 
 		private long lastServerTimeUpdateTime = 0;
@@ -43,22 +54,58 @@ namespace JKClient {
         {
 			if(!this.Demorecording || this.Demowaiting > 0)
             {
-				this.DemoCurrentTime = 0;
-				this.DemoBaseTime = 0;
-				this.DemoStartTime = 0;
-				this.LastKnownTime = this.snap.ServerTime;
-				this.Stats.demoCurrentTime = this.DemoCurrentTime;
+				this.currentDemoWrittenServerTime = null;
+				this.demoTimeTrackerApproximate.DemoCurrentTime = 0;
+				this.demoTimeTrackerApproximate.DemoBaseTime = 0;
+				this.demoTimeTrackerApproximate.DemoStartTime = 0;
+				this.demoTimeTrackerApproximate.LastKnownTime = this.snap.ServerTime;
+				this.demoTimeTrackerRealDelayed.DemoCurrentTime = 0;
+				this.demoTimeTrackerRealDelayed.DemoBaseTime = 0;
+				this.demoTimeTrackerRealDelayed.DemoStartTime = 0;
+				this.demoTimeTrackerRealDelayed.LastKnownTime = this.snap.ServerTime;
+				this.Stats.demoCurrentTime = 0;
 				return;
             }
 
-			if (this.snap.ServerTime < LastKnownTime && this.snap.ServerTime < 10000)
+
+			// This is tracking the approximate time based on parsed snapshots, 
+			if (this.snap.ServerTime < this.demoTimeTrackerApproximate.LastKnownTime && this.snap.ServerTime < 10000)
 			{ // Assume a servertime reset (new serverTime is under 10 secs). 
-				DemoBaseTime = DemoCurrentTime; // Remember fixed offset into demo time.
-				DemoStartTime = this.snap.ServerTime;
+				this.demoTimeTrackerApproximate.DemoBaseTime = this.demoTimeTrackerApproximate.DemoCurrentTime; // Remember fixed offset into demo time.
+				this.demoTimeTrackerApproximate.DemoStartTime = this.snap.ServerTime;
 			}
-			DemoCurrentTime = DemoBaseTime + this.snap.ServerTime - DemoStartTime;
-			LastKnownTime = this.snap.ServerTime;
-			this.Stats.demoCurrentTime = this.DemoCurrentTime;
+
+			// This is tracking the real current demotime of messages in the demo, but it's delayed because we don't write messages to the demo immediately, in case we receive them out of order.
+			if (this.currentDemoWrittenServerTime.HasValue)
+            {
+				if (this.currentDemoWrittenServerTime.Value < this.demoTimeTrackerRealDelayed.LastKnownTime && this.currentDemoWrittenServerTime.Value < 10000)
+				{ // Assume a servertime reset (new serverTime is under 10 secs). 
+					this.demoTimeTrackerRealDelayed.DemoBaseTime = this.demoTimeTrackerRealDelayed.DemoCurrentTime; // Remember fixed offset into demo time.
+					this.demoTimeTrackerRealDelayed.DemoStartTime = this.currentDemoWrittenServerTime.Value;
+
+					// We set it for the approximate as well! Since it's actually the accurate value for the demo. 
+					// Basically the idea is: We do the afk snap skipping. But once we go back to recording, we're dumping the last skipped afk messages as well.
+					// Due to this, the approximate tracking down there can get out of sync with the real demo if the server does a map_restart for example, thus putting serverTime back to 0.
+					// Hence, we put it back in sync here.
+					// This SHOULD always happen AFTER the approximate handling because it's based on messages being written to the demo,
+					// which happens (at the earliest) after each packet is parsed
+					// Whereas the approximate handling happens after each snapshot parsed.
+					// Outside tools trying to find the current demo time for cutting should use the approximate value since it isn't delayed and will likely
+					// give a more precise value bassed on wanting to get the demo time at the time of call, not the demo time actually written to the file.
+					// So this RealDelayed tracking is simply a help to correct a possible shift in sync for the approximate demo time.
+					this.Stats.demoCurrentTimeSyncFix += Math.Abs(this.demoTimeTrackerApproximate.DemoBaseTime - this.demoTimeTrackerRealDelayed.DemoBaseTime);
+					this.demoTimeTrackerApproximate.DemoBaseTime = this.demoTimeTrackerRealDelayed.DemoBaseTime;
+					this.demoTimeTrackerApproximate.DemoStartTime = this.demoTimeTrackerRealDelayed.DemoStartTime;
+				}
+				this.demoTimeTrackerRealDelayed.DemoCurrentTime = this.demoTimeTrackerRealDelayed.DemoBaseTime + this.currentDemoWrittenServerTime.Value - this.demoTimeTrackerRealDelayed.DemoStartTime;
+				this.demoTimeTrackerRealDelayed.LastKnownTime = this.currentDemoWrittenServerTime.Value;
+			}
+
+			// This is tracking the approximate time based on parsed snapshots, 
+			this.demoTimeTrackerApproximate.DemoCurrentTime = this.demoTimeTrackerApproximate.DemoBaseTime + this.snap.ServerTime - this.demoTimeTrackerApproximate.DemoStartTime;
+			this.demoTimeTrackerApproximate.LastKnownTime = this.snap.ServerTime;
+			this.Stats.demoCurrentTime = this.demoTimeTrackerApproximate.DemoCurrentTime;
+			this.Stats.demoCurrentTimeWritten = this.demoTimeTrackerRealDelayed.DemoCurrentTime;
 		}
 
 		private void ParseServerMessage(in Message msg) {
@@ -273,6 +320,7 @@ namespace JKClient {
 			this.ClientHandler.ClearState();
 		}
 		private void ClearConnection() {
+			this.StopRecord_f();
 			for (int i = 0; i < this.ClientHandler.MaxReliableCommands; i++) {
 				Common.MemSet(this.serverCommands[i], 0, sizeof(sbyte)*Common.MaxStringChars);
 				Common.MemSet(this.reliableCommands[i], 0, sizeof(sbyte)*Common.MaxStringChars);
@@ -342,6 +390,14 @@ namespace JKClient {
 				MessageNum = this.serverMessageSequence
 			};
 
+			lock (bufferedDemoMessages)
+			{
+				if (bufferedDemoMessages.ContainsKey(this.serverMessageSequence))
+				{
+					bufferedDemoMessages[this.serverMessageSequence].serverTime = newSnap.ServerTime;
+				}
+			}
+
 			// Sometimes packets arrive out of order. We want to tolerate this a bit to tolerate bad internet connections.
 			// However if it happens a large amount of times in a row, it might indicate a game restart/map chance I guess?
 			// So let the cvar cl_snapOrderTolerance decide how many times we allow it.
@@ -370,7 +426,6 @@ namespace JKClient {
 					if (bufferedDemoMessages.ContainsKey(this.serverMessageSequence))
 					{
 						bufferedDemoMessages[this.serverMessageSequence].containsFullSnapshot = true;
-						bufferedDemoMessages[this.serverMessageSequence].serverTime = newSnap.ServerTime;
 					}
 				}
 				if (Demowaiting == 2)
@@ -421,7 +476,7 @@ namespace JKClient {
 								// snapshot that correctly references the full snapshot. THEN we start recording the demo, starting
 								// exactly at the snapshot that we finally know the server knows we received.
 
-								DemoStartTime = bufferedDemoMessages[newSnap.DeltaNum].serverTime;
+								this.demoTimeTrackerRealDelayed.DemoStartTime = this.demoTimeTrackerApproximate.DemoStartTime = bufferedDemoMessages[newSnap.DeltaNum].serverTime.Value;
 							}
 							else
 							{

@@ -264,13 +264,14 @@ namespace JKClient {
 			}
 			this.lastExecutedServerCommand = serverCommandNumber;
 			sbyte []sc = this.serverCommands[serverCommandNumber & (this.MaxReliableCommands - 1)];
+			int commandMessageNumber = this.serverCommandMessagenums[serverCommandNumber & (this.MaxReliableCommands - 1)];
 rescan:
 			string s = Common.ToString(sc);
 			command = new Command(s);
 			s = Common.ToString(sc, Encoding.UTF8);
 			var utf8Command = new Command(s);
 			string cmd = command.Argv(0);
-			this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, utf8Command));
+			this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, commandMessageNumber, utf8Command));
 			if (string.Compare(cmd, "disconnect", StringComparison.Ordinal) == 0) {
 				this.Disconnect();
 				return true;

@@ -323,6 +323,7 @@ namespace JKClient {
 			this.StopRecord_f();
 			for (int i = 0; i < this.ClientHandler.MaxReliableCommands; i++) {
 				Common.MemSet(this.serverCommands[i], 0, sizeof(sbyte)*Common.MaxStringChars);
+				this.serverCommandMessagenums[i] = 0;
 				Common.MemSet(this.reliableCommands[i], 0, sizeof(sbyte)*Common.MaxStringChars);
 			}
 			this.clientNum = -1;
@@ -376,6 +377,7 @@ namespace JKClient {
 			this.serverCommandSequence = seq;
 			int index = seq & (this.MaxReliableCommands-1);
 			Array.Copy(s, 0, this.serverCommands[index], 0, Common.MaxStringChars);
+			this.serverCommandMessagenums[index] = this.serverMessageSequence;
 		}
 
 

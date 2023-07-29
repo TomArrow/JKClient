@@ -89,6 +89,7 @@ namespace JKClient {
 		private int desiredSnaps = 1000;
 		private bool clientForceSnaps = false;
 		private sbyte [][]serverCommands;
+		private int[] serverCommandMessagenums;
 		private NetChannel netChannel;
 		#endregion
 		#region DemoWriting
@@ -246,6 +247,7 @@ namespace JKClient {
 			this.Status = ConnectionStatus.Disconnected;
 			this.port = random.Next(1, 0xffff) & 0xffff;
 			this.reliableCommands = new sbyte[this.MaxReliableCommands][];
+			this.serverCommandMessagenums = new int[this.MaxReliableCommands];
 			this.serverCommands = new sbyte[this.MaxReliableCommands][];
 			for (int i = 0; i < this.MaxReliableCommands; i++) {
 				this.serverCommands[i] = new sbyte[Common.MaxStringChars];
@@ -280,7 +282,7 @@ namespace JKClient {
 				if (this.realTime - this.lastPacketTime > JKClient.LastPacketTimeOut && this.Status == ConnectionStatus.Active) {
 					var cmd = new Command(new string []{ "disconnect", "Last packet from server was too long ago" });
 					this.Disconnect();
-					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd));
+					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, this.serverMessageSequence));
 				}
 				this.GetPacket();
 				frameTime = Common.Milliseconds;
@@ -841,6 +843,7 @@ namespace JKClient {
 				this.serverInfo.SetInfo(info);
 				this.serverInfo.InfoPacketReceived = true;
 				this.serverInfo.InfoPacketReceivedTime = DateTime.Now;
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			}
 			else if (string.Compare(c, "challengeResponse", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.Status != ConnectionStatus.Connecting) {
@@ -856,6 +859,7 @@ namespace JKClient {
 				this.connectPacketCount = 0;
 				this.connectTime = -99999;
 				this.serverAddress = address;
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "connectResponse", StringComparison.OrdinalIgnoreCase) == 0) {
                 if (!this.GhostPeer) {  // Stay in perpetual challenging mode
 					if (this.Status != ConnectionStatus.Challenging) {
@@ -868,6 +872,7 @@ namespace JKClient {
 					this.Status = ConnectionStatus.Connected;
 					this.lastPacketSentTime = -9999;
 				}
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "disconnect", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.netChannel == null) {
 					return;
@@ -878,19 +883,24 @@ namespace JKClient {
 				if (this.realTime - this.lastPacketTime < 3000) {
 					return;
 				}
-				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command));
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 				this.Disconnect();
 			} else if (string.Compare(c, "echo", StringComparison.OrdinalIgnoreCase) == 0) {
 				this.OutOfBandPrint(address, command.Argv(1));
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "print", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (address == this.serverAddress) {
-					s = msg.ReadStringAsString();
-					var cmd = new Command(new string []{ "print", s });
-					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd));
+					s = msg.ReadStringAsString(); // hm?
+					var cmd = new Command(new string []{ "print", s }); // hm?
+					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 					Debug.WriteLine(s);
+				} else
+                {
+					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 				}
 			} else {
 				Debug.WriteLine(c);
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			}
 		}
 		private void CreateNewCommand()

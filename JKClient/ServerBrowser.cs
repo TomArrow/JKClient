@@ -24,6 +24,8 @@ namespace JKClient {
 			}
         }
 		private long serverRefreshTimeout = 0L;
+		private readonly ConcurrentDictionary<NetAddress, FullServerInfoTask> fullServerInfoTasks;
+		private readonly HashSet<NetAddress> fullServerInfoTasksToRemove;
 		private readonly ConcurrentDictionary<NetAddress, ServerInfoTask> serverInfoTasks;
 		private readonly HashSet<NetAddress> serverInfoTasksToRemove;
 		private readonly ConcurrentDictionary<NetAddress, ServerInfoInfoTask> serverInfoInfoTasks;
@@ -43,6 +45,8 @@ namespace JKClient {
 				}
 			}
 			this.globalServers = new ConcurrentDictionary<NetAddress, ServerInfo>(new NetAddressComparer());
+			this.fullServerInfoTasks = new ConcurrentDictionary<NetAddress, FullServerInfoTask>(new NetAddressComparer());
+			this.fullServerInfoTasksToRemove = new HashSet<NetAddress>(new NetAddressComparer());
 			this.serverInfoTasks = new ConcurrentDictionary<NetAddress, ServerInfoTask>(new NetAddressComparer());
 			this.serverInfoTasksToRemove = new HashSet<NetAddress>(new NetAddressComparer());
 			this.serverInfoInfoTasks = new ConcurrentDictionary<NetAddress, ServerInfoInfoTask>(new NetAddressComparer());
@@ -59,6 +63,7 @@ namespace JKClient {
 			while (true) {
 				this.GetPacket();
 				this.HandleServersList();
+				this.HandleFullServerInfoTasks();
 				this.HandleServerInfoTasks();
 				this.HandleServerInfoInfoTasks();
 				await Task.Delay(frameTime);
@@ -70,6 +75,18 @@ namespace JKClient {
 				this.refreshListTCS?.TrySetResult(this.globalServers.Values);
 				this.serverRefreshTimeout = 0L;
 			}
+		}
+		private void HandleFullServerInfoTasks() {
+			foreach (var fullServerInfoTask in this.fullServerInfoTasks) {
+				if (fullServerInfoTask.Value.Timeout < Common.Milliseconds) {
+					fullServerInfoTask.Value.TrySetCanceled();
+					this.fullServerInfoTasksToRemove.Add(fullServerInfoTask.Key);
+				}
+			}
+			foreach (var fullServerInfoTaskToRemove in this.fullServerInfoTasksToRemove) {
+				this.fullServerInfoTasks.TryRemove(fullServerInfoTaskToRemove, out _);
+			}
+			this.fullServerInfoTasksToRemove.Clear();
 		}
 		private void HandleServerInfoTasks() {
 			foreach (var serverInfoTask in this.serverInfoTasks) {
@@ -152,6 +169,24 @@ namespace JKClient {
 			var serverInfoTCS = this.serverInfoTasks[address] = new ServerInfoTask();
 			this.OutOfBandPrint(address, "getstatus");
 			return await serverInfoTCS.Task;
+		}
+		public async Task<ServerInfo> GetFullServerInfo(NetAddress address, bool status=true, bool info=true) {
+			if (this.fullServerInfoTasks.ContainsKey(address)) {
+				this.fullServerInfoTasks[address].TrySetCanceled();
+			}
+			var fullServerInfoTCS = this.fullServerInfoTasks[address] = new FullServerInfoTask() { needsInfo=info,needsStatus=status };
+            if (!this.globalServers.ContainsKey(address)) // TODO Hm ugly? Is there a nicer way?
+            {
+				var serverInfo = new ServerInfo()
+				{
+					Address = address,
+					Start = Common.Milliseconds
+				};
+				this.globalServers[serverInfo.Address] = serverInfo;
+			}
+			if (info) this.OutOfBandPrint(address, "getinfo xxx");
+			if (status) this.OutOfBandPrint(address, "getstatus");
+			return await fullServerInfoTCS.Task;
 		}
 		public async Task<InfoString> GetServerInfo(string address, ushort port = 0) {
 			var netAddress = await NetSystem.StringToAddressAsync(address, port);
@@ -257,6 +292,15 @@ namespace JKClient {
 				serverInfo.StatusResponseReceived = true;
 				serverInfo.StatusResponseReceivedTime = DateTime.Now;
 				this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
+
+				if (this.fullServerInfoTasks.ContainsKey(address)
+					&& (!this.fullServerInfoTasks[address].needsInfo || serverInfo.InfoPacketReceived)
+					&& (!this.fullServerInfoTasks[address].needsStatus || serverInfo.StatusResponseReceived)
+					)
+				{
+					this.fullServerInfoTasks[address].TrySetResult(serverInfo);
+					this.fullServerInfoTasks.TryRemove(address, out _);
+				}
 			}
 		}
 		private void ServerInfoPacket(in NetAddress address, in Message msg) {
@@ -280,7 +324,22 @@ namespace JKClient {
 				serverInfo.InfoPacketReceived = true;
 				serverInfo.InfoPacketReceivedTime = DateTime.Now;
 				this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
+
+				if (this.fullServerInfoTasks.ContainsKey(address)
+					&& (!this.fullServerInfoTasks[address].needsInfo || serverInfo.InfoPacketReceived)
+					&& (!this.fullServerInfoTasks[address].needsStatus || serverInfo.StatusResponseReceived)
+					)
+				{
+					this.fullServerInfoTasks[address].TrySetResult(serverInfo);
+					this.fullServerInfoTasks.TryRemove(address, out _);
+				}
 			}
+		}
+		private class FullServerInfoTask : TaskCompletionSource<ServerInfo> {
+			private const long CancelTimeout = 3000L;
+			public bool needsStatus = false;
+			public bool needsInfo = false;
+			public long Timeout { get; init; } = Common.Milliseconds + FullServerInfoTask.CancelTimeout;
 		}
 		private class ServerInfoTask : TaskCompletionSource<InfoString> {
 			private const long CancelTimeout = 3000L;

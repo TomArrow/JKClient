@@ -242,7 +242,9 @@ namespace JKClient {
 				return this.serverInfo;
 			}
 		}
-		public event Action<ServerInfo> ServerInfoChanged;
+		
+		
+		public event Action<ServerInfo,bool> ServerInfoChanged; // bool says whether the change included a new gamestate
 		public JKClient(IClientHandler clientHandler) : base(clientHandler) {
 			this.Status = ConnectionStatus.Disconnected;
 			this.port = random.Next(1, 0xffff) & 0xffff;

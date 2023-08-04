@@ -230,7 +230,7 @@ namespace JKClient {
 			this.SendPureChecksums();
 
 			this.clientGame = this.InitClientGame();
-			this.ServerInfoChanged?.Invoke(this.ServerInfo);
+			this.ServerInfoChanged?.Invoke(this.ServerInfo,true);
 		}
 		private void ParseRMG(in Message msg) {
 			ushort rmgHeightMapSize = (ushort)msg.ReadShort();

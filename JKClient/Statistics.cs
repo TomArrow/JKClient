@@ -24,6 +24,7 @@ namespace JKClient
                 return $"{((double)demoSizeFullFlushed / 1024.0).ToString("#,#.000", CultureInfo.InvariantCulture)} KiB";
             }
         }
+        public int deltaSnapMaxDelay { get; internal set; } // Amount of milliseconds we have to delay to guarantee we keep getting delta snaps. This is live adjusted all the time automatically.
         public Int64 deltaSnaps { get; internal set; }
         public Int64 nonDeltaSnaps { get; internal set; }
         public Int64 totalMessages { get; internal set; }

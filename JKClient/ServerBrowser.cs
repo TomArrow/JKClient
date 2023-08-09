@@ -289,6 +289,7 @@ namespace JKClient {
 				serverInfo.SetStatusInfo(info);
 				serverInfo.RealClients = serverInfo.Clients = playersCount;
 				this.BrowserHandler.HandleStatusResponse(serverInfo, info);
+				serverInfo.NoBots = info["_nobots"].Atoi() > 0 || info["_noBots"].Atoi() > 0;
 				serverInfo.StatusResponseReceived = true;
 				serverInfo.StatusResponseReceivedTime = DateTime.Now;
 				this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;

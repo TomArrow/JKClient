@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Numerics;
 
 namespace System.Runtime.CompilerServices
 {
@@ -699,6 +700,8 @@ namespace JKClient {
 								// And it's rounded anyway. So it'd only apply with minDelta 20+ ms anyway, which would be 50 fps. So if we requesst 50fps, it might allow 52 fps.
 								minDelta -= minDelta / 20;
 
+								minDelta = Math.Min(this.deltaSnapMaxDelay, minDelta); // Safety maximum to avoid non-delta snaps. Is dynamically adjusted because it depends on a lot of things (ping, sv_fps, snaps etc)
+
 								if (timeDelta < minDelta)
 								{
 									didWeSkipThis = true;
@@ -716,6 +719,9 @@ namespace JKClient {
                                 if (superSkippable) { 
 
 									int maxDelta = 1000 / this.AfkDropSnapsMinFPS;
+
+									maxDelta = Math.Min(this.deltaSnapMaxDelay, maxDelta); // Dynamically adjusted safety to avoid non-delta snaps.
+
 									// Afk works with min fps instead of maxfps. Because we'd love to skip ALL afk messages ofc. 
 									// But if we skip too many, we start getting non-delta packs. So find a compromise that makes sense.
 									// It also depends on ping and sv_fps/server snaps. Server keeps a certain amount of PACKET_BACKUP.
@@ -815,6 +821,36 @@ namespace JKClient {
 				this.lastPacketTime = this.realTime;
 				this.ParseServerMessage(msg);
 
+
+				if ((this.nonDeltaSnapsBitmask & (1UL << (int)(this.nonDeltaSnapsBitmaskIndex % 64))) != 0) // Last message we got was non delta.
+				{
+					// TODO Burst resistance when internet is acting a bit weird/spiking for a short amount of time? To not go down too much?
+
+					// We received non delta snaps.
+					// Increase the maximum delay a bit.
+					if(this.lastDeltaSnapMaxDelayAdjustmentWasUp){
+						this.deltaSnapMaxDelay -= 10;
+					}
+					this.deltaSnapMaxDelay -= Math.Max(1, this.nonDeltaSnapsBitmask.PopCount()*5/64);
+					if (this.deltaSnapMaxDelay < 0)
+					{
+						this.deltaSnapMaxDelay = 0;
+					}
+					this.lastDeltaSnapMaxDelayAdjustment = DateTime.Now;
+					this.lastDeltaSnapMaxDelayAdjustmentWasUp = false;
+				} else if(this.nonDeltaSnapsBitmask == 0 && (DateTime.Now- this.lastDeltaSnapMaxDelayAdjustment).TotalMilliseconds > 5000)
+                {
+					// Not received any non-deltas for 5 seconds. Try going up a bit again?
+					this.deltaSnapMaxDelay += 1;
+					if(this.deltaSnapMaxDelay > 1000)
+                    {
+						this.deltaSnapMaxDelay = 1000;
+					}
+					this.lastDeltaSnapMaxDelayAdjustment = DateTime.Now;
+					this.lastDeltaSnapMaxDelayAdjustmentWasUp = true;
+				}
+				this.Stats.deltaSnapMaxDelay = this.deltaSnapMaxDelay;
+				
 
 				//
 				// we don't know if it is ok to save a demo message until

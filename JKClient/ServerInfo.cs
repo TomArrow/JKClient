@@ -33,6 +33,7 @@ namespace JKClient
 		public bool InfoPacketReceived { get; internal set; } = false;
 		public bool StatusResponseReceived { get; internal set; } = false; // If this is true, the Clients count is the actual count of clients excluding bots
 		public NetAddress Address { get; internal set; }
+		public bool NoBots { get; internal set; } = false;
 		public string HostName { get; internal set; }
 		public string MapName { get; internal set; }
 		public string Game { get; internal set; }

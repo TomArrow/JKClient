@@ -37,6 +37,14 @@ namespace JKClient {
 		private int levelStartTime = 0;
 		private int oldFrameServerTime = 0;
 		private bool newSnapshots = false;
+
+		// delta snap minimum delay related stuff
+		private int deltaSnapMaxDelay = 1000; // Maximum amount of milliseconds we can skip messages until we start getting nondeltas. This depends on ping and a lot of other things, so we just automatically adjust it all the time.
+		private UInt64 nonDeltaSnapsBitmask = 0;
+		private Int64 nonDeltaSnapsBitmaskIndex = 0;
+		private DateTime lastDeltaSnapMaxDelayAdjustment = DateTime.Now;
+		private bool lastDeltaSnapMaxDelayAdjustmentWasUp = false;
+
 		private GameState gameState = new GameState();
 		private int parseEntitiesNum = 0;
 		private UserCommand []cmds = new UserCommand[UserCommand.CommandBackup];
@@ -305,6 +313,10 @@ namespace JKClient {
 			this.oldFrameServerTime = 0;
 			this.serverTimeOlderThanPreviousCount = 0;
 			this.newSnapshots = false;
+			this.nonDeltaSnapsBitmask = 0;
+			this.deltaSnapMaxDelay = 1000;
+			this.nonDeltaSnapsBitmaskIndex = 0;
+			this.lastDeltaSnapMaxDelayAdjustmentWasUp = false;
 			fixed (GameState *gs = &this.gameState) {
 				Common.MemSet(gs, 0, sizeof(GameState));
 			}
@@ -555,15 +567,15 @@ namespace JKClient {
 			this.newSnapshots = true;
 			this.lastServerTimeUpdateTime = Common.Milliseconds;
 
+			this.nonDeltaSnapsBitmaskIndex++;
 			if (oldSnap == null)
             {
-
+				this.nonDeltaSnapsBitmask |= (1UL << (int)(this.nonDeltaSnapsBitmaskIndex % 64));
 				Stats.nonDeltaSnaps++;
 			} else
             {
-
+				this.nonDeltaSnapsBitmask &= ~(1UL << (int)(this.nonDeltaSnapsBitmaskIndex % 64));
 				Stats.deltaSnaps++;
-
 			}
 
 

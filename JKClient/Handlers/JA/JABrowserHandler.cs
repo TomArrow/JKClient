@@ -38,7 +38,9 @@ namespace JKClient {
 			}
 		}
 		public virtual void HandleStatusResponse(in ServerInfo serverInfo, in InfoString info) {
+			serverInfo.GameType = (GameType)info["g_gametype"].Atoi();
 			this.NeedStatus = false;
+
 		}
 	}
 }

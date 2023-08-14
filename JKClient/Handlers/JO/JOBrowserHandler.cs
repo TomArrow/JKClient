@@ -55,6 +55,13 @@ namespace JKClient {
 			if (info["version"].Contains("v1.03")) {
 				serverInfo.Version = ClientVersion.JO_v1_03;
 			}
+			int gameType = info["g_gametype"].Atoi();
+			//JO doesn't have Power Duel, the rest game types match
+			if (gameType >= (int)GameType.PowerDuel)
+			{
+				gameType++;
+			}
+			serverInfo.GameType = (GameType)gameType;
 			this.NeedStatus = false;
 		}
 	}

@@ -257,6 +257,11 @@ namespace JKClient {
 
 				}
 				this.ClientInfo[clientNum].Name = info["n"];
+				this.ClientInfo[clientNum].Model = info["model"];
+				this.ClientInfo[clientNum].Color1 = info["c1"];
+				this.ClientInfo[clientNum].Color2 = info["c2"];
+				this.ClientInfo[clientNum].GRedTeam = info["g_redteam"];
+				this.ClientInfo[clientNum].GBlueTeam = info["g_blueteam"];
 				this.ClientInfo[clientNum].InfoValid = true;
 			}
 			if (this.Initialized) {

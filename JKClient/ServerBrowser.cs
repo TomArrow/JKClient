@@ -170,12 +170,12 @@ namespace JKClient {
 			this.OutOfBandPrint(address, "getstatus");
 			return await serverInfoTCS.Task;
 		}
-		public async Task<ServerInfo> GetFullServerInfo(NetAddress address, bool status=true, bool info=true) {
+		public async Task<ServerInfo> GetFullServerInfo(NetAddress address, bool status=true, bool info=true, long cancelTimeout=FullServerInfoTask.CancelTimeout) {
 			if (this.fullServerInfoTasks.ContainsKey(address)) {
 				this.fullServerInfoTasks[address].TrySetCanceled();
 			}
-			var fullServerInfoTCS = this.fullServerInfoTasks[address] = new FullServerInfoTask() { needsInfo=info,needsStatus=status };
-            if (!this.globalServers.ContainsKey(address)) // TODO Hm ugly? Is there a nicer way?
+			var fullServerInfoTCS = this.fullServerInfoTasks[address] = new FullServerInfoTask() { needsInfo=info,needsStatus=status,Timeout=Common.Milliseconds+ cancelTimeout };
+            //if (!this.globalServers.ContainsKey(address)) // TODO Hm ugly? Is there a nicer way?
             {
 				var serverInfo = new ServerInfo()
 				{
@@ -337,7 +337,7 @@ namespace JKClient {
 			}
 		}
 		private class FullServerInfoTask : TaskCompletionSource<ServerInfo> {
-			private const long CancelTimeout = 3000L;
+			internal const long CancelTimeout = 3000L;
 			public bool needsStatus = false;
 			public bool needsInfo = false;
 			public long Timeout { get; init; } = Common.Milliseconds + FullServerInfoTask.CancelTimeout;

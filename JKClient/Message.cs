@@ -361,7 +361,7 @@ namespace JKClient {
 		public int? serverTime = null;
 	}
 
-	internal sealed class Message {
+	internal  sealed partial class Message {
 		public const int FloatIntBits = 13;
 		private const int FloatIntBias = (1<<(Message.FloatIntBits-1));
 		private int bit = 0;

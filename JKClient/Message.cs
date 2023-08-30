@@ -9,7 +9,21 @@ using System.Text;
 
 namespace JKClient {
 
-
+	public enum NetFieldType // For MOH
+	{
+		regular,
+		angle,
+		animTime,
+		animWeight,
+		scale,
+		alpha,
+		coord,
+		// This field was introduced in TA.
+		coordExtra,
+		velocity,
+		// not sure what is this, but it's only present in the Mac build (since AA)
+		simple
+	}
 
 	static class HiddenMetaStuff
 	{

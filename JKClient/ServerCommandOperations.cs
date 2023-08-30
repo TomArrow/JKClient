@@ -10,6 +10,12 @@
 		Snapshot,
 		SetGame,
 		MapChange,
-		EOF
+		EOF,
+
+		// MOH:
+		CenterPrint,
+		LocPrint,
+		CGameMessage,
+
 	}
 }

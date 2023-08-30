@@ -406,5 +406,25 @@ namespace JKClient {
 		public unsafe fixed float userVec1[3];
 		public unsafe fixed float userVec2[3];
 
+		// MOHAA:
+		public unsafe fixed float DamageAngles[3];   
+		public int IViewModelAnimChanged;
+		public int INetViewModelAnim;
+		public float FovMOHAA;
+		public int CurrentMusicMood;
+		public int FallbackMusicMood;
+		public float MusicVolume;
+		public float FLeanAngle;
+		public unsafe fixed float Blend[4];    
+		public unsafe fixed float CameraAngles[3];     
+		public unsafe fixed float CameraOrigin[3];
+		public unsafe fixed float CameraPositionOffsets[3];
+		public unsafe fixed float CameraOffset[3];
+		public float CameraTime;
+		public int CameraFlags;
+		public int FeetFalling;
+		public float MusicVolumeFadeTime;
+		public int ReverbType;
+		public float ReverbLevel;
 	}
 }

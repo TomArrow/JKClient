@@ -1,6 +1,10 @@
 ﻿namespace JKClient {
 	public enum ProtocolVersion {
 		Unknown = 0,
+		// MOHAA (later MOH parts conflict with 15 ...)
+		Protocol6 = 6,
+		Protocol7 = 7,
+		Protocol8 = 8,
 		//JO v1.02, v1.03
 		Protocol15 = 15,
 		//JO v1.04

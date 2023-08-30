@@ -1,6 +1,18 @@
 ﻿using System.Runtime.InteropServices;
 
 namespace JKClient {
+
+
+	[StructLayout(LayoutKind.Sequential, Pack = 4)]
+	public struct FrameInfo
+	{
+		public int Index;
+		public float Time;
+		public float Weight;
+
+		public static int ASSUMEDSIZE = sizeof(int)+sizeof(float)+sizeof(float); // Cringe but can't use sizeof for structs... sigh.
+	}
+
 	[StructLayout(LayoutKind.Sequential, Pack = 4)]
 	public struct EntityState {
 		//Dummy is used as any value parsed in ReadDeltaEntity, as being offset by 0
@@ -150,6 +162,32 @@ namespace JKClient {
 		public float userFloat3;
 		public unsafe fixed float userVec1[3];
 		public unsafe fixed float userVec2[3];
+
+		// MOHAA
+		public unsafe fixed byte frameInfo[(sizeof(int)+sizeof(float)*2)*16]; // This is cringe but the fixed size buffers can only use primitive types. We don't really need the data anyway so this will simply be used for proper parsing and baselines and that's it.
+		public unsafe fixed float BoneAngles[5*3];
+		public unsafe fixed int BoneTag[5];
+		public float ActionWeight;
+		public int Parent;
+		public int RenderFx;
+		public float Scale;
+		public float Alpha;
+		public int UsageIndex;
+		public int TagNum;
+		public QuakeBoolean AttachUseAngles;
+		public unsafe fixed byte Surfaces[32];
+		public float LoopSoundVolume;
+		public float LoopSoundMinDist;
+		public float LoopSoundMaxDist;
+		public float LoopSoundPitch;
+		public int LoopSoundFlags;
+		public unsafe fixed float AttachOffset[3];
+		public int BeamEntnum;
+		public int SkinNum;
+		public int WasFrame;
+		public unsafe fixed float ShaderData[2];
+		public float ShaderTime;
+		public unsafe fixed float EyeVector[3];
 
 		//IMPORTANT: update all entityStateFields in Message after adding new fields
 		public static readonly EntityState Null = new EntityState();

@@ -44,7 +44,7 @@ namespace JKClient {
 		public const int maxBytePerByteSaved = 2;
 		public static readonly int metaMarkerPresenceMinimumByteLengthExtra = metaMarkerLength * maxBytePerByteSaved;
 
-		public static string getMetaDataFromDemoFile(string demoPath)
+		public static string getMetaDataFromDemoFile(string demoPath,bool mohScrambledString)
 		{
 			string lowerExtension = Path.GetExtension(demoPath).Trim().ToLower();
 			if (!lowerExtension.StartsWith(".dm_"))
@@ -73,7 +73,7 @@ namespace JKClient {
 
 			using (FileStream fs = new FileStream(demoPath, FileMode.Open, FileAccess.Read, FileShare.None))
 			{
-				return ParseDemoUntilMetaOrNothing(fs, fs.Length, eofValue);
+				return ParseDemoUntilMetaOrNothing(fs, fs.Length, eofValue, mohScrambledString);
 
 			}
 #if !DEBUG
@@ -104,7 +104,7 @@ namespace JKClient {
 			}
 		}
 
-		static string ParseDemoUntilMetaOrNothing(FileStream fs, long demoSize, int eofValue)
+		static string ParseDemoUntilMetaOrNothing(FileStream fs, long demoSize, int eofValue, bool mohScrambledString)
 		{
 			long oldSize = demoSize;
 
@@ -149,7 +149,7 @@ namespace JKClient {
 					}
 				}
 
-				string metaData = msg.ReadBigStringAsString();
+				string metaData = msg.ReadBigStringAsString(mohScrambledString);
 				return metaData;
 
 			}
@@ -316,6 +316,8 @@ namespace JKClient {
 			7546, 3850, 11354, 12298, 15642, 14986, 8666, 20491, 90, 13706, 12186, 6794, 11162, 10458, 759, 582
 		};
 
+
+
 		internal static unsafe void HuffmanPutBitFast(byte* fout, Int32 bitIndex, Int32 bit)
 		{
 			Int32 byteIndex = bitIndex >> 3;
@@ -407,6 +409,47 @@ namespace JKClient {
 			//retVal.Data = (byte[])this.Data.Clone();
 			return retVal;
         }
+
+
+		// MOHAA Scrambled String table
+		// Scrambled string conversion (write)
+		static byte[] StrCharToNetByte = new byte[256]{
+			254, 120, 89, 13, 27, 73, 103, 78, 74, 102, 21, 117, 76, 86, 238, 96, 88, 62, 59, 60,
+			40, 84, 52, 119, 251, 51, 75, 121, 192, 85, 44, 54, 114, 87, 25, 53, 35, 224, 67, 31,
+			82, 41, 45, 99, 233, 112, 255, 11, 46, 115, 8, 32, 19, 100, 110, 95, 116, 48, 58, 107,
+			70, 91, 104, 81, 118, 109, 36, 24, 17, 39, 43, 65, 49, 83, 56, 57, 33, 64, 80, 28,
+			184, 160, 18, 105, 42, 20, 194, 38, 29, 26, 61, 50, 9, 90, 37, 128, 79, 2, 108, 34,
+			4, 0, 47, 12, 101, 10, 92, 15, 5, 7, 22, 55, 23, 14, 3, 1, 66, 16, 63, 30,
+			6, 97, 111, 248, 72, 197, 191, 122, 176, 245, 250, 68, 195, 77, 232, 106, 228, 93, 240, 98,
+			208, 69, 164, 144, 186, 222, 94, 246, 148, 170, 244, 190, 205, 234, 252, 202, 230, 239, 174, 225,
+			226, 209, 236, 216, 237, 151, 149, 231, 129, 188, 200, 172, 204, 154, 168, 71, 133, 217, 196, 223,
+			134, 253, 173, 177, 219, 235, 214, 182, 132, 227, 183, 175, 137, 152, 158, 221, 243, 150, 210, 136,
+			167, 211, 179, 193, 218, 124, 140, 178, 213, 249, 185, 113, 127, 220, 180, 145, 138, 198, 123, 162,
+			189, 203, 166, 126, 159, 156, 212, 207, 146, 181, 247, 139, 142, 169, 242, 241, 171, 187, 153, 135,
+			201, 155, 161, 125, 163, 130, 229, 206, 165, 157, 141, 147, 143, 199, 215, 131
+		};
+
+		// Scrambled string conversion (read)
+		static byte[] NetByteToStrChar = new byte[256]
+		{
+			101, 115, 97, 114, 100, 108, 120, 109, 50, 92, 105, 47, 103, 3, 113, 107, 117, 68, 82, 52,
+			85, 10, 110, 112, 67, 34, 89, 4, 79, 88, 119, 39, 51, 76, 99, 36, 66, 94, 87, 69,
+			20, 41, 84, 70, 30, 42, 48, 102, 57, 72, 91, 25, 22, 35, 31, 111, 74, 75, 58, 18,
+			19, 90, 17, 118, 77, 71, 116, 38, 131, 141, 60, 175, 124, 5, 8, 26, 12, 133, 7, 96,
+			78, 63, 40, 73, 21, 29, 13, 33, 16, 2, 93, 61, 106, 137, 146, 55, 15, 121, 139, 43,
+			53, 104, 9, 6, 62, 83, 135, 59, 98, 65, 54, 122, 45, 211, 32, 49, 56, 11, 64, 23,
+			1, 27, 127, 218, 205, 243, 223, 212, 95, 168, 245, 255, 188, 176, 180, 239, 199, 192, 216, 231,
+			206, 250, 232, 252, 143, 215, 228, 251, 148, 166, 197, 165, 193, 238, 173, 241, 225, 249, 194, 224,
+			81, 242, 219, 244, 142, 248, 222, 200, 174, 233, 149, 236, 171, 182, 158, 191, 128, 183, 207, 202,
+			214, 229, 187, 190, 80, 210, 144, 237, 169, 220, 151, 126, 28, 203, 86, 132, 178, 125, 217, 253,
+			170, 240, 155, 221, 172, 152, 247, 227, 140, 161, 198, 201, 226, 208, 186, 254, 163, 177, 204, 184,
+			213, 195, 145, 179, 37, 159, 160, 189, 136, 246, 156, 167, 134, 44, 153, 185, 162, 164, 14, 157,
+			138, 235, 234, 196, 150, 129, 147, 230, 123, 209, 130, 24, 154, 181, 0, 46
+		};
+		// MOHAA Scrambled String table end
+
+
+
 
 		public void Bitstream() {
 			this.OOB = false;
@@ -518,12 +561,15 @@ namespace JKClient {
 		public void WriteLong(int c) {
 			this.WriteBits(c, 32);
 		}
-		public unsafe void WriteString(sbyte []s) {
+		public unsafe void WriteString(sbyte []s, ProtocolVersion protocol) {
+
+			bool isMOH = Common.ProtocolIsMOH(protocol);
+			bool isMOHWithScrambledString = isMOH && protocol > ProtocolVersion.Protocol8;
 			if (s == null || s.Length <= 0) {
 				this.WriteByte(0);
 			} else {
 				int l = Common.StrLen(s);
-				if (l >= Common.MaxStringChars) {
+				if (l >= (isMOH ? Common.MaxStringCharsMOH : Common.MaxStringChars)) {
 					this.WriteByte(0);
 					return;
 				}
@@ -711,13 +757,24 @@ namespace JKClient {
 			}
 			return c;
 		}
-		public sbyte []ReadString() {
-			sbyte []str = new sbyte[Common.MaxStringChars];
+		public sbyte []ReadString(ProtocolVersion protocol) {
+			bool isMOH = Common.ProtocolIsMOH(protocol);
+			bool isMOHithScrambledString = isMOH && protocol > ProtocolVersion.Protocol8;
+			int realMaxStringChars = isMOH ? Common.MaxStringCharsMOH : Common.MaxStringChars;
+
+			sbyte []str = new sbyte[Common.MaxStringCharsMOH];
 			int l, c;
 			l = 0;
 			do {
 				c = this.ReadByte();
-				if (c == -1 || c == 0) {
+				if (c == -1 ) {
+					break;
+				}
+				if (isMOHithScrambledString)
+				{
+					c = NetByteToStrChar[c];
+				}
+				if ( c == 0) {
 					break;
 				}
 				if (c == 37) { //'%'
@@ -725,25 +782,32 @@ namespace JKClient {
 				}
 				str[l] = (sbyte)c;
 				l++;
-			} while (l < sizeof(sbyte)*Common.MaxStringChars-1);
-			if (l <= sizeof(sbyte)*Common.MaxStringChars) {
+			} while (l < sizeof(sbyte)* realMaxStringChars - 1);
+			if (l <= sizeof(sbyte)* realMaxStringChars) {
 				str[l] = 0;
 			} else {
-				str[sizeof(sbyte)*Common.MaxStringChars-1] = 0;
+				str[sizeof(sbyte)* realMaxStringChars - 1] = 0;
 			}
 			return str;
 		}
-		public string ReadStringAsString() {
-			sbyte []str = this.ReadString();
+		public string ReadStringAsString(ProtocolVersion protocol) {
+			sbyte []str = this.ReadString(protocol);
 			return Common.ToString(str);
 		}
-		public sbyte []ReadBigString() {
+		public sbyte []ReadBigString(bool mohScrambledString) {
 			sbyte []str = new sbyte[Common.BigInfoString];
 			int l, c;
 			l = 0;
 			do {
 				c = this.ReadByte();
-				if (c == -1 || c == 0) {
+				if (c == -1) {
+					break;
+				}
+				if (mohScrambledString)
+				{
+					c = NetByteToStrChar[c];
+				}
+				if (c == 0) {
 					break;
 				}
 				if (c == 37) { //'%'
@@ -755,12 +819,17 @@ namespace JKClient {
 			str[l] = 0;
 			return str;
 		}
-		public string ReadBigStringAsString() {
-			sbyte []str = this.ReadBigString();
+		public string ReadBigStringAsString(bool mohScrambledString) {
+			sbyte []str = this.ReadBigString(mohScrambledString);
 			return Common.ToString(str);
 		}
-		public sbyte []ReadStringLine() {
-			sbyte []str = new sbyte[Common.MaxStringChars];
+		public sbyte []ReadStringLine(ProtocolVersion protocol) {
+
+			bool isMOH = Common.ProtocolIsMOH(protocol);
+			bool isMOHithScrambledString = protocol > ProtocolVersion.Protocol8;
+			int realMaxStringChars = isMOH ? Common.MaxStringCharsMOH : Common.MaxStringChars;
+
+			sbyte []str = new sbyte[Common.MaxStringCharsMOH];
 			int l, c;
 			l = 0;
 			do {
@@ -773,12 +842,12 @@ namespace JKClient {
 				}
 				str[l] = (sbyte)c;
 				l++;
-			} while (l < sizeof(sbyte)*Common.MaxStringChars-1);
+			} while (l < sizeof(sbyte)* realMaxStringChars - 1);
 			str[l] = 0;
 			return str;
 		}
-		public string ReadStringLineAsString() {
-			sbyte []str = this.ReadStringLine();
+		public string ReadStringLineAsString(ProtocolVersion protocol) {
+			sbyte []str = this.ReadStringLine(protocol);
 			return Common.ToString(str);
 		}
 		//we don't really need any Data in assetsless client
@@ -917,10 +986,13 @@ namespace JKClient {
 
 		}
 
-		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler, StringBuilder debugString = null) {
+		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler, float frameTime, StringBuilder debugString = null) {
 			if (number < 0 || number >= Common.MaxGEntities) {
 				throw new JKClientException($"Bad delta entity number: {number}");
 			}
+
+			bool isMOH = clientHandler is MOHClientHandler;
+			ProtocolVersion protocol = (ProtocolVersion)clientHandler.Protocol;
 
 			bool print = debugString != null;
 
@@ -957,35 +1029,79 @@ namespace JKClient {
 				if (this.ReadBits(1) == 0) {
 					*toF = *fromF;
 				} else {
-					int bits = fields[i].Bits;
-					if (bits == 0) {
-						if (this.ReadBits(1) == 0) {
-							*(float*)toF = 0.0f;
-						} else {
+
+                    if (isMOH)
+                    {
+						// MOHAA netcode is ... very special.
+						switch (fields[i].Type)
+						{
+							case NetFieldType.regular:
+								ReadRegular(fields[i].Bits, toF, protocol);
+								break;
+							case NetFieldType.angle: // angles, what a mess! it wouldnt surprise me if something goes wrong here ;)
+								*(float*)toF = ReadPackedAngle( fields[i].Bits, protocol);
+								break;
+							case NetFieldType.animTime: // time
+								*(float*)toF = ReadPackedAnimTime( fields[i].Bits, *(float*)fromF, frameTime, protocol);
+								break;
+							case NetFieldType.animWeight: // nasty!
+								*(float*)toF = ReadPackedAnimWeight( fields[i].Bits, protocol);
+								break;
+							case NetFieldType.scale:
+								*(float*)toF = ReadPackedScale( fields[i].Bits, protocol);
+								break;
+							case NetFieldType.alpha:
+								*(float*)toF = ReadPackedAlpha( fields[i].Bits, protocol);
+								break;
+							case NetFieldType.coord:
+								*(float*)toF = ReadPackedCoord( *(float*)fromF, fields[i].Bits, protocol);
+								break;
+							case NetFieldType.coordExtra:
+								*(float*)toF = ReadPackedCoordExtra( *(float*)fromF, fields[i].Bits, protocol);
+								break;
+							case NetFieldType.velocity:
+								*(float*)toF = ReadPackedVelocity( fields[i].Bits);
+								break;
+							case NetFieldType.simple:
+								*(int*)toF = ReadPackedSimple( *(int*)fromF, fields[i].Bits);
+								break;
+							default:
+								throw new Exception($"ReadDeltaEntity (MOH): unrecognized entity field type {i} for field\n");
+								//break;
+						}
+					} else
+                    {
+
+						int bits = fields[i].Bits;
+						if (bits == 0) {
 							if (this.ReadBits(1) == 0) {
-								trunc = this.ReadBits(Message.FloatIntBits);
-								trunc -= Message.FloatIntBias;
-								*(float*)toF = trunc;
-								if (print)
-								{
-									debugString.Append($"{fields[i].Name}:{trunc} ");
-								}
+								*(float*)toF = 0.0f;
 							} else {
-								*toF = this.ReadBits(32);
-								if (print)
-								{
-									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								if (this.ReadBits(1) == 0) {
+									trunc = this.ReadBits(Message.FloatIntBits);
+									trunc -= Message.FloatIntBias;
+									*(float*)toF = trunc;
+									if (print)
+									{
+										debugString.Append($"{fields[i].Name}:{trunc} ");
+									}
+								} else {
+									*toF = this.ReadBits(32);
+									if (print)
+									{
+										debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+									}
 								}
 							}
-						}
-					} else {
-						if (this.ReadBits(1) == 0) {
-							*toF = 0;
 						} else {
-							*toF = this.ReadBits(bits);
-							if (print)
-							{
-								debugString.Append($"{fields[i].Name}:{*toF} ");
+							if (this.ReadBits(1) == 0) {
+								*toF = 0;
+							} else {
+								*toF = this.ReadBits(bits);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*toF} ");
+								}
 							}
 						}
 					}
@@ -1004,6 +1120,10 @@ namespace JKClient {
 			}
 		}
 		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler, StringBuilder debugString = null) {
+
+			bool isMOH = clientHandler is MOHClientHandler;
+			ProtocolVersion protocol = (ProtocolVersion)clientHandler.Protocol;
+
 			GCHandle fromHandle;
 			bool delta = true;
 			if (from == null) {
@@ -1034,28 +1154,55 @@ namespace JKClient {
 				if (this.ReadBits(1) == 0) {
 					*toF = *fromF;
 				} else {
-					int bits = fields[i].Bits;
-					if (bits == 0) {
-						if (this.ReadBits(1) == 0) {
-							trunc = this.ReadBits(Message.FloatIntBits);
-							trunc -= Message.FloatIntBias;
-							*(float*)toF = trunc;
-							if (print)
-							{
-								debugString.Append($"{fields[i].Name}:{trunc} ");
+                    if (isMOH)
+                    {
+						switch (fields[i].Type)
+						{
+							case NetFieldType.regular:
+								this.ReadRegularSimple( fields[i].Bits, toF, protocol);
+								break;
+							case NetFieldType.angle:
+								*(float*)toF = this.ReadPackedAngle( fields[i].Bits, protocol);
+								break;
+							case NetFieldType.coord:
+								*(float*)toF = this.ReadPackedCoord( *(float*)fromF, fields[i].Bits, protocol);
+								break;
+							case NetFieldType.coordExtra:
+								*(float*)toF = this.ReadPackedCoordExtra( *(float*)fromF, fields[i].Bits, protocol);
+								break;
+							case NetFieldType.velocity:
+								*(float*)toF = this.ReadPackedVelocity( fields[i].Bits);
+								break;
+							default:
+								break;
+						}
+
+					} else
+                    {
+
+						int bits = fields[i].Bits;
+						if (bits == 0) {
+							if (this.ReadBits(1) == 0) {
+								trunc = this.ReadBits(Message.FloatIntBits);
+								trunc -= Message.FloatIntBias;
+								*(float*)toF = trunc;
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{trunc} ");
+								}
+							} else {
+								*toF = this.ReadBits(32);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 							}
 						} else {
-							*toF = this.ReadBits(32);
+							*toF = this.ReadBits(bits); 
 							if (print)
 							{
-								debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								debugString.Append($"{fields[i].Name}:{*toF} ");
 							}
-						}
-					} else {
-						*toF = this.ReadBits(bits); 
-						if (print)
-						{
-							debugString.Append($"{fields[i].Name}:{*toF} ");
 						}
 					}
 					fields[i].Adjust?.Invoke(toF);
@@ -1070,8 +1217,9 @@ namespace JKClient {
 			int tmpValue = 0;
 			if (this.ReadBits(1) != 0) {
 				if (this.ReadBits(1) != 0) {
-					int bits = this.ReadShort();
-					for (int i = 0; i < 16; i++) {
+					int bits = isMOH ? this.ReadLong(): this.ReadShort();
+					int statCount = isMOH ? 32 : 16;
+					for (int i = 0; i < statCount; i++) {
 						if ((bits & (1<<i)) != 0) {
 							if (i == 4
 								&& (clientHandler.Protocol == (int)ProtocolVersion.Protocol25
@@ -1093,42 +1241,105 @@ namespace JKClient {
 						}
 					}
 				}
-				if (this.ReadBits(1) != 0) {
-					int bits = this.ReadShort();
-					for (int i = 0; i < 16; i++) {
-						if ((bits & (1<<i)) != 0) {
-							tmpValue = this.ReadShort();
-							if (print && (tmpValue != to->Persistant[i] || !delta))
+				if (isMOH) {
+
+					int i, bits;
+
+					// parse activeItems
+					if (this.ReadBits( 1) != 0)
+					{
+						//LOG("PS_ITEMS");
+						bits = this.ReadByte();
+						for (i = 0; i < 8; i++)
+						{
+							if ((bits & (1 << i)) != 0)
 							{
-								debugString.Append($"persistant[{i}]:{tmpValue} ");
+								to->ActiveItems[i] = this.ReadShort();
 							}
-							to->Persistant[i] = tmpValue;
 						}
 					}
-				}
-				if (this.ReadBits(1) != 0) {
-					int bits = this.ReadShort();
-					for (int i = 0; i < 16; i++) {
-						if ((bits & (1<<i)) != 0) {
-							tmpValue  = this.ReadShort();
-							if (print && (tmpValue != to->Ammo[i] || !delta))
+
+					// parse ammo_amount
+					if (this.ReadBits( 1) != 0)
+					{
+						//LOG("PS_AMMO_AMOUNT");
+						bits = this.ReadShort();
+						for (i = 0; i < 16; i++)
+						{
+							if ((bits & (1 << i)) != 0)
 							{
-								debugString.Append($"ammo[{i}]:{tmpValue} ");
+								to->AmmoAmount[i] = this.ReadShort();
 							}
-							to->Ammo[i] = tmpValue;
 						}
 					}
-				}
-				if (this.ReadBits(1) != 0) {
-					int bits = this.ReadShort();
-					for (int i = 0; i < 16; i++) {
-						if ((bits & (1<<i)) != 0) {
-							tmpValue = this.ReadLong();
-							if (print && (tmpValue != to->PowerUps[i] || !delta))
+
+					// parse ammo_name_index
+					if (this.ReadBits( 1) != 0)
+					{
+						//LOG("PS_AMMO");
+						bits = this.ReadShort();
+						for (i = 0; i < 16; i++)
+						{
+							if ((bits & (1 << i)) != 0)
 							{
-								debugString.Append($"powerups[{i}]:{tmpValue} ");
+								to->AmmoNameIndex[i] = this.ReadShort();
 							}
-							to->PowerUps[i] = tmpValue;
+						}
+					}
+
+					// parse powerups
+					if (this.ReadBits( 1) != 0)
+					{
+						//LOG("PS_MAX_AMMO_AMOUNT");
+						bits = this.ReadShort();
+						for (i = 0; i < 16; i++)
+						{
+							if ((bits & (1 << i)) != 0)
+							{
+								to->MaxAmmoAmount[i] = this.ReadShort();
+							}
+						}
+					}
+				} else
+                {
+
+					if (this.ReadBits(1) != 0) {
+						int bits = this.ReadShort();
+						for (int i = 0; i < 16; i++) {
+							if ((bits & (1<<i)) != 0) {
+								tmpValue = this.ReadShort();
+								if (print && (tmpValue != to->Persistant[i] || !delta))
+								{
+									debugString.Append($"persistant[{i}]:{tmpValue} ");
+								}
+								to->Persistant[i] = tmpValue;
+							}
+						}
+					}
+					if (this.ReadBits(1) != 0) {
+						int bits = this.ReadShort();
+						for (int i = 0; i < 16; i++) {
+							if ((bits & (1<<i)) != 0) {
+								tmpValue  = this.ReadShort();
+								if (print && (tmpValue != to->Ammo[i] || !delta))
+								{
+									debugString.Append($"ammo[{i}]:{tmpValue} ");
+								}
+								to->Ammo[i] = tmpValue;
+							}
+						}
+					}
+					if (this.ReadBits(1) != 0) {
+						int bits = this.ReadShort();
+						for (int i = 0; i < 16; i++) {
+							if ((bits & (1<<i)) != 0) {
+								tmpValue = this.ReadLong();
+								if (print && (tmpValue != to->PowerUps[i] || !delta))
+								{
+									debugString.Append($"powerups[{i}]:{tmpValue} ");
+								}
+								to->PowerUps[i] = tmpValue;
+							}
 						}
 					}
 				}

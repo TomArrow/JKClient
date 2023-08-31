@@ -7,6 +7,7 @@ namespace JKClient {
 		public QuakeBoolean Valid;
 		public int Flags;
 		public int ServerTime;
+		public int ServerTimeResidual;
 		public int MessageNum;
 		public int DeltaNum;
 		public PlayerState PlayerState;
@@ -15,5 +16,8 @@ namespace JKClient {
 		public int ParseEntitiesNum;
 		public int ServerCommandNum;
 		public int ping;
+
+		public int numberOfSounds; // MOH
+		//public ServerSound[] sounds; // MOH
 	}
 }

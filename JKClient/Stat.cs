@@ -13,6 +13,6 @@ namespace JKClient {
 		DeadYaw,
 		ClientsReady,
 		MaxHealth,
-		Max = 16
+		Max = 32 // MOH
 	}
 }

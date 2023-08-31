@@ -117,6 +117,8 @@ namespace JKClient {
 		}
 
 		private void ParseServerMessage(in Message msg) {
+			bool isMOH = this.ClientHandler is MOHClientHandler;
+
 			if (this.DebugNet && showNetString == null)
             {
 				showNetString = new StringBuilder();
@@ -146,6 +148,17 @@ namespace JKClient {
 					break;
 				}
 				switch (cmd) {
+				case ServerCommandOperations.LocPrint:
+				case ServerCommandOperations.CenterPrint:
+				case ServerCommandOperations.CGameMessage:
+                    if (isMOH)
+                    {
+						demoCutParseMOHAASVCReal(msg,(ProtocolVersion)this.Protocol,cmd);
+					} else
+                    {
+						throw new JKClientException("ParseServerMessage: Illegible server message");
+					}
+					break;
 				default:
 					throw new JKClientException("ParseServerMessage: Illegible server message");
 				case ServerCommandOperations.Nop:
@@ -183,6 +196,8 @@ namespace JKClient {
             }
 		}
 		private unsafe void ParseGamestate(in Message msg) {
+			bool isMOH = this.ClientHandler is MOHClientHandler;
+
 			this.connectPacketCount = 0;
 			this.ClearState();
 			this.serverCommandSequence = msg.ReadLong();
@@ -198,7 +213,7 @@ namespace JKClient {
 					if (i < 0 || i > this.MaxConfigstrings) {
 						throw new JKClientException("configstring > MaxConfigStrings");
 					}
-					sbyte []s = msg.ReadBigString();
+					sbyte []s = msg.ReadBigString(isMOH && this.Protocol > (int)ProtocolVersion.Protocol8);
 					int len = Common.StrLen(s);
 					if (len + 1 + this.gameState.DataCount > GameState.MaxGameStateChars) {
 						throw new JKClientException("MaxGameStateChars exceeded");
@@ -215,13 +230,25 @@ namespace JKClient {
 					}
 					this.gameState.DataCount += len + 1;
 				} else if (cmd == ServerCommandOperations.Baseline) {
-					int newnum = msg.ReadBits(Common.GEntitynumBits);
+					int newnum = 0;
+                    if (isMOH)
+                    {
+						newnum = msg.ReadEntityNum((ProtocolVersion)Protocol);
+					} else
+                    {
+						newnum = msg.ReadBits(Common.GEntitynumBits);
+					}
 					if (newnum < 0 || newnum >= Common.MaxGEntities) {
 						throw new JKClientException($"Baseline number out of range: {newnum}");
 					}
-					fixed (EntityState *nes = &EntityState.Null) {
-						fixed (EntityState *bl = &this.entityBaselines[newnum]) {
-							msg.ReadDeltaEntity(nes, bl, newnum, this.ClientHandler, showNetString);
+					fixed (EntityState* nesMoh = &EntityState.NullMOH)
+					{
+						fixed (EntityState* nes = &EntityState.Null)
+						{
+							fixed (EntityState* bl = &this.entityBaselines[newnum])
+							{
+								msg.ReadDeltaEntity(isMOH ? nesMoh : nes, bl, newnum, this.ClientHandler,this.serverFrameTime, showNetString);
+							}
 						}
 					}
 				} else {
@@ -230,6 +257,12 @@ namespace JKClient {
 			}
 			this.clientNum = msg.ReadLong();
 			this.checksumFeed = msg.ReadLong();
+
+            if (isMOH)
+            {
+				this.serverFrameTime = msg.ReadServerFrameTime((ProtocolVersion)this.Protocol,false,this.GetConfigstring((int)ClientGame.Configstring.ServerInfo));
+			}
+
 			if (this.ClientHandler.CanParseRMG) {
 				this.ParseRMG(msg);
 			}
@@ -298,7 +331,9 @@ namespace JKClient {
 				return Common.ToString(cs, Common.StrLen(cs));
 			}
 		}
-		private unsafe void ClearState() {
+		private unsafe void ClearState()
+		{
+			
 			this.snap = new ClientSnapshot();
 			this.serverTime = 0;
 			this.clServerTime = 0;
@@ -317,26 +352,34 @@ namespace JKClient {
 			this.deltaSnapMaxDelay = 1000;
 			this.nonDeltaSnapsBitmaskIndex = 0;
 			this.lastDeltaSnapMaxDelayAdjustmentWasUp = false;
-			fixed (GameState *gs = &this.gameState) {
+			fixed (GameState* gs = &this.gameState)
+			{
 				Common.MemSet(gs, 0, sizeof(GameState));
 			}
-			this.parseEntitiesNum = 0;
-			Common.MemSet(this.cmds, 0, sizeof(UserCommand)*UserCommand.CommandBackup);
-			this.cmdNumber = 0;
-			Common.MemSet(this.outPackets, 0, sizeof(OutPacket)*JKClient.PacketBackup);
-			this.serverId = 0;
-			Common.MemSet(this.snapshots, 0, sizeof(ClientSnapshot)*JKClient.PacketBackup);
-			Common.MemSet(this.entityBaselines, 0, sizeof(EntityState)*Common.MaxGEntities);
-			Common.MemSet(this.parseEntities, 0, sizeof(EntityState)*JKClient.MaxParseEntities);
-			this.clientGame = null;
-			this.ClientHandler.ClearState();
+			if(!(this.ClientHandler is MOHClientHandler)) {
+				// CRINGE
+				// I'm doing something wrong I think
+				// MOHAA demos just keep referencing old snaps, idk why. So I need to keep that info
+				// until I figure out wtf is going on.
+				this.parseEntitiesNum = 0;
+				Common.MemSet(this.cmds, 0, sizeof(UserCommand) * UserCommand.CommandBackup);
+				this.cmdNumber = 0;
+				Common.MemSet(this.outPackets, 0, sizeof(OutPacket) * JKClient.PacketBackup);
+				this.serverId = 0;
+				Common.MemSet(this.snapshots, 0, sizeof(ClientSnapshot) * JKClient.PacketBackup);
+				Common.MemSet(this.entityBaselines, 0, sizeof(EntityState) * Common.MaxGEntities);
+				Common.MemSet(this.parseEntities, 0, sizeof(EntityState) * JKClient.MaxParseEntities);
+				this.clientGame = null;
+				this.ClientHandler.ClearState();
+			}
+			
 		}
 		private void ClearConnection() {
 			this.StopRecord_f();
 			for (int i = 0; i < this.ClientHandler.MaxReliableCommands; i++) {
-				Common.MemSet(this.serverCommands[i], 0, sizeof(sbyte)*Common.MaxStringChars);
+				Common.MemSet(this.serverCommands[i], 0, sizeof(sbyte)*Common.MaxStringCharsMOH);
 				this.serverCommandMessagenums[i] = 0;
-				Common.MemSet(this.reliableCommands[i], 0, sizeof(sbyte)*Common.MaxStringChars);
+				Common.MemSet(this.reliableCommands[i], 0, sizeof(sbyte)*Common.MaxStringCharsMOH);
 			}
 			this.clientNum = -1;
 			this.lastPacketSentTime = 0;
@@ -347,6 +390,7 @@ namespace JKClient {
 			this.connectPacketCount = 0;
 			this.challenge = 0;
 			this.checksumFeed = 0;
+			this.serverFrameTime = 0;
 			this.reliableSequence = 0;
 			this.reliableAcknowledge = 0;
 			this.serverMessageSequence = 0;
@@ -378,7 +422,7 @@ namespace JKClient {
 		}
 		private void ParseCommandString(in Message msg) {
 			int seq = msg.ReadLong();
-			sbyte []s = msg.ReadString();
+			sbyte []s = msg.ReadString((ProtocolVersion)this.Protocol);
 			if (this.serverCommandSequence >= seq) {
 				return;
 			}
@@ -388,7 +432,7 @@ namespace JKClient {
             }
 			this.serverCommandSequence = seq;
 			int index = seq & (this.MaxReliableCommands-1);
-			Array.Copy(s, 0, this.serverCommands[index], 0, Common.MaxStringChars);
+			Array.Copy(s, 0, this.serverCommands[index], 0, Common.MaxStringCharsMOH);
 			this.serverCommandMessagenums[index] = this.serverMessageSequence;
 		}
 
@@ -396,11 +440,15 @@ namespace JKClient {
 		int serverTimeOlderThanPreviousCount = 0; // Count of snaps received with a lower servertime than the old snap we have. Should be a static function variable but that doesn't exist in C#
 
 		private unsafe void ParseSnapshot(in Message msg) {
+
+			bool isMOH = this.ClientHandler is MOHClientHandler;
+
 			ClientSnapshot *oldSnap;
 			var oldSnapHandle = GCHandle.Alloc(this.snapshots, GCHandleType.Pinned);
 			var newSnap = new ClientSnapshot() {
 				ServerCommandNum = this.serverCommandSequence,
 				ServerTime = msg.ReadLong(),
+				ServerTimeResidual = isMOH ? msg.ReadByte() : 0, // MOH thing. I hope this maintains the order.
 				MessageNum = this.serverMessageSequence
 			};
 
@@ -536,6 +584,15 @@ namespace JKClient {
 					msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->VehiclePlayerState : null, &newSnap.VehiclePlayerState, true, this.ClientHandler, showNetString);
 				}
 				this.ParsePacketEntities(in msg, in oldSnap, &newSnap);
+
+                if (isMOH)
+                {
+					ServerSound[] sounds = new ServerSound[64];
+					fixed(ServerSound* soundP = sounds)
+                    {
+						msg.ReadSounds(soundP,&newSnap.numberOfSounds);
+					}
+                }
 			}
 			oldSnapHandle.Free();
 			if (!newSnap.Valid) {
@@ -610,11 +667,11 @@ namespace JKClient {
 						oldindex++;
 					} else if (oldnum == newnum) {
 						oldindex++;
-						msg.ReadDeltaEntity(oldstate, newstate, newnum, this.ClientHandler, showNetString);
+						msg.ReadDeltaEntity(oldstate, newstate, newnum, this.ClientHandler, this.serverFrameTime, showNetString);
 						newnum = msg.ReadBits(Common.GEntitynumBits);
 					} else if (oldnum > newnum) {
 						fixed (EntityState *bl = &this.entityBaselines[newnum]) {
-							msg.ReadDeltaEntity(bl, newstate, newnum, this.ClientHandler, showNetString);
+							msg.ReadDeltaEntity(bl, newstate, newnum, this.ClientHandler, this.serverFrameTime, showNetString);
 						}
 						newnum = msg.ReadBits(Common.GEntitynumBits);
 					}
@@ -644,9 +701,9 @@ namespace JKClient {
 			if (block == 0) {
 				int downloadSize = msg.ReadLong();
 				if (downloadSize < 0) {
-					fixed (sbyte* s = msg.ReadString()) {
+					fixed (sbyte* s = msg.ReadString((ProtocolVersion)this.Protocol)) {
 						byte* ss = (byte*)s;
-						throw new JKClientException($"{Common.ToString(ss, sizeof(sbyte)*Common.MaxStringChars)}");
+						throw new JKClientException($"{Common.ToString(ss, sizeof(sbyte)*Common.MaxStringCharsMOH)}");
 					}
 				}
 			}
@@ -656,5 +713,907 @@ namespace JKClient {
 			}
 			msg.ReadData(null, size);
 		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		// MOHAA stuff. Really ugly. Just pretend it's not here, we just need it to get through the demo message. Not even doing anything with this data.
+
+		// MOHAA: 
+		// TODO: Do something with these values so they don't get lost. (Important?)
+		void CL_ParseLocationprint(Message msg, ProtocolVersion protocol)
+		{
+			int x, y;
+
+			x = msg.ReadShort();
+			y = msg.ReadShort();
+			//string = msg.ReadScrambledString();
+			msg.ReadString(protocol);
+
+			//UI_UpdateLocationPrint(x, y, string, 1.0);
+		}
+
+		void CL_ParseCenterprint(Message msg, ProtocolVersion protocol)
+		{
+			//char* string;
+
+			//string = msg.ReadScrambledString();
+			msg.ReadString(protocol);
+
+			// FIXME
+			//UI_UpdateCenterPrint(string, 1.0);
+		}
+		const int MAX_IMPACTS = 64;
+		unsafe void CG_ParseCGMessage_ver_15(Message msg, ProtocolVersion protocol)
+		{
+			int i;
+			int iType;
+			int iLarge;
+			int iInfo;
+			int iCount;
+			//char* szTmp;
+			float[] vStart = new float[3];
+			float[] vEnd = new float[3];
+			float[] vTmp = new float[3];
+			float[,] vEndArray = new float[MAX_IMPACTS,3];
+			//vec3_t vStart, vEnd, vTmp;
+			//vec3_t vEndArray[MAX_IMPACTS];
+			float alpha;
+
+			bool bMoreCGameMessages = true;
+			while (bMoreCGameMessages)
+			{
+				iType = msg.ReadBits( 6);
+
+				switch (iType)
+				{
+					case 1:
+					case 2:
+					case 5:
+						if (iType == 1)
+						{
+							vTmp[0] = msg.ReadCoord();
+							vTmp[1] = msg.ReadCoord();
+							vTmp[2] = msg.ReadCoord();
+						}
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+
+						if (iType != 1)
+						{
+							vTmp[0] = vStart[0];
+							vTmp[1] = vStart[1];
+							vTmp[2] = vStart[2];
+						}
+
+						vEndArray[0,0] = msg.ReadCoord();
+						vEndArray[0,1] = msg.ReadCoord();
+						vEndArray[0,2] = msg.ReadCoord();
+						iLarge = msg.ReadBits( 2);
+						if (msg.ReadBits( 1) > 0)
+						{
+							int iAlpha = msg.ReadBits( 10);
+							alpha = (float)iAlpha / 512.0f;
+							if (alpha < 0.002f)
+							{
+								alpha = 0.002f;
+							}
+						}
+						else
+						{
+							alpha = 1.0f;
+						}
+
+						if (iType == 1)
+						{
+							//CG_MakeBulletTracer(vTmp, vStart, vEndArray, 1, iLarge, qfalse, qtrue, alpha);
+						}
+						else if (iType == 2)
+						{
+							//CG_MakeBulletTracer(vTmp, vStart, vEndArray, 1, iLarge, qfalse, qtrue, alpha);
+						}
+						else
+						{
+							//CG_MakeBubbleTrail(vStart, vEndArray[0], iLarge, alpha);
+						}
+
+						break;
+					case 3:
+					case 4:
+						if (iType == 3)
+						{
+							vTmp[0] = msg.ReadCoord();
+							vTmp[1] = msg.ReadCoord();
+							vTmp[2] = msg.ReadCoord();
+							iInfo = msg.ReadBits( 6);
+						}
+						else
+						{
+							iInfo = 0;
+						}
+
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						iLarge = msg.ReadBits( 2);
+						if (0 < msg.ReadBits( 1))
+						{
+							int iAlpha = msg.ReadBits( 10);
+							alpha = (float)iAlpha / 512.0f;
+							if (alpha < 0.002f)
+							{
+								alpha = 0.002f;
+							}
+						}
+						else
+						{
+							alpha = 1.0f;
+						}
+
+						iCount = msg.ReadBits( 6);
+						for (i = 0; i < iCount; ++i)
+						{
+							vEndArray[i,0] = msg.ReadCoord();
+							vEndArray[i,1] = msg.ReadCoord();
+							vEndArray[i,2] = msg.ReadCoord();
+						}
+
+						if (iCount != 0)
+						{
+							//CG_MakeBulletTracer(vTmp, vStart, vEndArray, iCount, iLarge, iInfo, qtrue, alpha);
+						}
+						break;
+					case 6:
+					case 7:
+					case 8:
+					case 9:
+					case 10:
+					case 11:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						fixed(float* p = vEnd)
+                        {
+							msg.ReadDir(p);
+						}
+						iLarge = msg.ReadBits( 2);
+
+						/*switch (iType) {
+						case 6:
+							if (wall_impact_count < MAX_IMPACTS) {
+								VectorCopy(vStart, wall_impact_pos[wall_impact_count]);
+								VectorCopy(vEnd, wall_impact_norm[wall_impact_count]);
+								wall_impact_large[wall_impact_count] = iLarge;
+								wall_impact_type[wall_impact_count] = -1;
+								wall_impact_count++;
+							}
+							break;
+						case 7:
+							if (wall_impact_count < MAX_IMPACTS) {
+								VectorCopy(vStart, wall_impact_pos[wall_impact_count]);
+								VectorCopy(vEnd, wall_impact_norm[wall_impact_count]);
+								wall_impact_large[wall_impact_count] = iLarge;
+								wall_impact_type[wall_impact_count] = 6;
+								wall_impact_count++;
+							}
+							break;
+						case 8:
+							if (flesh_impact_count < MAX_IMPACTS) {
+								// negative
+								VectorNegate(vEnd, vEnd);
+								VectorCopy(vStart, flesh_impact_pos[flesh_impact_count]);
+								VectorCopy(vEnd, flesh_impact_norm[flesh_impact_count]);
+								flesh_impact_large[flesh_impact_count] = iLarge;
+								flesh_impact_count++;
+							}
+							break;
+						case 9:
+							if (flesh_impact_count < MAX_IMPACTS) {
+								// negative
+								VectorNegate(vEnd, vEnd);
+								VectorCopy(vStart, flesh_impact_pos[flesh_impact_count]);
+								VectorCopy(vEnd, flesh_impact_norm[flesh_impact_count]);
+								flesh_impact_large[flesh_impact_count] = iLarge;
+								flesh_impact_count++;
+							}
+							break;
+						case 10:
+							if (wall_impact_count < MAX_IMPACTS) {
+								VectorCopy(vStart, wall_impact_pos[wall_impact_count]);
+								VectorCopy(vEnd, wall_impact_norm[wall_impact_count]);
+								wall_impact_large[wall_impact_count] = iLarge;
+								wall_impact_type[wall_impact_count] = 2;
+								wall_impact_count++;
+							}
+							break;
+						case 11:
+							if (wall_impact_count < MAX_IMPACTS) {
+								VectorCopy(vStart, wall_impact_pos[wall_impact_count]);
+								VectorCopy(vEnd, wall_impact_norm[wall_impact_count]);
+								wall_impact_large[wall_impact_count] = iLarge;
+								wall_impact_type[wall_impact_count] = 4;
+								wall_impact_count++;
+							}
+							break;
+						default:
+							continue;
+						}*/
+						break;
+
+					case 12:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						vEnd[0] = msg.ReadCoord();
+						vEnd[1] = msg.ReadCoord();
+						vEnd[2] = msg.ReadCoord();
+						//CG_MeleeImpact(vStart, vEnd);
+						break;
+					case 13:
+					case 14:
+					case 15:
+					case 16:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						//CG_MakeExplosionEffect(vStart, iType);
+						break;
+					case 18:
+					case 19:
+					case 20:
+					case 21:
+					case 22:
+					case 23:
+					case 24:
+					case 25:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+                        fixed (float *p = vEnd)
+                        {
+							msg.ReadDir(p);
+						}
+
+						//sfxManager.MakeEffect_Normal(iType + SFX_EXP_GREN_PUDDLE, vStart, vEnd);
+						break;
+
+					case 26:
+					case 27:
+						{
+							//str    sEffect;
+							//char cTmp[8];
+							//vec3_t axis[3];
+
+							vStart[0] = msg.ReadCoord();
+							vStart[1] = msg.ReadCoord();
+							vStart[2] = msg.ReadCoord();
+							iLarge = msg.ReadByte();
+							// get the integer as string
+							//snprintf(cTmp, sizeof(cTmp), "%d", iLarge);
+
+							if (iType == 26)
+							{
+								//sEffect = "models/fx/crates/debris_";
+							}
+							else
+							{
+								//sEffect = "models/fx/windows/debris_";
+							}
+
+							//sEffect += cTmp;
+							//sEffect += ".tik";
+
+							//VectorSet(axis[0], 0, 0, 1);
+							//VectorSet(axis[1], 0, 1, 0);
+							//VectorSet(axis[2], 1, 0, 0);
+
+							//cgi.R_SpawnEffectModel(sEffect.c_str(), vStart, axis);
+						}
+						break;
+
+					case 28:
+						vTmp[0] = msg.ReadCoord();
+						vTmp[1] = msg.ReadCoord();
+						vTmp[2] = msg.ReadCoord();
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						vEndArray[0,0] = msg.ReadCoord();
+						vEndArray[0,1] = msg.ReadCoord();
+						vEndArray[0,2] = msg.ReadCoord();
+						iLarge = msg.ReadBits( 2);
+						if (0 != msg.ReadBits( 1))
+						{
+							int iAlpha = msg.ReadBits( 10);
+							alpha = (float)iAlpha / 512.0f;
+							if (alpha < 0.002f)
+							{
+								alpha = 0.002f;
+							}
+						}
+						else
+						{
+							alpha = 1.0f;
+						}
+
+						//CG_MakeBulletTracer(vTmp, vStart, vEndArray, 1, iLarge, qtrue, qtrue, alpha);
+						break;
+
+					case 29:
+						//memset(vTmp, 0, sizeof(vTmp));
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						vEndArray[0,0] = msg.ReadCoord();
+						vEndArray[0,1] = msg.ReadCoord();
+						vEndArray[0,2] = msg.ReadCoord();
+						iLarge = msg.ReadBits( 1);
+						if (0!=msg.ReadBits( 1))
+						{
+							int iAlpha = msg.ReadBits( 10);
+							alpha = (float)iAlpha / 512.0f;
+							if (alpha < 0.002f)
+							{
+								alpha = 0.002f;
+							}
+						}
+						else
+						{
+							alpha = 1.0f;
+						}
+
+						//CG_MakeBulletTracer(vTmp, vStart, vEndArray, 1, iLarge, qfalse, qtrue, alpha);
+						break;
+
+					case 30:
+						iInfo = msg.ReadByte();
+						msg.ReadString( protocol);//strcpy(cgi.HudDrawElements[iInfo].shaderName, msg.ReadString());
+													  //cgi.HudDrawElements[iInfo].string[0] = 0;
+													  //cgi.HudDrawElements[iInfo].pFont = NULL;
+													  //cgi.HudDrawElements[iInfo].fontName[0] = 0;
+													  // set the shader
+													  //CG_HudDrawShader(iInfo);
+						break;
+
+					case 31:
+						iInfo = msg.ReadByte();
+						msg.ReadBits( 2);//cgi.HudDrawElements[iInfo].iHorizontalAlign = msg.ReadBits(2);
+						msg.ReadBits( 2);//cgi.HudDrawElements[iInfo].iVerticalAlign = msg.ReadBits(2);
+						break;
+
+					case 32:
+						iInfo = msg.ReadByte();
+						msg.ReadShort();//cgi.HudDrawElements[iInfo].iX = msg.ReadShort();
+						msg.ReadShort();//cgi.HudDrawElements[iInfo].iY = msg.ReadShort();
+						msg.ReadShort();//cgi.HudDrawElements[iInfo].iWidth = msg.ReadShort();
+						msg.ReadShort();//cgi.HudDrawElements[iInfo].iHeight = msg.ReadShort();
+						break;
+
+					case 33:
+						iInfo = msg.ReadByte();
+						msg.ReadBits( 1);//cgi.HudDrawElements[iInfo].bVirtualScreen = msg.ReadBits(1);
+						break;
+
+					case 34:
+						iInfo = msg.ReadByte();
+						msg.ReadByte();//cgi.HudDrawElements[iInfo].vColor[0] = msg.ReadByte() / 255.0;
+						msg.ReadByte();//cgi.HudDrawElements[iInfo].vColor[1] = msg.ReadByte() / 255.0;
+						msg.ReadByte();//cgi.HudDrawElements[iInfo].vColor[2] = msg.ReadByte() / 255.0;
+						break;
+
+					case 35:
+						iInfo = msg.ReadByte();
+						msg.ReadByte();//cgi.HudDrawElements[iInfo].vColor[3] = msg.ReadByte() / 255.0;
+						break;
+
+					case 36:
+						iInfo = msg.ReadByte();
+						//cgi.HudDrawElements[iInfo].hShader = 0;
+						msg.ReadString(protocol);//strcpy(cgi.HudDrawElements[iInfo].string, msg.ReadString());
+						break;
+
+					case 37:
+						iInfo = msg.ReadByte();
+						msg.ReadString(protocol);//strcpy(cgi.HudDrawElements[iInfo].fontName, msg.ReadString());
+													  //cgi.HudDrawElements[iInfo].hShader = 0;
+													  //cgi.HudDrawElements[iInfo].shaderName[0] = 0;
+													  // load the font
+													  //CG_HudDrawFont(iInfo);
+						break;
+
+					case 38:
+					case 39:
+						{
+							int iOldEnt;
+
+							//iOldEnt = current_entity_number;
+							//current_entity_number = cg.snap->ps.clientNum;
+							//if (iType == 36) {
+							//	commandManager.PlaySound("dm_kill_notify", NULL, CHAN_LOCAL, 2.0, -1, -1, 1);
+							//}
+							//else {
+							//	commandManager.PlaySound("dm_hit_notify", NULL, CHAN_LOCAL, 2.0, -1, -1, 1);
+							//}
+
+							//current_entity_number = iOldEnt;
+						}
+						break;
+
+					case 40:
+						{
+							int iOldEnt;
+
+							vStart[0] = msg.ReadCoord();
+							vStart[1] = msg.ReadCoord();
+							vStart[2] = msg.ReadCoord();
+							iLarge = msg.ReadBits( 1);
+							iInfo = msg.ReadBits( 6);
+							//szTmp = msg.ReadString(protocol);
+							msg.ReadString(protocol);
+
+							//iOldEnt = current_entity_number;
+
+							//if (iLarge) {
+							//	current_entity_number = iInfo;
+							//
+							//	commandManager.PlaySound(szTmp, vStart, CHAN_LOCAL, -1, -1, -1, 0);
+							//}
+							//else {
+							//	current_entity_number = cg.snap->ps.clientNum;
+							//
+							//	commandManager.PlaySound(szTmp, vStart, CHAN_AUTO, -1, -1, -1, 1);
+							//}
+
+							//current_entity_number = iOldEnt;
+						}
+						break;
+					case 41:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						vEnd[0] = msg.ReadCoord();
+						vEnd[1] = msg.ReadCoord();
+						vEnd[2] = msg.ReadCoord();
+						msg.ReadByte();
+						msg.ReadByte();
+						//VectorSubtract(vEnd, vStart, vTmp);
+
+						// FIXME: unimplemented
+						// ?? can't figure out what is this
+						break;
+					default:
+						//cgi.Error(ERR_DROP, "CG_ParseCGMessage: Unknown CGM message type");
+						break;
+				}
+
+				bMoreCGameMessages = 0!=msg.ReadBits( 1);
+			}
+		}
+
+		unsafe void CG_ParseCGMessage_ver_6(Message msg, ProtocolVersion protocol)
+		{
+			int i;
+			int iType;
+			int iLarge;
+			int iInfo;
+			int iCount;
+			//char* szTmp;
+			float[] vStart = new float[3];
+			float[] vEnd = new float[3];
+			float[] vTmp = new float[3];
+			float[,] vEndArray = new float[MAX_IMPACTS, 3];
+			//vec3_t vStart, vEnd, vTmp;
+			//vec3_t vEndArray[MAX_IMPACTS];
+
+			bool bMoreCGameMessages = true;
+			while (bMoreCGameMessages)
+			{
+				iType = msg.ReadBits( 6);
+
+				switch (iType)
+				{
+					case 1:
+					case 2:
+					case 5:
+						if (iType == 1)
+						{
+							vTmp[0] = msg.ReadCoord();
+							vTmp[1] = msg.ReadCoord();
+							vTmp[2] = msg.ReadCoord();
+						}
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+
+						if (iType != 1)
+						{
+							vTmp[0] = vStart[0];
+							vTmp[1] = vStart[1];
+							vTmp[2] = vStart[2];
+						}
+
+						vEndArray[0,0] = msg.ReadCoord();
+						vEndArray[0,1] = msg.ReadCoord();
+						vEndArray[0,2] = msg.ReadCoord();
+						iLarge = msg.ReadBits( 1);
+
+						if (iType == 1)
+						{
+							//CG_MakeBulletTracer(vTmp, vStart, vEndArray, 1, iLarge, qfalse, qtrue);
+						}
+						else if (iType == 2)
+						{
+							//CG_MakeBulletTracer(vTmp, vStart, vEndArray, 1, iLarge, qfalse, qtrue);
+						}
+						else
+						{
+							//CG_MakeBubbleTrail(vStart, vEndArray[0], iLarge);
+						}
+
+						break;
+					case 3:
+					case 4:
+						if (iType == 3)
+						{
+							vTmp[0] = msg.ReadCoord();
+							vTmp[1] = msg.ReadCoord();
+							vTmp[2] = msg.ReadCoord();
+							iInfo = msg.ReadBits( 6);
+						}
+						else
+						{
+							iInfo = 0;
+						}
+
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						iLarge = msg.ReadBits( 1);
+						iCount = msg.ReadBits( 6);
+						for (i = 0; i < iCount; ++i)
+						{
+							vEndArray[i,0] = msg.ReadCoord();
+							vEndArray[i,1] = msg.ReadCoord();
+							vEndArray[i,2] = msg.ReadCoord();
+						}
+
+						//if (iCount)
+						{
+							//CG_MakeBulletTracer(vTmp, vStart, vEndArray, iCount, iLarge, iInfo, qtrue);
+						}
+						break;
+					case 6:
+					case 7:
+					case 8:
+					case 9:
+					case 10:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						fixed(float* p = vEnd)
+                        {
+
+							msg.ReadDir(p);
+						}
+						iLarge = msg.ReadBits( 1);
+
+						switch (iType)
+						{
+							case 6:
+								//if (wall_impact_count < MAX_IMPACTS) {
+								//	VectorCopy(vStart, wall_impact_pos[wall_impact_count]);
+								//	VectorCopy(vEnd, wall_impact_norm[wall_impact_count]);
+								//	wall_impact_large[wall_impact_count] = iLarge;
+								//	wall_impact_type[wall_impact_count] = 0;
+								//	wall_impact_count++;
+								//}
+								break;
+							case 7:
+								//if (flesh_impact_count < MAX_IMPACTS) {
+								// negative
+								//	VectorNegate(vEnd, vEnd);
+								//	VectorCopy(vStart, flesh_impact_pos[flesh_impact_count]);
+								//	VectorCopy(vEnd, flesh_impact_norm[flesh_impact_count]);
+								//	flesh_impact_large[flesh_impact_count] = iLarge;
+								//	flesh_impact_count++;
+								//}
+								break;
+							case 8:
+								//if (flesh_impact_count < MAX_IMPACTS) {
+								// negative
+								//	VectorNegate(vEnd, vEnd);
+								//	VectorCopy(vStart, flesh_impact_pos[flesh_impact_count]);
+								//	VectorCopy(vEnd, flesh_impact_norm[flesh_impact_count]);
+								//	flesh_impact_large[flesh_impact_count] = iLarge;
+								//	flesh_impact_count++;
+								//}
+								break;
+							case 9:
+								//if (wall_impact_count < MAX_IMPACTS) {
+								//	VectorCopy(vStart, wall_impact_pos[wall_impact_count]);
+								//	VectorCopy(vEnd, wall_impact_norm[wall_impact_count]);
+								//	wall_impact_large[wall_impact_count] = iLarge;
+								//	wall_impact_type[wall_impact_count] = (iLarge != 0) + 2;
+								//	wall_impact_count++;
+								//}
+								break;
+							case 10:
+								//if (wall_impact_count < MAX_IMPACTS) {
+								//	VectorCopy(vStart, wall_impact_pos[wall_impact_count]);
+								//	VectorCopy(vEnd, wall_impact_norm[wall_impact_count]);
+								//	wall_impact_large[wall_impact_count] = iLarge;
+								//	wall_impact_type[wall_impact_count] = (iLarge != 0) + 4;
+								//	wall_impact_count++;
+								//}
+								break;
+							default:
+								continue;
+						}
+						break;
+
+					case 11:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						vEnd[0] = msg.ReadCoord();
+						vEnd[1] = msg.ReadCoord();
+						vEnd[2] = msg.ReadCoord();
+						//CG_MeleeImpact(vStart, vEnd);
+						break;
+					case 12:
+					case 13:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						//CG_MakeExplosionEffect(vStart, iType);
+						break;
+					case 15:
+					case 16:
+					case 17:
+					case 18:
+					case 19:
+					case 20:
+					case 21:
+					case 22:
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						fixed(float* p= vEnd)
+                        {
+							msg.ReadDir(p);
+						}
+
+						//sfxManager.MakeEffect_Normal(iType + SFX_EXP_GREN_PUDDLE, vStart, vEnd);
+						break;
+
+					case 23:
+					case 24:
+						{
+							//str    sEffect;
+							//char cTmp[8];
+							//vec3_t axis[3];
+
+							vStart[0] = msg.ReadCoord();
+							vStart[1] = msg.ReadCoord();
+							vStart[2] = msg.ReadCoord();
+							iLarge = msg.ReadByte();
+							// get the integer as string
+							//snprintf(cTmp, sizeof(cTmp), "%d", iLarge);
+
+							if (iType == 23)
+							{
+								//sEffect = "models/fx/crates/debris_";
+							}
+							else
+							{
+								//sEffect = "models/fx/windows/debris_";
+							}
+
+							//sEffect += cTmp;
+							//sEffect += ".tik";
+
+							//VectorSet(axis[0], 0, 0, 1);
+							//VectorSet(axis[1], 0, 1, 0);
+							//VectorSet(axis[2], 1, 0, 0);
+
+							//cgi.R_SpawnEffectModel(sEffect.c_str(), vStart, axis);
+						}
+						break;
+
+					case 25:
+						vTmp[0] = msg.ReadCoord();
+						vTmp[1] = msg.ReadCoord();
+						vTmp[2] = msg.ReadCoord();
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						vEndArray[0,0] = msg.ReadCoord();
+						vEndArray[0,1] = msg.ReadCoord();
+						vEndArray[0,2] = msg.ReadCoord();
+						iLarge = msg.ReadBits( 1);
+
+						//CG_MakeBulletTracer(vTmp, vStart, vEndArray, 1, iLarge, qtrue, qtrue);
+						break;
+
+					case 26:
+						//memset(vTmp, 0, sizeof(vTmp));
+						vStart[0] = msg.ReadCoord();
+						vStart[1] = msg.ReadCoord();
+						vStart[2] = msg.ReadCoord();
+						vEndArray[0,0] = msg.ReadCoord();
+						vEndArray[0,1] = msg.ReadCoord();
+						vEndArray[0,2] = msg.ReadCoord();
+						iLarge = msg.ReadBits( 1);
+
+						//CG_MakeBulletTracer(vTmp, vStart, vEndArray, 1, iLarge, qfalse, qtrue);
+						break;
+
+					case 27:
+						iInfo = msg.ReadByte();
+						msg.ReadString( protocol);//strcpy(cgi.HudDrawElements[iInfo].shaderName, msg.ReadString());
+													  //cgi.HudDrawElements[iInfo].string[0] = 0;
+													  //cgi.HudDrawElements[iInfo].pFont = NULL;
+													  //cgi.HudDrawElements[iInfo].fontName[0] = 0;
+													  // set the shader
+													  //CG_HudDrawShader(iInfo);
+						break;
+
+					case 28:
+						iInfo = msg.ReadByte();
+						msg.ReadBits( 2); //cgi.HudDrawElements[iInfo].iHorizontalAlign = msg.ReadBits(2);
+						msg.ReadBits( 2);  // cgi.HudDrawElements[iInfo].iVerticalAlign = msg.ReadBits(2);
+						break;
+
+					case 29:
+						iInfo = msg.ReadByte();
+						msg.ReadShort();//cgi.HudDrawElements[iInfo].iX = msg.ReadShort();
+						msg.ReadShort();//cgi.HudDrawElements[iInfo].iY = msg.ReadShort();
+						msg.ReadShort();//cgi.HudDrawElements[iInfo].iWidth = msg.ReadShort();
+						msg.ReadShort();//cgi.HudDrawElements[iInfo].iHeight = msg.ReadShort();
+						break;
+
+					case 30:
+						iInfo = msg.ReadByte();
+						msg.ReadBits( 1);//cgi.HudDrawElements[iInfo].bVirtualScreen = msg.ReadBits(1);
+						break;
+
+					case 31:
+						iInfo = msg.ReadByte();
+						msg.ReadByte();//cgi.HudDrawElements[iInfo].vColor[0] = msg.ReadByte() / 255.0;
+						msg.ReadByte();//cgi.HudDrawElements[iInfo].vColor[1] = msg.ReadByte() / 255.0;
+						msg.ReadByte();//cgi.HudDrawElements[iInfo].vColor[2] = msg.ReadByte() / 255.0;
+						break;
+
+					case 32:
+						iInfo = msg.ReadByte();
+						msg.ReadByte();//cgi.HudDrawElements[iInfo].vColor[3] = msg.ReadByte() / 255.0;
+						break;
+
+					case 33:
+						iInfo = msg.ReadByte();
+						//cgi.HudDrawElements[iInfo].hShader = 0;
+						msg.ReadString(protocol);//strcpy(cgi.HudDrawElements[iInfo].string, msg.ReadString());
+						break;
+
+					case 34:
+						iInfo = msg.ReadByte();
+						msg.ReadString(protocol);//strcpy(cgi.HudDrawElements[iInfo].fontName, msg.ReadString());
+													  //cgi.HudDrawElements[iInfo].hShader = 0;
+													  //cgi.HudDrawElements[iInfo].shaderName[0] = 0;
+													  // load the font
+													  //CG_HudDrawFont(iInfo);
+						break;
+
+					case 35:
+					case 36:
+						{
+							//int iOldEnt;
+
+							//iOldEnt = current_entity_number;
+							//current_entity_number = cg.snap->ps.clientNum;
+							//if (iType == 36) {
+							//	commandManager.PlaySound("dm_kill_notify", NULL, CHAN_LOCAL, 2.0, -1, -1, 1);
+							//}
+							//else {
+							//	commandManager.PlaySound("dm_hit_notify", NULL, CHAN_LOCAL, 2.0, -1, -1, 1);
+							//}
+
+							//current_entity_number = iOldEnt;
+						}
+						break;
+
+					case 37:
+						{
+							int iOldEnt;
+
+							vStart[0] = msg.ReadCoord();
+							vStart[1] = msg.ReadCoord();
+							vStart[2] = msg.ReadCoord();
+							iLarge = msg.ReadBits( 1);
+							iInfo = msg.ReadBits( 6);
+							//szTmp = msg.ReadString(protocol);
+							msg.ReadString(protocol);
+
+							//iOldEnt = current_entity_number;
+
+							//if (iLarge) {
+							//	current_entity_number = iInfo;
+							//
+							//	commandManager.PlaySound(szTmp, vStart, CHAN_LOCAL, -1, -1, -1, 0);
+							//}
+							//else {
+							//	current_entity_number = cg.snap->ps.clientNum;
+							//
+							//	commandManager.PlaySound(szTmp, vStart, CHAN_AUTO, -1, -1, -1, 1);
+							//}
+
+							//current_entity_number = iOldEnt;
+						}
+						break;
+					default:
+						//cgi.Error(ERR_DROP, "CG_ParseCGMessage: Unknown CGM message type");
+						break;
+				}
+
+				bMoreCGameMessages = 0 != msg.ReadBits( 1);
+			}
+		}
+
+		void CL_ParseCGMessageMOHAA(Message msg, ProtocolVersion protocol)
+		{
+			//cl_currentMSG = msg;
+			//cge->CG_ParseCGMessage();
+			if (protocol> ProtocolVersion.Protocol8)
+			{
+				CG_ParseCGMessage_ver_15(msg,protocol);
+			}
+			else
+			{
+				CG_ParseCGMessage_ver_6(msg,protocol);
+			}
+
+		}
+
+		bool demoCutParseMOHAASVCReal(Message msg, ProtocolVersion protocol, ServerCommandOperations cmd)
+		{
+			switch (cmd)
+			{
+
+				case ServerCommandOperations.CenterPrint:
+					CL_ParseCenterprint(msg,protocol);
+					break;
+				case ServerCommandOperations.LocPrint:
+					CL_ParseLocationprint(msg, protocol);
+					break;
+				case ServerCommandOperations.CGameMessage:
+					CL_ParseCGMessageMOHAA(msg, protocol);
+					break;
+			}
+			return true;
+		}
+
+
+
 	}
 }

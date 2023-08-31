@@ -81,6 +81,7 @@ namespace JKClient {
 		private int connectPacketCount = 0;
 		private int challenge = 0;
 		private int checksumFeed = 0;
+		private float serverFrameTime = 0; // MOH
 		private int reliableSequence = 0;
 		private int reliableAcknowledge = 0;
 		private sbyte [][]reliableCommands;
@@ -253,8 +254,8 @@ namespace JKClient {
 			this.serverCommandMessagenums = new int[this.MaxReliableCommands];
 			this.serverCommands = new sbyte[this.MaxReliableCommands][];
 			for (int i = 0; i < this.MaxReliableCommands; i++) {
-				this.serverCommands[i] = new sbyte[Common.MaxStringChars];
-				this.reliableCommands[i] = new sbyte[Common.MaxStringChars];
+				this.serverCommands[i] = new sbyte[Common.MaxStringCharsMOH];
+				this.reliableCommands[i] = new sbyte[Common.MaxStringCharsMOH];
 			}
 		}
 		private protected override void OnStart() {
@@ -579,7 +580,7 @@ namespace JKClient {
 			if(cmd == ServerCommandOperations.ServerCommand)
             {
 				int seq = msg.ReadLong();
-				_ = msg.ReadString();
+				_ = msg.ReadString((ProtocolVersion)this.Protocol);
 				if (this.serverCommandSequence < seq)
 				{
 					newCommands = true;
@@ -870,13 +871,13 @@ namespace JKClient {
 		private void ConnectionlessPacket(NetAddress address, Message msg) {
 			msg.BeginReading(true);
 			msg.ReadLong();
-			string s = msg.ReadStringLineAsString();
+			string s = msg.ReadStringLineAsString((ProtocolVersion)this.Protocol);
 			var command = new Command(s);
 			string c = command.Argv(0);
 			if (string.Compare(c, "infoResponse", StringComparison.OrdinalIgnoreCase) == 0)
 			{
 				// Minimalistic handling. We only need some basic info.
-				var info = new InfoString(msg.ReadStringAsString());
+				var info = new InfoString(msg.ReadStringAsString((ProtocolVersion)this.Protocol));
 				this.serverInfo.Ping = (int)(Common.Milliseconds - serverInfo.Start);
 				this.serverInfo.SetInfo(info);
 				this.serverInfo.InfoPacketReceived = true;
@@ -928,7 +929,7 @@ namespace JKClient {
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "print", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (address == this.serverAddress) {
-					s = msg.ReadStringAsString(); // hm?
+					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol); // hm?
 					var cmd = new Command(new string []{ "print", s }); // hm?
 					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 					Debug.WriteLine(s);
@@ -987,7 +988,7 @@ namespace JKClient {
 				for (int i = this.reliableAcknowledge + 1; i <= this.reliableSequence; i++) {
 					msg.WriteByte((int)ClientCommandOperations.ClientCommand);
 					msg.WriteLong(i);
-					msg.WriteString(this.reliableCommands[i & (this.MaxReliableCommands-1)]);
+					msg.WriteString(this.reliableCommands[i & (this.MaxReliableCommands-1)],(ProtocolVersion)this.Protocol);
 				}
 				int oldPacketNum = (this.netChannel.OutgoingSequence - 1 - 1) & JKClient.PacketMask;
 				int count = this.cmdNumber - this.outPackets[oldPacketNum].CommandNumber;

@@ -217,7 +217,7 @@ namespace JKClient {
 				if (msg.CurSize >= 4 && *(int*)b == -1) {
 					msg.BeginReading(true);
 					msg.ReadLong();
-					string s = msg.ReadStringLineAsString();
+					string s = msg.ReadStringLineAsString((ProtocolVersion)this.Protocol);
 					var command = new Command(s);
 					string c = command.Argv(0);
 					if (string.Compare(c, "infoResponse", StringComparison.OrdinalIgnoreCase) == 0) {
@@ -267,7 +267,7 @@ namespace JKClient {
 			}
 		}
 		private void ServerStatusResponse(in NetAddress address, in Message msg) {
-			var info = new InfoString(msg.ReadStringLineAsString());
+			var info = new InfoString(msg.ReadStringLineAsString((ProtocolVersion)this.Protocol));
 			if (this.serverInfoTasks.ContainsKey(address)) {
 				this.serverInfoTasks[address].TrySetResult(info);
 				this.serverInfoTasks.TryRemove(address, out _);
@@ -276,7 +276,7 @@ namespace JKClient {
 				var serverInfo = this.globalServers[address];
 				int playersCount = 0;
 				serverInfo.players.Clear();
-				for (string s = msg.ReadStringLineAsString(); !string.IsNullOrEmpty(s); s = msg.ReadStringLineAsString()) {
+				for (string s = msg.ReadStringLineAsString((ProtocolVersion)this.Protocol); !string.IsNullOrEmpty(s); s = msg.ReadStringLineAsString((ProtocolVersion)this.Protocol)) {
 					var command = new Command(s);
 					int score = command.Argv(0).Atoi();
 					int ping = command.Argv(1).Atoi();
@@ -305,7 +305,7 @@ namespace JKClient {
 			}
 		}
 		private void ServerInfoPacket(in NetAddress address, in Message msg) {
-			var info = new InfoString(msg.ReadStringAsString());
+			var info = new InfoString(msg.ReadStringAsString((ProtocolVersion)this.Protocol));
 			if (this.serverInfoInfoTasks.ContainsKey(address))
 			{
 				this.serverInfoInfoTasks[address].TrySetResult(info);

@@ -81,7 +81,11 @@ namespace JKClient {
 		public int EntityEventSequence;
 		public int VehicleNum;
 		public unsafe fixed int Stats[(int)Stat.Max];
-		//IMPORTANT: update all playerStateFields in Message after adding new fields
+		public unsafe fixed int ActiveItems[8]; // MOHAA
+		public unsafe fixed int AmmoNameIndex[16]; // MOHAA
+		public unsafe fixed int AmmoAmount[16]; // MOHAA
+		public unsafe fixed int MaxAmmoAmount[16]; // MOHAA
+												   //IMPORTANT: update all playerStateFields in Message after adding new fields
 		public static readonly PlayerState Null = new PlayerState();
 		public const int MaxEvents = 2;
 

@@ -46,7 +46,7 @@ namespace JKClient
 		}
 
 
-		float ReadCoord()
+		public float ReadCoord()
 		{
 			float sign = 1.0f;
 			int read;
@@ -61,7 +61,7 @@ namespace JKClient
 			return rtn;
 		}
 
-		unsafe void ReadDir( float* dir)
+		public unsafe void ReadDir( float* dir)
 		{
 			int b;
 
@@ -84,7 +84,7 @@ namespace JKClient
 			return 1.0f / atof(Info_ValueForKey(clCut->gameState.stringData + clCut->gameState.stringOffsets[CS_SERVERINFO], maxLength, "sv_fps")); // OpenMohaa has CS_SYSTEMINFO but sv_fps is in CS_SERVERINFO*/
 		}
 
-		float ReadServerFrameTime( ProtocolVersion protocol, bool forceConfigStringMethod, string serverInfo)
+		public float ReadServerFrameTime( ProtocolVersion protocol, bool forceConfigStringMethod, string serverInfo)
 		{
 			if ((protocol < ProtocolVersion.Protocol6 || protocol > ProtocolVersion.Protocol8) && !forceConfigStringMethod)
 			{
@@ -97,7 +97,7 @@ namespace JKClient
 			}
 		}
 
-		unsafe EntityState GetNullEntityState()
+		static public unsafe EntityState GetNullEntityState()
 		{
 			EntityState nullState = new EntityState();
 			nullState.Alpha = 1.0f;
@@ -609,7 +609,7 @@ namespace JKClient
 			}
 		}
 
-		ushort ReadEntityNum(ProtocolVersion protocol)
+		public ushort ReadEntityNum(ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1465,7 +1465,7 @@ namespace JKClient
 		1:1 translated from assembly code
 		==================
 		*/
-		unsafe void ReadSounds(ServerSound* sounds, int* snapshot_number_of_sounds)
+		public unsafe void ReadSounds(ServerSound* sounds, int* snapshot_number_of_sounds)
 		{
 
 			int fubar;

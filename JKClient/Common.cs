@@ -8,6 +8,7 @@ using System.Text;
 namespace JKClient {
 	public static class Common {
 		internal const int MaxStringChars = 1024;
+		internal const int MaxStringCharsMOH = 2048; // MOH
 		internal const int BigInfoString = 8192;
 
 		// TODO: These are JK specific? 
@@ -62,6 +63,11 @@ namespace JKClient {
 			dst[1] = src[1];
 			dst[2] = src[2];
         }
+
+		internal static bool ProtocolIsMOH(ProtocolVersion protocol)
+        {
+			return protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8; // Only base MOHAA supported atm.
+		}
 
 		const int NUMVERTEXNORMALS = 162;
 		static float[] vec3_origin = new float[3] { 0,0,0}; // Not sure how else to do this

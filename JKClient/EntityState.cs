@@ -191,6 +191,7 @@ namespace JKClient {
 
 		//IMPORTANT: update all entityStateFields in Message after adding new fields
 		public static readonly EntityState Null = new EntityState();
+		public static readonly EntityState NullMOH = Message.GetNullEntityState();
 
 	}
 

@@ -452,7 +452,9 @@ namespace JKClient {
 
 		private unsafe bool MessageCheckSuperSkippable(Message msg, int deltaNum)
         {
-
+			int randomTmpValue = 0;
+			bool isMOH = this.ClientHandler is MOHClientHandler;
+			ProtocolVersion protocol = (ProtocolVersion)this.Protocol;
 			bool isPilot()
 			{
 				return msg.ReadBits(1) != 0;
@@ -479,8 +481,33 @@ namespace JKClient {
 							return false;
 						} else
                         {
-							int bits = fields[i].Bits;
-							msg.ReadBits( bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits); // Very short form of reading a field and discarding it the result.
+							if (isMOH)
+							{
+								switch (fields[i].Type)
+								{
+									case NetFieldType.regular:
+										msg.ReadRegularSimple(fields[i].Bits, &randomTmpValue, protocol);
+										break;
+									case NetFieldType.angle:
+										msg.ReadPackedAngle(fields[i].Bits, protocol);
+										break;
+									case NetFieldType.coord:
+										msg.ReadPackedCoord(0, fields[i].Bits, protocol);
+										break;
+									case NetFieldType.coordExtra:
+										msg.ReadPackedCoordExtra(0, fields[i].Bits, protocol);
+										break;
+									case NetFieldType.velocity:
+										msg.ReadPackedVelocity(fields[i].Bits);
+										break;
+									default:
+										break;
+								}
+							} else { 
+								int bits = fields[i].Bits;
+								msg.ReadBits( bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits); // Very short form of reading a field and discarding it the result.
+
+							}
 						}
 
 					}
@@ -547,11 +574,54 @@ namespace JKClient {
 							}
 							else
 							{
-								int bits = eFields[i].Bits;
-								if(msg.ReadBits(1) != 0)
-								{
-									msg.ReadBits(bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits);
-                                }
+                                if (isMOH)
+                                {
+
+									switch (fields[i].Type)
+									{
+										case NetFieldType.regular:
+											msg.ReadRegular(fields[i].Bits, &randomTmpValue, protocol);
+											break;
+										case NetFieldType.angle: // angles, what a mess! it wouldnt surprise me if something goes wrong here ;)
+											msg.ReadPackedAngle(fields[i].Bits, protocol);
+											break;
+										case NetFieldType.animTime: // time
+											msg.ReadPackedAnimTime(fields[i].Bits, 0, 0, protocol);
+											break;
+										case NetFieldType.animWeight: // nasty!
+											msg.ReadPackedAnimWeight(fields[i].Bits, protocol);
+											break;
+										case NetFieldType.scale:
+											msg.ReadPackedScale(fields[i].Bits, protocol);
+											break;
+										case NetFieldType.alpha:
+											msg.ReadPackedAlpha(fields[i].Bits, protocol);
+											break;
+										case NetFieldType.coord:
+											msg.ReadPackedCoord(0, fields[i].Bits, protocol);
+											break;
+										case NetFieldType.coordExtra:
+											msg.ReadPackedCoordExtra(0, fields[i].Bits, protocol);
+											break;
+										case NetFieldType.velocity:
+											msg.ReadPackedVelocity(fields[i].Bits);
+											break;
+										case NetFieldType.simple:
+											msg.ReadPackedSimple(0, fields[i].Bits);
+											break;
+										default:
+											throw new Exception($"MessageCheckSuperSkippable (MOH): unrecognized entity field type {i} for field\n");
+											//break;
+									}
+								} else
+                                {
+
+									int bits = eFields[i].Bits;
+									if(msg.ReadBits(1) != 0)
+									{
+										msg.ReadBits(bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits);
+									}
+								}
 							}
 
 						}
@@ -559,7 +629,23 @@ namespace JKClient {
 				}
 
 			}
-			return safetyIndex <= Common.MaxGEntities; // Uh. Hm. If safetyIndex is > Common.MaxGEntities (or anywhere close really) we have some messed up message to deal with, so would be better to discard anyway ig? lol whatever we're not determining that here.
+            if (!isMOH)
+            {
+				return safetyIndex <= Common.MaxGEntities; // Uh. Hm. If safetyIndex is > Common.MaxGEntities (or anywhere close really) we have some messed up message to deal with, so would be better to discard anyway ig? lol whatever we're not determining that here.
+			}
+			if(safetyIndex > Common.MaxGEntities)
+            {
+				return false;
+            }
+
+			// MOH
+			if (msg.ReadBits(1) != 0) // this is MSG_ReadSounds. If ReadBits(1) is 0 then no change.
+            {
+				return false;
+            }
+
+			return msg.ReadByte() == 11; // Check if it's an EOF. MOH can have other message type stuff appended too. If so, it's not super skippable.
+
 
 		}
 
@@ -570,6 +656,8 @@ namespace JKClient {
 		// Superskippable: delta snapshot with no changes.
 		private bool MessageIsSkippable(in Message msg, int newSnapNum, ref int serverTimeHere, ref bool superSkippable)
         {
+			bool isMOH = this.ClientHandler is MOHClientHandler;
+
 			superSkippable = false;
 			bool canSkip = false;
 			// Pre-parse a bit of the messsage to see if it contains anything but snapshot as first thing
@@ -599,6 +687,10 @@ namespace JKClient {
 				if (cmd == ServerCommandOperations.Snapshot)
 				{
 					serverTimeHere = msg.ReadLong();
+                    if (isMOH)
+                    {
+						msg.ReadByte(); // serverTimeResidual
+					}
 					int deltaNum = msg.ReadByte();
 					int theDeltaNum = 0;
 					if (deltaNum == 0)
@@ -1331,6 +1423,7 @@ namespace JKClient {
 
 		Message constructMetaMessage()
         {
+			bool isMOH = this.ClientHandler is MOHClientHandler;
 			byte[] data = new byte[ClientHandler.MaxMessageLength];
 			var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
 			msg.Bitstream(); 
@@ -1353,6 +1446,10 @@ namespace JKClient {
 			sb.Append("\"}");
 			string metaData = sb.ToString();
 			int eofOperation = ClientHandler is JOClientHandler ? (int)ServerCommandOperations.EOF - 1 : (int)ServerCommandOperations.EOF;
+			if (isMOH)
+			{
+				eofOperation = 11;
+			}
 			HiddenMetaStuff.createMetaMessage(msg, metaData, eofOperation);
 			return msg;
 		}

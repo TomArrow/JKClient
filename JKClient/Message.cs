@@ -581,7 +581,7 @@ namespace JKClient {
 			}
 		}
 
-		public unsafe void WriteBigString(sbyte []s) {
+		public unsafe void WriteBigString(sbyte []s) { // TODO someday: moh scrambled messages.
 			if (s == null || s.Length <= 0) {
 				this.WriteByte(0);
 			} else {

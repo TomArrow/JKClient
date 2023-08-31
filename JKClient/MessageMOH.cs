@@ -549,7 +549,7 @@ namespace JKClient
 			return (ushort)(ReadBits(Common.GEntitynumBits) % Common.MaxGEntities);
 		}
 
-		unsafe void ReadRegular(int bits, void* toF, ProtocolVersion protocol)
+		public unsafe void ReadRegular(int bits, void* toF, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -561,7 +561,7 @@ namespace JKClient
 			}
 		}
 
-		unsafe void ReadRegularSimple(int bits, void* toF, ProtocolVersion protocol)
+		public unsafe void ReadRegularSimple(int bits, void* toF, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1150,7 +1150,7 @@ namespace JKClient
 			return (*(int*)fromField != *(int*)toField);
 		}
 
-		float ReadPackedAngle(int bits, ProtocolVersion protocol)
+		public float ReadPackedAngle(int bits, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1162,7 +1162,7 @@ namespace JKClient
 			}
 		}
 
-		float ReadPackedAnimTime(int bits, float fromValue, float frameTime, ProtocolVersion protocol)
+		public float ReadPackedAnimTime(int bits, float fromValue, float frameTime, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1174,7 +1174,7 @@ namespace JKClient
 			}
 		}
 
-		float ReadPackedAnimWeight(int bits, ProtocolVersion protocol)
+		public float ReadPackedAnimWeight(int bits, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1186,7 +1186,7 @@ namespace JKClient
 			}
 		}
 
-		float ReadPackedScale(int bits, ProtocolVersion protocol)
+		public float ReadPackedScale(int bits, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1198,7 +1198,7 @@ namespace JKClient
 			}
 		}
 
-		float ReadPackedAlpha(int bits, ProtocolVersion protocol)
+		public float ReadPackedAlpha(int bits, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1210,7 +1210,7 @@ namespace JKClient
 			}
 		}
 
-		float ReadPackedCoord(float fromValue, int bits, ProtocolVersion protocol)
+		public float ReadPackedCoord(float fromValue, int bits, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1222,7 +1222,7 @@ namespace JKClient
 			}
 		}
 
-		float ReadPackedCoordExtra(float fromValue, int bits, ProtocolVersion protocol)
+		public float ReadPackedCoordExtra(float fromValue, int bits, ProtocolVersion protocol)
 		{
 			if (protocol > ProtocolVersion.Protocol8)
 			{
@@ -1326,7 +1326,7 @@ namespace JKClient
 			return (*(int*)fromField != *(int*)toField);
 		}
 
-		float ReadPackedVelocity(int bits)
+		public float ReadPackedVelocity(int bits)
 		{
 			float tmp = 1.0f;
 			int value = ReadBits(17);
@@ -1336,7 +1336,7 @@ namespace JKClient
 			return tmp * value / 8.0f;
 		}
 
-		int ReadPackedSimple(int fromValue, int bits)
+		public int ReadPackedSimple(int fromValue, int bits)
 		{
 			if (0 == ReadBits(1))
 			{

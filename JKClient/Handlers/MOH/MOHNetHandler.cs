@@ -7,6 +7,7 @@ namespace JKClient
 	public abstract class MOHNetHandler : NetHandler
 	{
 		public override int MaxMessageLength => 49152;
+		public override int MaxGameStateChars => 41952;
 		public MOHNetHandler(ProtocolVersion protocol) : base((int)protocol) { }
 	}
 }

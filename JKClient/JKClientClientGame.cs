@@ -174,7 +174,7 @@ namespace JKClient {
 					}
 
 					len = Common.StrLen(dup);
-					if (len + 1 + this.gameState.DataCount > GameState.MaxGameStateChars) {
+					if (len + 1 + this.gameState.DataCount > this.ClientHandler.MaxGameStateChars) {
 						throw new JKClientException("MaxGameStateChars exceeded");
 					}
 					this.gameState.StringOffsets[i] = this.gameState.DataCount;

@@ -57,27 +57,41 @@ namespace JKClient {
 			}
 		}
 		internal void OutOfBandPrint(in NetAddress address, in string data) {
+
+			bool isMOH = Common.ProtocolIsMOH((ProtocolVersion)this.Protocol);
+
 			byte []msg = new byte[this.NetHandler.MaxMessageLength];
 			msg[0] = unchecked((byte)-1);
 			msg[1] = unchecked((byte)-1);
 			msg[2] = unchecked((byte)-1);
 			msg[3] = unchecked((byte)-1);
+            if (isMOH)
+            {
+				msg[4] = unchecked((byte)2); // Client->Server. MOH thing. Server->Client is 1.
+			}
 			byte []dataMsg = Common.Encoding.GetBytes(data);
-			dataMsg.CopyTo(msg, 4);
-			this.net.SendPacket(dataMsg.Length+4, msg, address);
+			dataMsg.CopyTo(msg, isMOH ? 5 : 4);
+			this.net.SendPacket(dataMsg.Length+(isMOH ? 5: 4), msg, address);
 		}
-		internal void OutOfBandData(in NetAddress address, in string data, in int length) {
+		internal void OutOfBandData(in NetAddress address, in string data, in int length)
+		{
+			bool isMOH = Common.ProtocolIsMOH((ProtocolVersion)this.Protocol);
+
 			byte []msg = new byte[this.NetHandler.MaxMessageLength*2];
 			msg[0] = 0xff;
 			msg[1] = 0xff;
 			msg[2] = 0xff;
-			msg[3] = 0xff;
+			msg[3] = 0xff; 
+			if (isMOH)
+			{
+				msg[4] = unchecked((byte)2); // Client->Server. MOH thing. Server->Client is 1.
+			}
 			byte []dataMsg = Common.Encoding.GetBytes(data);
-			dataMsg.CopyTo(msg, 4);
+			dataMsg.CopyTo(msg, isMOH ? 5 : 4);
 			var mbuf = new Message(msg, msg.Length) {
-				CurSize = length+4
+				CurSize = length+ (isMOH ? 5 : 4)
 			};
-			Huffman.Compress(mbuf, 12);
+			Huffman.Compress(mbuf, isMOH ? 13 : 12);
 			this.net.SendPacket(mbuf.CurSize, mbuf.Data, address);
 		}
 		private protected abstract void PacketEvent(in NetAddress address, in Message msg);

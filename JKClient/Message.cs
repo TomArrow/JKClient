@@ -858,8 +858,13 @@ namespace JKClient {
 		}
 
 		// TODO: This must be adapted to the new Q3 stuff I think, see ReadDeltaEntity.
-		public unsafe void WriteDeltaEntity(EntityState* from, EntityState* to,bool force, ClientVersion version, IClientHandler clientHandler)
+		public unsafe void WriteDeltaEntity(EntityState* from, EntityState* to,bool force, ClientVersion version, IClientHandler clientHandler, float frameTime)
         {
+
+			bool isMOH = clientHandler is MOHClientHandler;
+			ProtocolVersion protocol = (ProtocolVersion)clientHandler.Protocol;
+
+			bool[] deltasNeeded = new bool[146]; // MOHAA
 
 			// a NULL to is a delta remove message
 			if (to == null)
@@ -882,10 +887,10 @@ namespace JKClient {
 			// build the change vector as bytes so it is endien independent
 
 			var fields = clientHandler.GetEntityStateFields();
-			if(clientHandler.Protocol != (int)ProtocolVersion.Protocol15 && clientHandler.Protocol != (int)ProtocolVersion.Protocol16 && clientHandler.Protocol != (int)ProtocolVersion.Protocol26)
-            {
-				throw new JKClientException($"WriteDeltaEntity: Only protocols 15 and 16 (Jedi Outcast) and protocol 26 (Jedi Academy) supported right now.");
-			}
+			//if(clientHandler.Protocol != (int)ProtocolVersion.Protocol15 && clientHandler.Protocol != (int)ProtocolVersion.Protocol16 && clientHandler.Protocol != (int)ProtocolVersion.Protocol26)
+            //{
+			//	throw new JKClientException($"WriteDeltaEntity: Only protocols 15 and 16 (Jedi Outcast) and protocol 26 (Jedi Academy) supported right now.");
+			//}
 
 			int numFields = fields.Count;
 			int* fromF, toF;
@@ -893,9 +898,20 @@ namespace JKClient {
 			{
 				fromF = (int*)((byte*)from + fields[i].Offset);
 				toF = (int*)((byte*)to + fields[i].Offset);
-				if (*fromF != *toF)
-				{
-					lc = i + 1;
+                if (isMOH)
+                {
+					deltasNeeded[i] = this.DeltaNeeded(fromF, toF, (int)fields[i].Type, fields[i].Bits);
+					if (deltasNeeded[i])
+					{
+						lc = i + 1;
+					}
+				} else
+                {
+
+					if (*fromF != *toF)
+					{
+						lc = i + 1;
+					}
 				}
 			}
 
@@ -930,7 +946,8 @@ namespace JKClient {
 				fromF = (int*)((byte*)from + fields[i].Offset);
 				toF = (int*)((byte*)to + fields[i].Offset);
 
-				if (*fromF == *toF)
+				//if (*fromF == *toF)
+				if ((!isMOH && *fromF == *toF) || (isMOH && !deltasNeeded[i]))
 				{
 					this.WriteBits( 0, 1);   // no change
 					continue;
@@ -938,48 +955,93 @@ namespace JKClient {
 
 				this.WriteBits( 1, 1);   // changed
 
-				if (fields[i].Bits == 0)
-				{
-					// float
-					fullFloat = *(float*)toF;
-					trunc = (int)fullFloat;
-
-					if (fullFloat == 0.0f)
+                if (isMOH)
+                {
+					switch (fields[i].Type)
 					{
-						this.WriteBits(0, 1);
-						//oldsize += FLOAT_INT_BITS;  // ??
+						// normal style
+						case NetFieldType.regular:
+							this.WriteRegular(fields[i].Bits, toF, protocol);
+							break;
+						case NetFieldType.angle:
+							this.WritePackedAngle(*(float*)toF, fields[i].Bits, protocol);
+							break;
+						case NetFieldType.animTime:
+							this.WritePackedAnimTime(*(float*)fromF, *(float*)toF, frameTime, fields[i].Bits, protocol);
+							break;
+						case NetFieldType.animWeight:
+							this.WritePackedAnimWeight(*(float*)toF, fields[i].Bits, protocol);
+							break;
+						case NetFieldType.scale:
+							this.WritePackedScale(*(float*)toF, fields[i].Bits, protocol);
+							break;
+						case NetFieldType.alpha:
+							this.WritePackedAlpha(*(float*)toF, fields[i].Bits, protocol);
+							break;
+						case NetFieldType.coord:
+							this.WritePackedCoord(*(float*)fromF, *(float*)toF, fields[i].Bits, protocol);
+							break;
+						case NetFieldType.coordExtra:
+							// Team Assault
+							this.WritePackedCoordExtra(*(float*)fromF, *(float*)toF, fields[i].Bits, protocol);
+							break;
+						case NetFieldType.velocity:
+							this.WritePackedVelocity(*(float*)toF, fields[i].Bits);
+							break;
+						case NetFieldType.simple:
+							this.WritePackedSimple(*(int*)toF, fields[i].Bits);
+							break;
+						default:
+							throw new JKClientException( $"this.WriteDeltaEntity: unrecognized entity field type {fields[i].Bits} for field {i}\n");
+							break;
 					}
-					else
+				} else
+                {
+					if (fields[i].Bits == 0)
 					{
-						this.WriteBits(1, 1);
-						if (trunc == fullFloat && trunc + FloatIntBias >= 0 &&
-							trunc + FloatIntBias < (1 << FloatIntBits))
+						// float
+						fullFloat = *(float*)toF;
+						trunc = (int)fullFloat;
+
+						if (fullFloat == 0.0f)
 						{
-							// send as small integer
-							this.WriteBits( 0, 1);
-							this.WriteBits( trunc + FloatIntBias, FloatIntBits);
+							this.WriteBits(0, 1);
+							//oldsize += FLOAT_INT_BITS;  // ??
 						}
 						else
 						{
-							// send as full floating point value
-							this.WriteBits( 1, 1);
-							this.WriteBits( *toF, 32);
+							this.WriteBits(1, 1);
+							if (trunc == fullFloat && trunc + FloatIntBias >= 0 &&
+								trunc + FloatIntBias < (1 << FloatIntBits))
+							{
+								// send as small integer
+								this.WriteBits(0, 1);
+								this.WriteBits(trunc + FloatIntBias, FloatIntBits);
+							}
+							else
+							{
+								// send as full floating point value
+								this.WriteBits(1, 1);
+								this.WriteBits(*toF, 32);
+							}
 						}
-					}
-				}
-				else
-				{
-					if (*toF == 0)
-					{
-						this.WriteBits( 0, 1);
 					}
 					else
 					{
-						this.WriteBits( 1, 1);
-						// integer
-						this.WriteBits( *toF, fields[i].Bits);
+						if (*toF == 0)
+						{
+							this.WriteBits(0, 1);
+						}
+						else
+						{
+							this.WriteBits(1, 1);
+							// integer
+							this.WriteBits(*toF, fields[i].Bits);
+						}
 					}
 				}
+
+				
 			}
 
 			//gLastField = &noField; // ?

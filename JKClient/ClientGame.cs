@@ -240,14 +240,21 @@ namespace JKClient {
             //}
 		}
 		protected virtual void NewClientInfo(int clientNum) {
+			bool isMOH = this is MOHClientGame;
+
 			string configstring = this.Client.GetConfigstring(clientNum + this.GetConfigstringIndex(Configstring.Players));
 			if (string.IsNullOrEmpty(configstring) || configstring[0] == '\0'
-				|| !configstring.Contains("n")) {
+				|| !configstring.Contains(isMOH ? "name" : "n")) {
 				this.ClientInfo[clientNum].Clear();
 			} else {
 				var info = new InfoString(configstring);
 				this.ClientInfo[clientNum].ClientNum = clientNum;
 				this.ClientInfo[clientNum].Team = (Team)info["t"].Atoi();
+				if(this is MOHClientGame)
+                {
+					this.ClientInfo[clientNum].Team = Team.Spectator;
+
+				}
 				if (info.ContainsKey("skill"))
                 {
 					this.ClientInfo[clientNum].BotSkill = info["skill"].Atof(); // Only bots have this set
@@ -256,7 +263,7 @@ namespace JKClient {
 					this.ClientInfo[clientNum].BotSkill = -1.0f;
 
 				}
-				this.ClientInfo[clientNum].Name = info["n"];
+				this.ClientInfo[clientNum].Name = info[isMOH ? "name":"n"];
 				this.ClientInfo[clientNum].Model = info["model"];
 				this.ClientInfo[clientNum].Color1 = info["c1"];
 				this.ClientInfo[clientNum].Color2 = info["c2"];

@@ -215,7 +215,7 @@ namespace JKClient {
 					}
 					sbyte []s = msg.ReadBigString(isMOH && this.Protocol > (int)ProtocolVersion.Protocol8);
 					int len = Common.StrLen(s);
-					if (len + 1 + this.gameState.DataCount > GameState.MaxGameStateChars) {
+					if (len + 1 + this.gameState.DataCount > this.ClientHandler.MaxGameStateChars) {
 						throw new JKClientException("MaxGameStateChars exceeded");
 					}
 					string csStr = Common.ToString(s);

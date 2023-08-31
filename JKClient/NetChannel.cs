@@ -48,7 +48,7 @@ namespace JKClient {
 			//this.fragmentBuffer = new byte[this.maxMessageLength];
 			this.unsentBuffer = new byte[this.maxMessageLength];
 		}
-		public unsafe bool Process(Message msg, ref int sequenceNumber, ref bool validButOutOfOrder) {
+		public unsafe bool Process(Message msg, bool isMOH, ref int sequenceNumber, ref bool validButOutOfOrder) {
 			msg.BeginReading(true);
 			int sequence = msg.ReadLong();
 			
@@ -67,7 +67,7 @@ namespace JKClient {
 
 			int fragmentStart, fragmentLength;
 			if (fragmented) {
-				fragmentStart = (ushort)msg.ReadShort();
+				fragmentStart = isMOH ? msg.ReadLong() : (ushort)msg.ReadShort();
 				fragmentLength = (ushort)msg.ReadShort();
 			} else {
 				fragmentStart = 0;

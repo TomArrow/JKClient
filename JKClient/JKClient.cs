@@ -367,9 +367,15 @@ namespace JKClient {
 				this.ClientHandler.RequestAuthorization(this.CDKey, (address, data2) => {
 					this.OutOfBandPrint(address, data2);
 				});
-				this.OutOfBandPrint(this.serverAddress, "getinfo xxx");
-				this.infoRequestTime = this.realTime;
-				this.OutOfBandPrint(this.serverAddress, $"getchallenge {this.challenge}");
+				if(this.ClientHandler is MOHClientHandler)
+                {
+					this.OutOfBandPrint(this.serverAddress, $"getchallenge");
+				} else
+				{
+					this.OutOfBandPrint(this.serverAddress, "getinfo xxx");
+					this.infoRequestTime = this.realTime;
+					this.OutOfBandPrint(this.serverAddress, $"getchallenge {this.challenge}");
+				}
 				break;
 			case ConnectionStatus.Challenging:
                 if (this.serverInfo.InfoPacketReceived) // Don't challenge until we have serverInfo.
@@ -629,6 +635,9 @@ namespace JKClient {
 		}
 
 		private protected override unsafe void PacketEvent(in NetAddress address, in Message msg) {
+
+			bool isMOH = this.ClientHandler is MOHClientHandler;
+
 //			this.lastPacketTime = this.realTime;
 			int headerBytes;
 			fixed (byte *b = msg.Data) {
@@ -647,7 +656,7 @@ namespace JKClient {
 				}
 				int sequenceNumber =0;
 				bool validButOutOfOrder=false;
-				bool process = this.netChannel.Process(msg, ref sequenceNumber, ref validButOutOfOrder);
+				bool process = this.netChannel.Process(msg,isMOH, ref sequenceNumber, ref validButOutOfOrder);
 				bool detectSuperSkippable = true;
 
 				// Save to demo queue
@@ -871,6 +880,12 @@ namespace JKClient {
 		private void ConnectionlessPacket(NetAddress address, Message msg) {
 			msg.BeginReading(true);
 			msg.ReadLong();
+
+			if(this.ClientHandler is MOHClientHandler)
+            {
+				msg.ReadByte(); // Direction byte. Just ignore. MOH stuff.
+			}
+
 			string s = msg.ReadStringLineAsString((ProtocolVersion)this.Protocol);
 			var command = new Command(s);
 			string c = command.Argv(0);
@@ -1349,6 +1364,8 @@ namespace JKClient {
 		private unsafe bool StartRecording(DemoName_t demoName,bool timeStampDemoname=false)
         {
 
+			bool isMOH = this.ClientHandler is MOHClientHandler;
+
 			if (Demorecording)
 			{
 				return false;
@@ -1368,11 +1385,13 @@ namespace JKClient {
 
             lock (demoUniqueFilenameMutex) { // Make sure we don't accidentally try writing to an identical filename twice from different instances of the client. It can happen when the timing is really tight on a reconnect and then you get a serious error thrown your way.
 
-				string name = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"JKWatcher", "demos/" + demoName + ".dm_" + ((int)Protocol).ToString());
+				string demoExtension = isMOH ? ".dm3" :( ".dm_" + ((int)Protocol).ToString());
+
+				string name = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"JKWatcher", "demos/" + demoName + demoExtension);
 				int filenameIncrement = 2;
 				while (File.Exists(name))
 				{
-					name = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demos/" + demoName + $" ({filenameIncrement++})" + ".dm_" + ((int)Protocol).ToString());
+					name = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "JKWatcher", "demos/" + demoName + $" ({filenameIncrement++})" + demoExtension);
 
 					//Com_Printf("Record: Couldn't create a file\n");
 					//return false;
@@ -1446,6 +1465,10 @@ namespace JKClient {
 
 					// baselines
 					EntityState nullstate;
+                    if (isMOH)
+                    {
+						nullstate = Message.GetNullEntityState();
+                    }
 					for (int i = 0; i < Common.MaxGEntities; i++)
 					{
 
@@ -1456,11 +1479,15 @@ namespace JKClient {
 								continue;
 							}
 							msg.WriteByte((int)ServerCommandOperations.Baseline);
-							msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.ClientHandler);
+							msg.WriteDeltaEntity(&nullstate, ent, true,this.Version,this.ClientHandler,this.serverFrameTime);
 						}
 					}
 
 					int eofOperation = ClientHandler is JOClientHandler ? (int)ServerCommandOperations.EOF -1 : (int)ServerCommandOperations.EOF;
+                    if (isMOH)
+                    {
+						eofOperation = 11;
+					}
 					msg.WriteByte(eofOperation);
 
 					// finished writing the gamestate stuff

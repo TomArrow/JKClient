@@ -12,6 +12,10 @@
 		CTY,
 		OneFlagCTF,
 		Obelisk,
-		Harvester
+		Harvester,
+		TeamRounds, // MOH
+		Objective, // MOH
+		TOW, // MOH
+		Liberation, // MOH
 	}
 }

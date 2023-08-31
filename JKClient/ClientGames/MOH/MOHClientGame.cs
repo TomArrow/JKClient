@@ -15,38 +15,17 @@ namespace JKClient
 			switch (index)
 			{
 				case Configstring.Sounds:
-					return (int)ConfigstringJO.Sounds;
+					return (int)ConfigstringMOH.Sounds;
 				case Configstring.Players:
-					return (int)ConfigstringJO.Players;
+					return (int)ConfigstringMOH.Players;
 				case Configstring.LevelStartTime:
-					return (int)ConfigstringJO.LevelStartTime;
-				case Configstring.Scores1:
-					return (int)ConfigstringJO.Scores1;
-				case Configstring.Scores2:
-					return (int)ConfigstringJO.Scores2;
-				case Configstring.FlagStatus:
-					return (int)ConfigstringJO.FlagStatus;
+					return (int)ConfigstringMOH.LevelStartTime;
 			}
 			return 0;
 		}
 		protected override EntityEvent GetEntityEvent(int entityEvent)
 		{
-			if (Enum.IsDefined(typeof(EntityEventJO), entityEvent))
-			{
-				switch ((EntityEventJO)entityEvent)
-				{
-					case EntityEventJO.Obituary:
-						return EntityEvent.Obituary;
-					case EntityEventJO.CtfMessage:
-						return EntityEvent.CtfMessage;
-					case EntityEventJO.ForceDrained:
-						return EntityEvent.ForceDrained;
-					case EntityEventJO.Jump:
-						return EntityEvent.Jump;
-					default:
-						break;
-				}
-			}
+			// MOH doesn't relaly have events in that sense
 			return EntityEvent.None;
 		}
 		protected override int GetEntityFlag(EntityFlag entityFlag)
@@ -58,7 +37,7 @@ namespace JKClient
 					case EntityFlag.TeleportBit:
 						return (int)EntityFlagJO.TeleportBit;
 					case EntityFlag.PlayerEvent:
-						return (int)EntityFlagJO.PlayerEvent;
+						return 0; // Doesn't really exist. Hope this will be ok LOL
 				}
 			}
 			return 0;
@@ -69,199 +48,56 @@ namespace JKClient
 			{
 				default:
 					return (int)entityType;
-				case EntityType.Grapple:
-					return (int)EntityTypeJO.Grapple;
 				case EntityType.Events:
-					return (int)EntityTypeJO.Events;
+					return (int)EntityTypeMOH.Events;
+				case EntityType.Player:
+					return (int)EntityTypeMOH.Player;
 				case EntityType.NPC:
 				case EntityType.Terrain:
+				case EntityType.Grapple:
 				case EntityType.FX:
 					throw new JKClientException($"Invalid entity type: {entityType}");
 			}
 		}
-		public enum ConfigstringJO
+		public enum ConfigstringMOH
 		{
-			Scores1 = 6,
-			Scores2 = 7,
-			LevelStartTime = 21,
-			FlagStatus = 23,
-			Sounds = 288,
-			Players = 544
+			LevelStartTime = 12,
+			Sounds = 1076,
+			Players = 1684
 		}
 		[Flags]
 		public enum EntityFlagJO : int
 		{
-			TeleportBit = (1 << 3),
-			PlayerEvent = (1 << 5)
+			TeleportBit = 0x00000004,
+			//PlayerEvent = 0x00000010 // Not really valid in MOH I think
 		}
-		public enum EntityEventJO : int
+		
+		// No events. Events pretty much don't exist in MOH in that way.
+
+		public enum EntityTypeMOH : int
 		{
-			None,
-
-			ClientJoin,
-
-			FootStep,
-			FootStepMetal,
-			FootSplash,
-			FootWade,
-			Swim,
-
-			Step4,
-			Step8,
-			Step12,
-			Step16,
-
-			Fall,
-
-			JumpPad,            // BoingSoundatOrigin, JumpSoundonPlayer
-
-			PrivateDuel,
-
-			Jump,
-			Roll,
-			WaterTouch, // FootTouches
-			WaterLeave, // FootLeaves
-			WaterUnder, // HeadTouches
-			WaterClear, // HeadLeaves
-
-			ItemPickup,         // NormalItemPickupsArePredictable
-			GlobalItemPickup,  // Powerup / TeamSoundsAreBroadcasttoEveryone
-
-			NoAmmo,
-			ChangeWeapon,
-			FireWeapon,
-			AltFire,
-			SaberAttack,
-			SaberHit,
-			SaberBlock,
-			SaberUnholster,
-			BecomeJedimaster,
-			DisruptorMainShot,
-			DisruptorSniperShot,
-			DisruptorSniperMiss,
-			DisruptorHit,
-			DisruptorZoomSound,
-
-			PredefinedSound,
-
-			TeamPower,
-
-			ScreenShake,
-
-			Use,         // +useKey
-
-			UseItem0,
-			UseItem1,
-			UseItem2,
-			UseItem3,
-			UseItem4,
-			UseItem5,
-			UseItem6,
-			UseItem7,
-			UseItem8,
-			UseItem9,
-			UseItem10,
-			UseItem11,
-			UseItem12,
-			UseItem13,
-			UseItem14,
-			UseItem15,
-
-			ItemUseFail,
-
-			ItemRespawn,
-			ItemPop,
-			PlayerTeleportin,
-			PlayerTeleportout,
-
-			GrenadeBounce,      // EventparmWillBetheSoundindex
-			MissileStick,       // EventparmWillBetheSoundindex
-
-			PlayEffect,
-			PlayEffectId,
-
-			MuteSound,
-			GeneralSound,
-			GlobalSound,        // NoAttenuation
-			GlobalTeamSound,
-			EntitySound,
-
-			PlayRoff,
-
-			GlassShatter,
-			Debris,
-
-			MissileHit,
-			MissileMiss,
-			MissileMissMetal,
-			Bullet,              // OtherentityIstheShooter
-
-			Pain,
-			Death1,
-			Death2,
-			Death3,
-			Obituary,
-
-			PowerUpQuad,
-			PowerUpBattlesuit,
-			//PowerupRegen,
-
-			ForceDrained,
-
-			GibPlayer,          // Giba PreviouslyLivingPlayer
-			ScorePlum,           // ScorePlum
-
-			CtfMessage,
-
-			SagaRoundover,
-			SagaObjectivecomplete,
-
-			DestroyGhoul2Instance,
-
-			DestroyWeaponModel,
-
-			GiveNewRank,
-			SetFreeSaber,
-			SetForceDisable,
-
-			WeaponCharge,
-			WeaponChargeAlt,
-
-			ShieldHit,
-
-			DebugLine,
-			TestLine,
-			StopLoopingSound,
-			StartLoopingSound,
-			Taunt,
-			TauntYes,
-			TauntNo,
-			TauntFollowme,
-			TauntGetflag,
-			TauntGuardbase,
-			TauntPatrol,
-
-			BodyQueueCopy,
-		}
-		public enum EntityTypeJO : int
-		{
-			General,
+			ModelAnimSkel,
+			ModelAnim,
+			Vehicle,
 			Player,
 			Item,
+			General,
 			Missile,
-			Special,
-			Holocron,
 			Mover,
 			Beam,
+			MultiBeam,
 			Portal,
+			EventOnly,
+			Rain,
+			Leaf,
 			Speaker,
 			PushTrigger,
 			TeleportTrigger,
-			Invisible,
-			Grapple,
-			Team,
-			Body,
-			Events
+			Decal,
+			Emitter,
+			Rope,
+			Events,
+			ExecCommands
 		}
 	}
 }

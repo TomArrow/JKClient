@@ -79,6 +79,20 @@ namespace JKClient
 			}
 		}
 		public virtual void ClearState() { }
+
+		enum GameTypeMOH
+        {
+			GT_SINGLE_PLAYER,   // single player
+			GT_FFA,             // free for all
+			GT_TEAM,            // team deathmatch
+			GT_TEAM_ROUNDS,
+			GT_OBJECTIVE,
+			// Team Assault game mode
+			GT_TOW,
+			// Team Tactics game mode
+			GT_LIBERATION,
+			GT_MAX_GAME_TYPE
+        }
 		public virtual void SetExtraConfigstringInfo(in ServerInfo serverInfo, in InfoString info)
 		{
 			/*switch (serverInfo.Protocol)
@@ -92,18 +106,39 @@ namespace JKClient
 				case ProtocolVersion.Protocol16:
 					serverInfo.Version = ClientVersion.JO_v1_04;
 					break;
-			}
+			}*/
 			if (info.Count <= 0)
 			{
 				return;
 			}
-			int gameType = info["g_gametype"].Atoi();
-			//JO doesn't have Power Duel, the rest game types match
-			if (gameType >= (int)GameType.PowerDuel)
-			{
-				gameType++;
-			}
-			serverInfo.GameType = (GameType)gameType;
+			GameTypeMOH gameTypeMOH = (GameTypeMOH)info["g_gametype"].Atoi();
+            switch (gameTypeMOH)
+            {
+				case GameTypeMOH.GT_SINGLE_PLAYER:
+					serverInfo.GameType = GameType.SinglePlayer;
+					break;
+				default:
+				case GameTypeMOH.GT_MAX_GAME_TYPE:
+				case GameTypeMOH.GT_FFA:
+					serverInfo.GameType = GameType.FFA;
+					break;
+				case GameTypeMOH.GT_TEAM:
+					serverInfo.GameType = GameType.Team;
+					break;
+				case GameTypeMOH.GT_TEAM_ROUNDS:
+					serverInfo.GameType = GameType.TeamRounds;
+					break;
+				case GameTypeMOH.GT_OBJECTIVE:
+					serverInfo.GameType = GameType.Objective;
+					break;
+				case GameTypeMOH.GT_TOW:
+					serverInfo.GameType = GameType.TOW;
+					break;
+				case GameTypeMOH.GT_LIBERATION:
+					serverInfo.GameType = GameType.Liberation;
+					break;
+            } 
+			/*
 			serverInfo.NeedPassword = info["g_needpass"].Atoi() != 0;
 			serverInfo.TrueJedi = info["g_jediVmerc"].Atoi() != 0;
 			if (serverInfo.GameType == GameType.Duel)

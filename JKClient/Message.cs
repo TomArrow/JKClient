@@ -1099,33 +1099,79 @@ namespace JKClient {
 						{
 							case NetFieldType.regular:
 								ReadRegular(fields[i].Bits, toF, protocol);
+                                if (print)
+                                {
+									if(fields[i].Bits == 0)
+                                    {
+										debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+									} else
+                                    {
+										debugString.Append($"{fields[i].Name}:{*toF} ");
+									}
+                                }
 								break;
 							case NetFieldType.angle: // angles, what a mess! it wouldnt surprise me if something goes wrong here ;)
 								*(float*)toF = ReadPackedAngle( fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.animTime: // time
 								*(float*)toF = ReadPackedAnimTime( fields[i].Bits, *(float*)fromF, frameTime, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.animWeight: // nasty!
 								*(float*)toF = ReadPackedAnimWeight( fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.scale:
 								*(float*)toF = ReadPackedScale( fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.alpha:
 								*(float*)toF = ReadPackedAlpha( fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.coord:
 								*(float*)toF = ReadPackedCoord( *(float*)fromF, fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.coordExtra:
 								*(float*)toF = ReadPackedCoordExtra( *(float*)fromF, fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.velocity:
 								*(float*)toF = ReadPackedVelocity( fields[i].Bits);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.simple:
 								*(int*)toF = ReadPackedSimple( *(int*)fromF, fields[i].Bits);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*toF} ");
+								}
 								break;
 							default:
 								throw new Exception($"ReadDeltaEntity (MOH): unrecognized entity field type {i} for field\n");
@@ -1222,18 +1268,45 @@ namespace JKClient {
 						{
 							case NetFieldType.regular:
 								this.ReadRegularSimple( fields[i].Bits, toF, protocol);
+								if (print)
+								{
+									if (fields[i].Bits == 0)
+									{
+										debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+									}
+									else
+									{
+										debugString.Append($"{fields[i].Name}:{*toF} ");
+									}
+								}
 								break;
 							case NetFieldType.angle:
 								*(float*)toF = this.ReadPackedAngle( fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.coord:
 								*(float*)toF = this.ReadPackedCoord( *(float*)fromF, fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.coordExtra:
 								*(float*)toF = this.ReadPackedCoordExtra( *(float*)fromF, fields[i].Bits, protocol);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							case NetFieldType.velocity:
 								*(float*)toF = this.ReadPackedVelocity( fields[i].Bits);
+								if (print)
+								{
+									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
+								}
 								break;
 							default:
 								break;

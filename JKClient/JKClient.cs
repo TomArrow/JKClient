@@ -471,6 +471,10 @@ namespace JKClient {
 			// If any fields changed, not super skippable
 			var fields = this.ClientHandler.GetPlayerStateFields(false, isPilot);
 			int lc = msg.ReadByte();
+            if (lc > fields.Count)
+            {
+				throw new Exception($"MessageCheckSuperSkippable: ps lc was {lc} but field count is {fields.Count}");
+            }
 			if (lc > 0) {
 				for (int i = 0; i < lc; i++)
 				{
@@ -564,7 +568,12 @@ namespace JKClient {
 				if (msg.ReadBits(1) == 1) {
 					// It has chnaged fields, hence a change.
 					// But we might allow commandtime change.
-					lc = msg.ReadByte();for (int i = 0; i < lc; i++)
+					lc = msg.ReadByte();
+					if (lc > eFields.Count)
+					{
+						throw new Exception($"MessageCheckSuperSkippable: es lc was {lc} but field count is {fields.Count}");
+					}
+					for (int i = 0; i < lc; i++)
 					{
 						if (msg.ReadBits(1) != 0)
 						{
@@ -577,37 +586,37 @@ namespace JKClient {
                                 if (isMOH)
                                 {
 
-									switch (fields[i].Type)
+									switch (eFields[i].Type)
 									{
 										case NetFieldType.regular:
-											msg.ReadRegular(fields[i].Bits, &randomTmpValue, protocol);
+											msg.ReadRegular(eFields[i].Bits, &randomTmpValue, protocol);
 											break;
 										case NetFieldType.angle: // angles, what a mess! it wouldnt surprise me if something goes wrong here ;)
-											msg.ReadPackedAngle(fields[i].Bits, protocol);
+											msg.ReadPackedAngle(eFields[i].Bits, protocol);
 											break;
 										case NetFieldType.animTime: // time
-											msg.ReadPackedAnimTime(fields[i].Bits, 0, 0, protocol);
+											msg.ReadPackedAnimTime(eFields[i].Bits, 0, 0, protocol);
 											break;
 										case NetFieldType.animWeight: // nasty!
-											msg.ReadPackedAnimWeight(fields[i].Bits, protocol);
+											msg.ReadPackedAnimWeight(eFields[i].Bits, protocol);
 											break;
 										case NetFieldType.scale:
-											msg.ReadPackedScale(fields[i].Bits, protocol);
+											msg.ReadPackedScale(eFields[i].Bits, protocol);
 											break;
 										case NetFieldType.alpha:
-											msg.ReadPackedAlpha(fields[i].Bits, protocol);
+											msg.ReadPackedAlpha(eFields[i].Bits, protocol);
 											break;
 										case NetFieldType.coord:
-											msg.ReadPackedCoord(0, fields[i].Bits, protocol);
+											msg.ReadPackedCoord(0, eFields[i].Bits, protocol);
 											break;
 										case NetFieldType.coordExtra:
-											msg.ReadPackedCoordExtra(0, fields[i].Bits, protocol);
+											msg.ReadPackedCoordExtra(0, eFields[i].Bits, protocol);
 											break;
 										case NetFieldType.velocity:
-											msg.ReadPackedVelocity(fields[i].Bits);
+											msg.ReadPackedVelocity(eFields[i].Bits);
 											break;
 										case NetFieldType.simple:
-											msg.ReadPackedSimple(0, fields[i].Bits);
+											msg.ReadPackedSimple(0, eFields[i].Bits);
 											break;
 										default:
 											throw new Exception($"MessageCheckSuperSkippable (MOH): unrecognized entity field type {i} for field\n");
@@ -671,7 +680,7 @@ namespace JKClient {
 			ServerCommandOperations cmd = (ServerCommandOperations)msg.ReadByte();
 			this.ClientHandler.AdjustServerCommandOperations(ref cmd);
 			bool newCommands = false;
-			if(cmd == ServerCommandOperations.ServerCommand)
+			while(cmd == ServerCommandOperations.ServerCommand)
             {
 				int seq = msg.ReadLong();
 				_ = msg.ReadString((ProtocolVersion)this.Protocol);
@@ -681,6 +690,7 @@ namespace JKClient {
 					Stats.messagesUnskippableNewCommands++;
 				}
 				cmd = (ServerCommandOperations)msg.ReadByte();
+				this.ClientHandler.AdjustServerCommandOperations(ref cmd);
 			}
             if (!newCommands)
             {

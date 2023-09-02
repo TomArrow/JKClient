@@ -17,11 +17,14 @@ namespace JKClient {
 
 		public sbyte ForwardMove, RightMove, Upmove;
 
+		public byte Milliseconds; // MOHAA
+
 		public enum Button // I commented out some that are JK2 specific and appended "JK2" to some that I kept. The remaining should be universal
         {
 			Attack				=1,
 			Talk				=2,			// displays talk balloon and disables actions
 			UseHoldable			=4,
+			UseMOHAA			=8,
 			Gesture				=8,
 			Walking				=16,			// walking can't just be infered from MOVE_RUN
 												// because a key pressed late in the frame will

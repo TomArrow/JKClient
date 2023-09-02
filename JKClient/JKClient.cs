@@ -1094,6 +1094,7 @@ namespace JKClient {
 			if (this.netChannel == null) {
 				return;
 			}
+			bool isMOH = this.ClientHandler is MOHClientHandler;
 			lock (this.netChannel) {
 				var oldcmd = new UserCommand();
 				byte[] data = new byte[this.ClientHandler.MaxMessageLength];
@@ -1119,12 +1120,18 @@ namespace JKClient {
 						msg.WriteByte((int)ClientCommandOperations.Move);
 					}
 					msg.WriteByte(count);
+
+                    if (isMOH)
+                    { // MOH sends eye info here. Let's just pretend it's never changing and send the simplified "no change".
+						msg.WriteBits(0, 1);
+                    }
+
 					int key = this.checksumFeed;
 					key ^= this.serverMessageSequence;
 					key ^= Common.HashKey(this.serverCommands[this.serverCommandSequence & (this.MaxReliableCommands-1)], 32);
 					for (int i = 0; i < count; i++) {
 						int j = (this.cmdNumber - count + i + 1) & UserCommand.CommandMask;
-						msg.WriteDeltaUsercmdKey(key, ref oldcmd, ref this.cmds[j]);
+						msg.WriteDeltaUsercmdKey(key, ref oldcmd, ref this.cmds[j],isMOH);
 						oldcmd = this.cmds[j];
 					}
 				}

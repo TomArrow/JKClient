@@ -609,7 +609,7 @@ namespace JKClient {
 			this.WriteBits((newV ^ key) & ((1 << bits) - 1), bits);
 		}
 
-		public unsafe void WriteDeltaUsercmdKey(int key, ref UserCommand from, ref UserCommand to) {
+		public unsafe void WriteDeltaUsercmdKey(int key, ref UserCommand from, ref UserCommand to, bool isMOH) {
 			if (to.ServerTime - from.ServerTime < 256) {
 				this.WriteBits(1, 1);
 				this.WriteBits(to.ServerTime - from.ServerTime, 8);
@@ -624,10 +624,15 @@ namespace JKClient {
 				from.RightMove == to.RightMove &&
 				from.Upmove == to.Upmove &&
 				from.Buttons == to.Buttons &&
-				from.Weapon == to.Weapon &&
-				from.ForceSelection == to.ForceSelection &&
-				from.InventorySelection == to.InventorySelection &&
-				from.GenericCmd == to.GenericCmd)
+				(isMOH ||
+					(
+					from.Weapon == to.Weapon &&
+					from.ForceSelection == to.ForceSelection &&
+					from.InventorySelection == to.InventorySelection &&
+					from.GenericCmd == to.GenericCmd
+					)
+				)
+			)
 			{
 				this.WriteBits(0, 1);               // no change
 				return;
@@ -641,12 +646,15 @@ namespace JKClient {
 			this.WriteDeltaKey(key, from.RightMove, to.RightMove, 8);
 			this.WriteDeltaKey(key, from.Upmove, to.Upmove, 8);
 			this.WriteDeltaKey(key, from.Buttons, to.Buttons, 16);
-			this.WriteDeltaKey(key, from.Weapon, to.Weapon, 8);
 
-			this.WriteDeltaKey(key, from.ForceSelection, to.ForceSelection, 8);
-			this.WriteDeltaKey(key, from.InventorySelection, to.InventorySelection, 8);
+            if (!isMOH) { 
+				this.WriteDeltaKey(key, from.Weapon, to.Weapon, 8);
 
-			this.WriteDeltaKey(key, from.GenericCmd, to.GenericCmd, 8);
+				this.WriteDeltaKey(key, from.ForceSelection, to.ForceSelection, 8);
+				this.WriteDeltaKey(key, from.InventorySelection, to.InventorySelection, 8);
+
+				this.WriteDeltaKey(key, from.GenericCmd, to.GenericCmd, 8);
+			}
 		}
 		public void BeginReading(bool oob = false) {
 			this.ReadCount = 0;

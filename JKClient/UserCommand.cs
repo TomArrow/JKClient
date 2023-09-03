@@ -41,7 +41,8 @@ namespace JKClient {
 
 			//ForceLightning		=1024,
 
-			ForceDrainJK2 = 2048
+			ForceDrainJK2 = 2048,
+			MouseMOH = 1<<15
 		}
 	}
 }

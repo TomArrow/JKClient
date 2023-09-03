@@ -368,7 +368,7 @@ namespace JKClient {
 					this.OutOfBandPrint(address, data2);
 				});
 				if(this.ClientHandler is MOHClientHandler)
-                {
+				{
 					this.OutOfBandPrint(this.serverAddress, $"getchallenge");
 				} else
 				{
@@ -378,9 +378,9 @@ namespace JKClient {
 				}
 				break;
 			case ConnectionStatus.Challenging:
-                if (this.serverInfo.InfoPacketReceived) // Don't challenge until we have serverInfo.
+                if (this.ClientHandler is MOHClientHandler || this.serverInfo.InfoPacketReceived) // Don't challenge until we have serverInfo.
                 {
-                    if (this.serverInfo.NWH)
+                    if (!(this.ClientHandler is MOHClientHandler) && this.serverInfo.NWH)
                     {
 						this.userInfo["engine"] = "demoBot"; // Try not to get influenced by servers blocking JKChat
                     }

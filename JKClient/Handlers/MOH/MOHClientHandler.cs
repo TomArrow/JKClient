@@ -140,6 +140,7 @@ namespace JKClient
             }
 
 			serverInfo.GameName = info["g_gametypestring"]; // Ofc MOH is special and can't just use normal gamename :)
+			serverInfo.MOHHUDMessage = info["hud"]; // Hud message appended to serverInfo when team wins.
 			/*
 			serverInfo.NeedPassword = info["g_needpass"].Atoi() != 0;
 			serverInfo.TrueJedi = info["g_jediVmerc"].Atoi() != 0;

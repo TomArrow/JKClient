@@ -137,7 +137,9 @@ namespace JKClient
 				case GameTypeMOH.GT_LIBERATION:
 					serverInfo.GameType = GameType.Liberation;
 					break;
-            } 
+            }
+
+			serverInfo.GameName = info["g_gametypestring"]; // Ofc MOH is special and can't just use normal gamename :)
 			/*
 			serverInfo.NeedPassword = info["g_needpass"].Atoi() != 0;
 			serverInfo.TrueJedi = info["g_jediVmerc"].Atoi() != 0;

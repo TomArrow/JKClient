@@ -1046,8 +1046,18 @@ namespace JKClient {
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "print", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (address == this.serverAddress) {
-					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol); // hm?
-					var cmd = new Command(new string []{ "print", s }); // hm?
+					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol);
+					var cmd = new Command(new string []{ "print", s });
+					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+					Debug.WriteLine(s);
+				} else
+                {
+					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
+				}
+			} else if (string.Compare(c, "droperror", StringComparison.OrdinalIgnoreCase) == 0) {
+				if (address == this.serverAddress) {
+					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol); 
+					var cmd = new Command(new string []{ "droperror", s }); 
 					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 					Debug.WriteLine(s);
 				} else

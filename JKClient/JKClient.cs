@@ -41,12 +41,16 @@ namespace JKClient {
 
 	public delegate void UserCommandGeneratedEventHandler(object sender, ref UserCommand modifiableCommand, in UserCommand previousCommand);
 	public sealed partial class JKClient : NetClient {
+
+		private static readonly string[] mohCvars = new string[]{"r_maskMinidriver","r_allowSoftwareGL","r_loadftx","r_loadjpg","ter_fastMarks","ter_minMarkRadius","r_precacheimages","r_static_shadermultiplier3","r_static_shadermultiplier2","r_static_shadermultiplier1","r_static_shadermultiplier0","r_static_shaderdata3","r_static_shaderdata2","r_static_shaderdata1","r_static_shaderdata0","r_sse","r_showportal","vss_smoothsmokelight","r_debuglines_depthmask","r_useglfog","r_lightcoronasize","r_farplane_nofog","r_farplane_nocull","r_farplane_color","r_farplane","r_skyportal_origin","r_skyportal","r_light_showgrid","r_light_nolight","r_light_int_scale","r_light_sun_line","r_light_lines","r_stipplelines","r_maxtermarks","r_maxpolyverts","r_maxpolys","r_entlight_maxcalc","r_entlight_cubefraction","r_entlight_cubelevel","r_entlight_errbound","r_entlight_scale","r_entlightmap","r_noportals","r_lockpvs","r_drawBuffer","r_offsetunits","r_offsetfactor","r_clear","r_showstaticbboxes","r_showhbox","r_shownormals","r_showsky","r_showtris","r_nobind","r_debugSurface","r_logFile","r_verbose","r_speeds","r_showcluster","r_novis","r_showcull","r_nocull","r_ignore","r_staticlod","r_drawspherelights","r_drawsprites","r_drawterrain","r_drawbrushmodels","r_drawbrushes","r_drawstaticmodelpoly","r_drawstaticmodels","r_drawentitypoly","r_drawentities","r_norefresh","r_measureOverdraw","r_skipBackEnd","r_showSmp","r_flareFade","r_flareSize","r_portalOnly","r_lightmap","r_drawworld","r_nocurves","r_printShaders","r_debugSort","lod_tool","lod_position","lod_save","lod_tris","lod_metric","lod_tikiname","lod_meshname","lod_mesh","lod_zee_val","lod_pitch_val","lod_curve_4_slider","lod_curve_3_slider","lod_curve_2_slider","lod_curve_1_slider","lod_curve_0_slider","lod_curve_4_val","lod_curve_3_val","lod_curve_2_val","lod_curve_1_val","lod_curve_0_val","lod_edit_4","lod_edit_3","lod_edit_2","lod_edit_1","lod_edit_0","lod_LOD_slider","lod_maxLOD","lod_minLOD","lod_LOD","r_showstaticlod","r_showlod","r_showImages","r_directedScale","r_ambientScale","r_primitives","r_facePlaneCull","r_swapInterval","r_finish","r_dlightBacks","r_fastsky","r_ignoreGLErrors","r_znear","r_lodCurveError","r_lerpmodels","r_singleShader","g_numdebuglines","r_intensity","r_mapOverBrightBits","r_fullbright","r_displayRefresh","r_ignoreFastPath","r_smp","r_vertexLight","r_customaspect","r_ignorehwgamma","r_overBrightBits","r_depthbits","r_stencilbits","r_stereo","r_textureDetails","r_colorMipLevels","r_roundImagesDown","r_reset_tc_array","r_geForce3WorkAround","r_ext_aniso_filter","r_ext_texture_env_combine","r_ext_texture_env_add","r_ext_compiled_vertex_array","r_ext_multitexture","r_ext_gamma_control","r_allowExtensions","r_glDriver","dm_playergermanmodel","password","m_invert_pitch","cg_forceModel","cl_maxPing","cg_autoswitch","cg_gametype","cl_langamerefreshstatus","cl_motdString","m_filter","m_side","m_up","m_forward","m_yaw","m_pitch","cl_allowDownload","cl_showmouserate","cl_mouseAccel","freelook","cl_run","cl_packetdup","cl_anglespeedkey","cl_pitchspeed","cl_yawspeed","rconAddress","cl_forceavidemo","cl_avidemo","activeAction","cl_freezeDemo","cl_showTimeDelta","cl_showSend","cl_shownet","cl_timeNudge","cl_connect_timeout","cl_timeout","cl_cdkey","cl_motd","cl_eventstats","cl_timeevents","cl_eventlimit","cl_showevents","cl_debugMove","cl_nodelta","sv_deeptracedebug","sv_drawentities","sv_mapChecksum","sv_killserver","sv_padPackets","sv_showloss","sv_reconnectlimit","sv_master5","sv_master4","sv_master3","sv_master2","sv_master1","sv_allowDownload","nextmap","sv_zombietime","sv_timeout","sv_fps","sv_privatePassword","rconPassword","sv_paks","sv_pure","sv_serverid","g_gametypestring","g_gametype","sv_floodProtect","sv_maxPing","sv_minPing","sv_maxRate","sv_maxclients","sv_hostname","sv_privateClients","mapname","protocol","sv_keywords","timelimit","fraglimit","dmflags","skill","g_maxplayerhealth","net_multiLANpackets","net_qport","showdrop","showpackets","in_disablealttab","joy_threshold","in_debugjoystick","in_joyBallScale","in_joystick","in_mouse","in_mididevice","in_midichannel","in_midi","username","sys_cpuid","sys_cpustring","win_wndproc","win_hinstance","arch","arch_minor_version","arch_major_version","shortversion","version","com_buildScript","cl_running","sv_running","dedicated","timedemo","com_speeds","viewlog","com_dropsim","com_showtrace","fixedtime","timescale","fps","autopaused","paused","deathmatch","convertAnim","showLoad","low_anim_memory","dumploadedanims","pagememory","ui_legalscreen_stay","ui_legalscreen_fadeout","ui_legalscreen_fadein","ui_titlescreen_stay","ui_titlescreen_fadeout","ui_titlescreen_fadein","ui_skip_legalscreen","ui_skip_titlescreen","ui_skip_eamovie","cl_playintro","g_voiceChat","s_speaker_type","r_uselod","r_drawSun","r_flares","sensitivity","r_gamma","r_textureMode","dm_playermodel","snaps","rate","s_musicvolume","s_volume","vid_ypos","vid_xpos","r_customwidth","r_fullscreen","name","s_milesdriver","r_forceClampToEdge","r_lastValidRenderer","com_maxfps","r_customheight","s_reverb","cl_maxpackets","ui_console","sv_maplist","config","r_ext_compressed_textures","r_drawstaticdecals","g_ddayshingleguys","g_ddayfog","g_ddayfodderguys","r_texturebits","r_colorbits","r_picmip","r_mode","cg_marks_add","s_khz","cg_shadows","cg_rain","ter_maxtris","ter_maxlod","ter_error","vss_maxcount","cg_effectdetail","r_lodviewmodelcap","r_lodcap","r_lodscale","r_subdivisions","r_fastentlight","r_fastdlights","cg_drawviewmodel","g_m6l3","g_m6l2","g_m6l1","g_m5l3","g_m5l2","g_m5l1","g_m4l3","g_m4l2","g_m4l1","g_m3l3","g_m3l2","g_m3l1","g_m2l3","g_m2l2","g_m2l1","g_m1l3","g_m1l2","g_m1l1","g_eogmedal2","g_eogmedal1","g_eogmedal0","g_medal5","g_medal4","g_medal3","g_medal2","g_medal1","g_medal0","ui_medalsign","ui_signshader","g_subtitle","g_skill","detail","ui_hostname","ui_maplist_obj","ui_maplist_round","ui_maplist_team","ui_maplist_ffa","ui_inactivekick","ui_inactivespectate","ui_connectip","ui_teamdamage","ui_timelimit","ui_fraglimit","ui_gamespy","ui_maxclients","ui_gametypestring","ui_gametype","ui_dmmap","ui_voodoo","cl_ctrlbindings","cl_altbindings","ui_crosshair","viewsize","journal","fs_filedir","mapdir","logfile","fs_restrict","fs_game","fs_basepath","fs_cdpath","fs_copyfiles","fs_debug","developer","cheats"};
+
 		public volatile int SnapOrderTolerance = 100;
 		public volatile bool SnapOrderToleranceDemoSkipPackets = false;
 		private const int LastPacketTimeOut = 5 * 60000;
 		private const int RetransmitTimeOut = 3000;
 		private const int MaxPacketUserCmds = 32;
 		private const string DefaultName = "AssetslessClient";
+		private const string DefaultNameMOH = "UnnamedSoldier";
 		private readonly string jaPlusClientSupportFlagsExplanation = ((int)(jaPlusClientSupportFlags_t.CSF_SCOREBOARD_KD | jaPlusClientSupportFlags_t.CSF_SCOREBOARD_LARGE | jaPlusClientSupportFlags_t.CSF_GRAPPLE_SWING)).ToString("X"); // This is what jaPlusClientSupportFlags is, but I can't do that because ToString() can't be assigned to constant
 		private const string jaPlusClientSupportFlags = "7";
 		public const string forcePowersJKClientDefault = "7-1-032330000000001333";
@@ -54,6 +58,7 @@ namespace JKClient {
 		public const string forcePowersAllLight = "200-1-333333000330003333";
 		private long skipUserInfoChangeCount = 0;
 		private const string UserInfo = "\\name\\" + JKClient.DefaultName + "\\rate\\200000\\snaps\\1000\\model\\kyle/default\\forcepowers\\"+ forcePowersAllDark + "\\color1\\4\\color2\\4\\handicap\\100\\teamtask\\0\\sex\\male\\password\\\\cg_predictItems\\1\\saber1\\single_1\\saber2\\none\\char_color_red\\255\\char_color_green\\255\\char_color_blue\\255\\engine\\jkclient_demoRec\\cjp_client\\1.4JAPRO\\csf\\"+ jaPlusClientSupportFlags + "\\assets\\0"; // cjp_client: Pretend to be jaPRO for more scoreboard stats
+		private const string UserInfoMOH = "\\name\\" + DefaultNameMOH + "\\rate\\200000\\snaps\\1000\\dm_playermodel\\american_ranger\\dm_playergermanmodel\\german_wehrmacht_soldier"; // cjp_client: Pretend to be jaPRO for more scoreboard stats
 		private readonly Random random = new Random();
 		private readonly int port;
 		private readonly InfoString userInfo = new InfoString(UserInfo);
@@ -248,6 +253,10 @@ namespace JKClient {
 		
 		public event Action<ServerInfo,bool> ServerInfoChanged; // bool says whether the change included a new gamestate
 		public JKClient(IClientHandler clientHandler) : base(clientHandler) {
+			if(clientHandler is MOHClientHandler)
+            {
+				userInfo = new InfoString(UserInfoMOH,mohCvars.Reverse());
+			}
 			this.Status = ConnectionStatus.Disconnected;
 			this.port = random.Next(1, 0xffff) & 0xffff;
 			this.reliableCommands = new sbyte[this.MaxReliableCommands][];
@@ -385,7 +394,15 @@ namespace JKClient {
 						this.userInfo["engine"] = "demoBot"; // Try not to get influenced by servers blocking JKChat
                     }
 
-					string data = $"connect \"{this.userInfo}\\protocol\\{this.Protocol}\\qport\\{this.port}\\challenge\\{this.challenge}\"";
+					string data = "";
+					if(this.ClientHandler is MOHClientHandler)
+                    {
+						data = $"connect \"\\challenge\\{this.challenge}\\qport\\{this.port}\\protocol\\{this.Protocol}{this.userInfo}\"";
+					}
+                    else
+                    {
+						data = $"connect \"{this.userInfo}\\protocol\\{this.Protocol}\\qport\\{this.port}\\challenge\\{this.challenge}\"";
+					}
 					this.OutOfBandData(this.serverAddress, data, data.Length);
 				} else if (this.realTime - this.infoRequestTime >= JKClient.RetransmitTimeOut) // Maybe the request or answer to the request got lost somewhere... let's ask again.
                 {

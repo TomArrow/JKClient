@@ -1,17 +1,49 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 
 namespace JKClient {
 	public sealed class InfoString : ConcurrentDictionary<string, string> {
 		private const char Delimiter = '\\';
+		private List<string> parameterOrderList = new List<string>();
+		private HashSet<string> parameterOrderListExistChecker = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 		public new string this[string key] {
 			get => this.ContainsKey(key) ? base[key] : string.Empty;
-			internal set => base[key] = value;
+			internal set
+			{
+                lock (parameterOrderList)
+                {
+					if(parameterOrderList.Count > 0)
+                    {
+                        if (!parameterOrderListExistChecker.Contains(key))
+                        {
+							parameterOrderListExistChecker.Add(key);
+							parameterOrderList.Add(key);
+						}
+                    }
+				}
+				base[key] = value;
+			}
 		}
 		private InfoString() {}
-		public InfoString(string infoString) : base(new InfoStringComparer()) {
+		public InfoString(string infoString, IEnumerable<string> parameterOrderListA = null) : base(new InfoStringComparer()) {
+            
+			if(parameterOrderListA != null)
+			{
+				lock (parameterOrderList)
+				{
+					foreach (string param in parameterOrderListA)
+					{
+						if (!parameterOrderListExistChecker.Contains(param))
+						{
+							parameterOrderListExistChecker.Add(param);
+							parameterOrderList.Add(param);
+						}
+					}
+				}
+			}
 			if (string.IsNullOrEmpty(infoString)) {
 				return;
 			}
@@ -31,12 +63,53 @@ namespace JKClient {
 				return string.Empty;
 			}
 			var builder = new StringBuilder();
-			foreach (var keyValuePair in this) {
-				builder
-					.Append(InfoString.Delimiter)
-					.Append(keyValuePair.Key)
-					.Append(InfoString.Delimiter)
-					.Append(keyValuePair.Value);
+			if(parameterOrderList.Count == 0)
+            {
+				foreach (var keyValuePair in this)
+				{
+					builder
+						.Append(InfoString.Delimiter)
+						.Append(keyValuePair.Key)
+						.Append(InfoString.Delimiter)
+						.Append(keyValuePair.Value);
+				}
+			} 
+			else
+            {
+				// Order the values according to list we have.
+				// TODO Optimize this a bit.
+				var valuesHere = this.ToArray();
+				HashSet<string> usedParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+				lock (parameterOrderList)
+				{
+                    foreach (string parameter in parameterOrderList)
+                    {
+                        if (this.ContainsKey(parameter))
+                        {
+                            if (!usedParameters.Contains(parameter))
+                            {
+								usedParameters.Add(parameter);
+								builder
+								.Append(InfoString.Delimiter)
+								.Append(parameter)
+								.Append(InfoString.Delimiter)
+								.Append(this[parameter]);
+							}
+						}
+                    }
+				}
+				foreach (var keyValuePair in this) 
+				{
+					Debug.WriteLine($"InfoString.ToString(): WEIRD, {keyValuePair.Key} not caught in parameterOrderList.");
+					if (!usedParameters.Contains(keyValuePair.Key))
+					{
+						builder
+						.Append(InfoString.Delimiter)
+						.Append(keyValuePair.Key)
+						.Append(InfoString.Delimiter)
+						.Append(keyValuePair.Value);
+					}
+				}
 			}
 			return builder.ToString();
 		}
@@ -60,4 +133,6 @@ namespace JKClient {
 			}
 		}
 	}
+
+
 }

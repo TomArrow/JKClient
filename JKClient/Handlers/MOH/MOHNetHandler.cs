@@ -8,6 +8,7 @@ namespace JKClient
 	{
 		public override int MaxMessageLength => 49152;
 		public override int MaxGameStateChars => 41952;
+		public override ushort DefaultPort => 12203;
 		public MOHNetHandler(ProtocolVersion protocol) : base((int)protocol) { }
 	}
 }

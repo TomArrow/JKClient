@@ -14,7 +14,7 @@ namespace JKClient {
 			if (netHandler == null) {
 				throw new JKClientException(new ArgumentNullException(nameof(netHandler)));
 			}
-			this.net = new NetSystem();
+			this.net = new NetSystem(netHandler.DefaultPort);
 			this.NetHandler = netHandler;
 			this.packetReceived = new byte[this.NetHandler.MaxMessageLength];
 		}

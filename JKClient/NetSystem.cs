@@ -7,11 +7,13 @@ using System.Threading.Tasks;
 
 namespace JKClient {
 	internal sealed class NetSystem : IDisposable {
-		private const ushort PortServer = 29070;
+		private const ushort PortServerDefault = 29070;
+		private ushort portServer = 29070;
 		private Socket ipSocket;
 		private IPEndPoint endPoint;
 		private bool disposed = false;
-		public NetSystem() {
+		public NetSystem(ushort portServerA) {
+			portServer = portServerA;
 			this.InitSocket();
 		}
 		private void InitSocket(bool reinit = false) {
@@ -26,7 +28,7 @@ namespace JKClient {
 			int i;
 			bool tryToReuse = false;
 			if (reinit) {
-				i = this.endPoint.Port - NetSystem.PortServer;
+				i = this.endPoint.Port - portServer;
 				if (i < 0) {
 					i = 0;
 					tryToReuse = false;
@@ -40,7 +42,7 @@ namespace JKClient {
 			bool triedToReuse = false;
 			for (; i < 256; i++) {
 				try {
-					this.endPoint = new IPEndPoint(IPAddress.Any, NetSystem.PortServer + i);
+					this.endPoint = new IPEndPoint(IPAddress.Any, portServer + i);
 					if (tryToReuse && triedToReuse) {
 						this.ipSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
 						tryToReuse = false;
@@ -128,7 +130,7 @@ namespace JKClient {
 			byte []ip;
 			int index = address.IndexOf(':');
 			if (port <= 0) {
-				port = index >= 0 && ushort.TryParse(address.Substring(index+1), out ushort p) ? p : NetSystem.PortServer;
+				port = index >= 0 && ushort.TryParse(address.Substring(index+1), out ushort p) ? p : NetSystem.PortServerDefault;
 			}
 			if (index < 0) {
 				index = address.Length;

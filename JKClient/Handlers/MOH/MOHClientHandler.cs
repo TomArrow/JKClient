@@ -5,7 +5,20 @@ using System.Text;
 
 namespace JKClient
 {
-	// WIP. This is so far mostly copied from JO.
+
+	enum GameTypeMOH
+	{
+		GT_SINGLE_PLAYER,   // single player
+		GT_FFA,             // free for all
+		GT_TEAM,            // team deathmatch
+		GT_TEAM_ROUNDS,
+		GT_OBJECTIVE,
+		// Team Assault game mode
+		GT_TOW,
+		// Team Tactics game mode
+		GT_LIBERATION,
+		GT_MAX_GAME_TYPE
+	}
 	public class MOHClientHandler : MOHNetHandler, IClientHandler
 	{
 		public virtual new ProtocolVersion Protocol => (ProtocolVersion)base.Protocol;
@@ -80,19 +93,6 @@ namespace JKClient
 		}
 		public virtual void ClearState() { }
 
-		enum GameTypeMOH
-        {
-			GT_SINGLE_PLAYER,   // single player
-			GT_FFA,             // free for all
-			GT_TEAM,            // team deathmatch
-			GT_TEAM_ROUNDS,
-			GT_OBJECTIVE,
-			// Team Assault game mode
-			GT_TOW,
-			// Team Tactics game mode
-			GT_LIBERATION,
-			GT_MAX_GAME_TYPE
-        }
 		public virtual void SetExtraConfigstringInfo(in ServerInfo serverInfo, in InfoString info)
 		{
 			/*switch (serverInfo.Protocol)

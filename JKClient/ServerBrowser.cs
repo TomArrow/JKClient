@@ -2,6 +2,12 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
+using System.Net;
+using System.Net.WebSockets;
+using System.Text;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace JKClient {
@@ -66,6 +72,7 @@ namespace JKClient {
 				this.HandleFullServerInfoTasks();
 				this.HandleServerInfoTasks();
 				this.HandleServerInfoInfoTasks();
+				this.HandleQueuedServerStatusRequests();
 				await Task.Delay(frameTime);
 			}
 		}
@@ -112,7 +119,19 @@ namespace JKClient {
 			}
 			this.serverInfoInfoTasksToRemove.Clear();
 		}
+		private void HandleQueuedServerStatusRequests() {
+			foreach(var server in this.globalServers)
+            {
+				if(server.Value.StatusRequestQueuedTime != 0 && server.Value.StatusRequestQueuedTime < Common.Milliseconds)
+                {
+					// This is really only used for MOH where some servers have really weird rate limiting on connectionless packets
+					this.OutOfBandPrint(server.Value.Address, "getstatus");
+					server.Value.StatusRequestQueuedTime = 0;
+				} 
+            }
+		}
 		public async Task<IEnumerable<ServerInfo>> GetNewList() {
+			bool isMOH = this.BrowserHandler is MOHBrowserHandler;
 			this.getListTCS?.TrySetCanceled();
 			this.getListTCS = new TaskCompletionSource<IEnumerable<ServerInfo>>();
 			this.globalServers.Clear();
@@ -131,19 +150,123 @@ namespace JKClient {
 				}
 			}
 			this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
-			foreach (var masterServer in this.masterServers) {
-				var address = await NetSystem.StringToAddressAsync(masterServer.Name, masterServer.Port);
-				if (address == null) {
-					continue;
-				}
-				this.OutOfBandPrint(address, $"getservers {this.Protocol}");
-				if((this.NetHandler as IBrowserHandler).AdditionalProtocols != null)
+
+			if (isMOH)
+			{
+
+
+				XNullServerData[] serverList = null;
+				await Task.Run(() => {
+					try
+					{
+						using (ClientWebSocket webSocket = new ClientWebSocket()) { 
+
+							Uri socketLocation = new Uri("ws://master.x-null.net:8080");
+							CancellationTokenSource cts = new CancellationTokenSource();
+							bool didConnect = webSocket.ConnectAsync(socketLocation, cts.Token).Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+							if (didConnect)
+							{
+								byte[] cmd = Encoding.UTF8.GetBytes("getservers mohaa");
+								bool didSend = false;
+								didSend = webSocket.SendAsync(new ArraySegment<byte>(cmd), WebSocketMessageType.Text,true,cts.Token).Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+
+								if (didSend)
+								{
+									byte[] receiveBuffer = new byte[8096];
+									ArraySegment<byte> receiveBufferSegment = new ArraySegment<byte>(receiveBuffer);
+									string response = "";
+									bool messageReceivedFully = false;
+									using (MemoryStream ms = new MemoryStream())
+									{
+										bool finished = false;
+										while (true)
+										{
+											Task<WebSocketReceiveResult> receiveTask = webSocket.ReceiveAsync(receiveBufferSegment, cts.Token);
+											bool success = receiveTask.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+											if (success)
+											{
+												WebSocketReceiveResult status = receiveTask.Result;
+												ms.Write(receiveBuffer, 0, status.Count);
+												if (status.EndOfMessage)
+												{
+													messageReceivedFully = true;
+													break;
+												}
+											} else
+											{
+												break;
+											}
+										}
+										ms.Seek(0, SeekOrigin.Begin);
+										response = Encoding.UTF8.GetString(ms.ToArray());
+									}
+									//Debug.WriteLine(response);
+									if (messageReceivedFully)
+									{
+										JsonSerializerOptions opts = new JsonSerializerOptions();
+										opts.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals | System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
+
+										serverList = JsonSerializer.Deserialize<XNullServerData[]>(response, opts);
+									}
+									//byte[] 
+									//webSocket.ReceiveAsync()
+								}
+							}
+							bool closedGracefully = webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure,String.Empty, cts.Token).Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+                            if (!closedGracefully)
+                            {
+								Debug.WriteLine($"MOH master server web socket did not close gracefully.");
+							}
+						}
+					}
+					catch (Exception e)
+					{
+						Debug.WriteLine($"Error getting data from MOH master server: {e.ToString()}");
+					}
+				});
+
+				if(serverList!= null )
                 {
-					foreach(int additionalProtocol in (this.NetHandler as IBrowserHandler).AdditionalProtocols)
+					foreach(XNullServerData server in serverList)
                     {
-						this.OutOfBandPrint(address, $"getservers {additionalProtocol}");
+						byte[] ip = IPAddress.TryParse(server.ip, out IPAddress ipAddress) ? ipAddress.GetAddressBytes() : null;
+						if(ip != null)
+                        {
+							var serverInfo = new ServerInfo()
+							{
+								Address = new NetAddress(ip,(ushort)server.port),
+								Start = Common.Milliseconds
+							};
+							this.globalServers[serverInfo.Address] = serverInfo;
+							//this.OutOfBandPrint(serverInfo.Address, "getstatus");
+							this.OutOfBandPrint(serverInfo.Address, "getinfo xxx");
+						}
 					}
                 }
+
+			} else { 
+
+				foreach (var masterServer in this.masterServers) {
+
+					var address = await NetSystem.StringToAddressAsync(masterServer.Name, masterServer.Port);
+					if (address == null) {
+						continue;
+					}
+					if(this.BrowserHandler is MOHBrowserHandler)
+					{
+						this.OutOfBandPrint(address, $"getservers mohaa");
+					} else
+					{
+						this.OutOfBandPrint(address, $"getservers {this.Protocol}");
+						if ((this.NetHandler as IBrowserHandler).AdditionalProtocols != null)
+						{
+							foreach (int additionalProtocol in (this.NetHandler as IBrowserHandler).AdditionalProtocols)
+							{
+								this.OutOfBandPrint(address, $"getservers {additionalProtocol}");
+							}
+						}
+					}
+				}
 			}
 			return await this.getListTCS.Task;
 		}
@@ -217,6 +340,10 @@ namespace JKClient {
 				if (msg.CurSize >= 4 && *(int*)b == -1) {
 					msg.BeginReading(true);
 					msg.ReadLong();
+					if (this.BrowserHandler is MOHBrowserHandler)
+					{
+						msg.ReadByte(); // Direction byte. Just ignore. MOH stuff.
+					}
 					string s = msg.ReadStringLineAsString((ProtocolVersion)this.Protocol);
 					var command = new Command(s);
 					string c = command.Argv(0);
@@ -267,6 +394,7 @@ namespace JKClient {
 			}
 		}
 		private void ServerStatusResponse(in NetAddress address, in Message msg) {
+			bool isMOH = this.BrowserHandler is MOHBrowserHandler;
 			var info = new InfoString(msg.ReadStringLineAsString((ProtocolVersion)this.Protocol));
 			if (this.serverInfoTasks.ContainsKey(address)) {
 				this.serverInfoTasks[address].TrySetResult(info);
@@ -276,15 +404,25 @@ namespace JKClient {
 				var serverInfo = this.globalServers[address];
 				int playersCount = 0;
 				serverInfo.players.Clear();
+				int allPlayersCount = 0;
 				for (string s = msg.ReadStringLineAsString((ProtocolVersion)this.Protocol); !string.IsNullOrEmpty(s); s = msg.ReadStringLineAsString((ProtocolVersion)this.Protocol)) {
 					var command = new Command(s);
-					int score = command.Argv(0).Atoi();
-					int ping = command.Argv(1).Atoi();
-					string name = command.Argv(2);
+					int score = !isMOH ? command.Argv(0).Atoi() : -1;
+					int ping = command.Argv(isMOH ? 0 : 1).Atoi();
+					string name = command.Argv(isMOH ? 1 : 2);
 					serverInfo.players.Add(new Player() {name=name,ping=ping,score=score,isBot=ping<=0 });
-					if (ping > 0) {
+					if (!isMOH && ping > 0) {
+						playersCount++;
+					} else if(isMOH && ping > 0 && ping < 999)
+                    {
 						playersCount++;
 					}
+					allPlayersCount++;
+				}
+				if(!serverInfo.InfoPacketReceived)
+                {
+					serverInfo.ClientsIncludingBots = serverInfo.Clients = allPlayersCount;
+
 				}
 				serverInfo.SetStatusInfo(info);
 				serverInfo.RealClients = serverInfo.Clients = playersCount;
@@ -305,6 +443,7 @@ namespace JKClient {
 			}
 		}
 		private void ServerInfoPacket(in NetAddress address, in Message msg) {
+			bool isMOH = this.BrowserHandler is MOHBrowserHandler;
 			var info = new InfoString(msg.ReadStringAsString((ProtocolVersion)this.Protocol));
 			if (this.serverInfoInfoTasks.ContainsKey(address))
 			{
@@ -320,7 +459,18 @@ namespace JKClient {
 				serverInfo.SetInfo(info);
 				this.BrowserHandler.HandleInfoPacket(serverInfo, info);
 				if (this.BrowserHandler.NeedStatus || this.ForceStatus) {
-					this.OutOfBandPrint(serverInfo.Address, "getstatus");
+                    if (isMOH)
+                    {
+						// Some MOH servers do really really strange rate limiting
+						// Where sending two requests in too short a timeframe is guaranteed to
+						// drop the second. Hence we just queue it here.
+						// Not sure what the real number is. 1000 works sometimes, but not always.
+						serverInfo.StatusRequestQueuedTime = Common.Milliseconds + 3000;
+
+					} else
+                    {
+						this.OutOfBandPrint(serverInfo.Address, "getstatus");
+					}
 				}
 				serverInfo.InfoPacketReceived = true;
 				serverInfo.InfoPacketReceivedTime = DateTime.Now;
@@ -360,6 +510,10 @@ namespace JKClient {
 		}
 		public static IBrowserHandler GetKnownBrowserHandler(ProtocolVersion protocol) {
 			switch (protocol) {
+			case ProtocolVersion.Protocol6:
+			case ProtocolVersion.Protocol7:
+			case ProtocolVersion.Protocol8:
+				return new MOHBrowserHandler(protocol);
 			case ProtocolVersion.Protocol25:
 			case ProtocolVersion.Protocol26:
 				return new JABrowserHandler(protocol);

@@ -30,6 +30,7 @@ namespace JKClient
 			} }
 		public DateTime? InfoPacketReceivedTime { get; internal set; } = null;
 		public DateTime? StatusResponseReceivedTime { get; internal set; } = null;
+		public long StatusRequestQueuedTime = 0;
 		public bool InfoPacketReceived { get; internal set; } = false;
 		public bool StatusResponseReceived { get; internal set; } = false; // If this is true, the Clients count is the actual count of clients excluding bots
 		public NetAddress Address { get; internal set; }
@@ -104,6 +105,17 @@ namespace JKClient
 		}
 		internal void SetStatusInfo(in InfoString info) {
 			StatusInfoStringValues = info.ToArray();
+			if (info.Count <= 0)
+			{
+				return;
+			}
+			this.Protocol = (ProtocolVersion)info["protocol"].Atoi();
+			this.HostName = info["sv_hostname"];
+			this.MapName = info["mapname"];
+			this.MaxClients = info["sv_maxclients"].Atoi();
+			this.Game = info["game"];
+			this.MinPing = info["sv_minPing"].Atoi();
+			this.MaxPing = info["sv_maxPing"].Atoi();
 		}
 		public static bool operator ==(in ServerInfo serverInfo1, in ServerInfo serverInfo2) {
 			return serverInfo1?.Address == serverInfo2?.Address;

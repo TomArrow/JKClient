@@ -4,8 +4,6 @@ using System.Text;
 
 namespace JKClient
 {
-
-	// WIP. This is so far mostly copied from JO.
 	public class MOHClientGame : ClientGame
 	{
 		public MOHClientGame(IJKClientImport client, int serverMessageNum, int serverCommandSequence, int clientNum)

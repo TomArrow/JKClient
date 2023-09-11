@@ -346,8 +346,9 @@ namespace JKClient {
 				this.UpdateUserInfo();
 			}
 		}
-		public string GetUserInfoKeyValue(string key) {
+		public string GetUserInfoKeyValue(string key, out bool valueExists) {
 			key = key.ToLower();
+			valueExists = this.userInfo.ContainsKey(key);
 			return this.userInfo[key];
 		}
 		private void UpdateUserInfo(bool skippable = true) {

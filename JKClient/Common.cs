@@ -64,7 +64,7 @@ namespace JKClient {
 			dst[2] = src[2];
         }
 
-		internal static bool ProtocolIsMOH(ProtocolVersion protocol)
+		public static bool ProtocolIsMOH(ProtocolVersion protocol)
         {
 			return protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8; // Only base MOHAA supported atm.
 		}

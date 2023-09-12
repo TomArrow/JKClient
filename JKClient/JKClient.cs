@@ -57,6 +57,7 @@ namespace JKClient {
 		public const string forcePowersAllDark = "200-2-033330333000033333";
 		public const string forcePowersAllLight = "200-1-333333000330003333";
 		private long skipUserInfoChangeCount = 0;
+		public string NWHEngine = null; 
 		private const string UserInfo = "\\name\\" + JKClient.DefaultName + "\\rate\\200000\\snaps\\1000\\model\\kyle/default\\forcepowers\\"+ forcePowersAllDark + "\\color1\\4\\color2\\4\\handicap\\100\\teamtask\\0\\sex\\male\\password\\\\cg_predictItems\\1\\saber1\\single_1\\saber2\\none\\char_color_red\\255\\char_color_green\\255\\char_color_blue\\255\\engine\\jkclient_demoRec\\cjp_client\\1.4JAPRO\\csf\\"+ jaPlusClientSupportFlags + "\\assets\\0"; // cjp_client: Pretend to be jaPRO for more scoreboard stats
 		private const string UserInfoMOH = "\\name\\" + DefaultNameMOH + "\\rate\\200000\\snaps\\1000\\dm_playermodel\\american_ranger\\dm_playergermanmodel\\german_wehrmacht_soldier"; // cjp_client: Pretend to be jaPRO for more scoreboard stats
 		private readonly Random random = new Random();
@@ -392,7 +393,8 @@ namespace JKClient {
                 {
                     if (!(this.ClientHandler is MOHClientHandler) && this.serverInfo.NWH)
                     {
-						this.userInfo["engine"] = "demoBot"; // Try not to get influenced by servers blocking JKChat
+						string nwhEngineString = NWHEngine;
+						this.userInfo["engine"] = nwhEngineString != null ? nwhEngineString : "demoBot"; // Try not to get influenced by servers blocking JKChat
                     }
 
 					string data = "";

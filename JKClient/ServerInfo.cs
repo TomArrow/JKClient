@@ -57,6 +57,7 @@ namespace JKClient
 		public ProtocolVersion Protocol { get; internal set; }
 		public ClientVersion Version { get; internal set; }
 		public string ServerGameVersionString { get; internal set; }
+		public string ServerSVInfoString { get; internal set; }
 		public string Location { get; internal set; }
 		public bool NWH { get; internal set; } // NWH mod detection
 		public int FloodProtect { get; internal set; } = -1; // -1 if not yet set, -2 if server does not send it at all
@@ -116,6 +117,10 @@ namespace JKClient
 			this.Game = info["game"];
 			this.MinPing = info["sv_minPing"].Atoi();
 			this.MaxPing = info["sv_maxPing"].Atoi();
+			this.GameName = info["gamename"];
+			this.ServerGameVersionString = info["version"];
+			this.Location = info["Location"];
+			this.FloodProtect = info["sv_floodProtect"] == String.Empty ? -2 : info["sv_floodProtect"].Atoi();
 		}
 		public static bool operator ==(in ServerInfo serverInfo1, in ServerInfo serverInfo2) {
 			return serverInfo1?.Address == serverInfo2?.Address;

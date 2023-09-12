@@ -95,6 +95,7 @@ namespace JKClient
                     break;
             }
             serverInfo.GameName = info["g_gametypestring"]; // Ofc MOH is special and can't just use normal gamename :)
+            serverInfo.ServerSVInfoString = info["sv_info"]; 
             serverInfo.Protocol = (ProtocolVersion)info["protocol"].Atoi();
             this.NeedStatus = false;
         }

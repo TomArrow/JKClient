@@ -380,9 +380,11 @@ namespace JKClient {
 				});
 				if(this.ClientHandler is MOHClientHandler)
 				{
+					Debug.WriteLine($"Sending getchallenge command to {this.serverAddress.ToString()}");
 					this.OutOfBandPrint(this.serverAddress, $"getchallenge");
 				} else
 				{
+					Debug.WriteLine($"Sending getinfo xxx and getchallenge command to {this.serverAddress.ToString()}");
 					this.OutOfBandPrint(this.serverAddress, "getinfo xxx");
 					this.infoRequestTime = this.realTime;
 					this.OutOfBandPrint(this.serverAddress, $"getchallenge {this.challenge}");
@@ -398,6 +400,7 @@ namespace JKClient {
                     }
 
 					string data = "";
+					Debug.WriteLine($"Sending connect command to {this.serverAddress.ToString()}");
 					if(this.ClientHandler is MOHClientHandler)
                     {
 						data = $"connect \"\\challenge\\{this.challenge}\\qport\\{this.port}\\protocol\\{this.Protocol}{this.userInfo}\"";
@@ -1000,6 +1003,7 @@ namespace JKClient {
 			}
 		}
 		private void ConnectionlessPacket(NetAddress address, Message msg) {
+			bool isMOH = this.ClientHandler is MOHClientHandler;
 			msg.BeginReading(true);
 			msg.ReadLong();
 
@@ -1033,7 +1037,7 @@ namespace JKClient {
 				this.challenge = command.Argv(1).Atoi();
 				this.Status = ConnectionStatus.Challenging;
 				this.connectPacketCount = 0;
-				this.connectTime = -99999;
+				this.connectTime = isMOH ? (this.realTime-JKClient.RetransmitTimeOut+200) : -99999; // MOH is weird. If you send two connectionless commands very shortly after each other, for some reason the server will not properly process/receive the second one. 
 				this.serverAddress = address;
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "connectResponse", StringComparison.OrdinalIgnoreCase) == 0) {

@@ -98,6 +98,7 @@ namespace JKClient
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.MinPing = info["sv_minping"].Atoi();
 			this.MaxPing = info["sv_maxping"].Atoi();
+			this.FPS = info["sv_fps"].Atoi();
 			this.InfoSet = true;
 		}
 		internal void SetSystemConfigstringInfo(in InfoString info)
@@ -117,6 +118,7 @@ namespace JKClient
 			this.Game = info["game"];
 			this.MinPing = info["sv_minPing"].Atoi();
 			this.MaxPing = info["sv_maxPing"].Atoi();
+			this.FPS = info["sv_fps"].Atoi();
 			this.GameName = info["gamename"];
 			this.ServerGameVersionString = info["version"];
 			this.Location = info["Location"];

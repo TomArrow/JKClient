@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -138,6 +139,7 @@ namespace JKClient {
 			}
 			bool eof = false;
 			ServerCommandOperations cmd;
+			ServerCommandOperations oldCmd;
 			while (true) {
 				if (msg.ReadCount > msg.CurSize) {
 					throw new JKClientException("ParseServerMessage: read past end of server message");
@@ -147,6 +149,7 @@ namespace JKClient {
 				if (cmd == ServerCommandOperations.EOF) {
 					break;
 				}
+				//Debug.WriteLine(cmd);
 				switch (cmd) {
 				case ServerCommandOperations.LocPrint:
 				case ServerCommandOperations.CenterPrint:
@@ -162,6 +165,7 @@ namespace JKClient {
 				default:
 					throw new JKClientException("ParseServerMessage: Illegible server message");
 				case ServerCommandOperations.Nop:
+					Debug.WriteLine("svc_nop");
 					break;
 				case ServerCommandOperations.ServerCommand:
 					this.ParseCommandString(in msg);
@@ -185,6 +189,7 @@ namespace JKClient {
 				case ServerCommandOperations.MapChange:
 					break;
 				}
+				oldCmd = cmd;
 				if (eof) {
 					break;
 				}
@@ -452,6 +457,9 @@ namespace JKClient {
 				MessageNum = this.serverMessageSequence
 			};
 
+			Debug.WriteLine(newSnap.ServerTime);
+			Debug.WriteLine(newSnap.ServerTimeResidual);
+
 			lock (bufferedDemoMessages)
 			{
 				if (bufferedDemoMessages.ContainsKey(this.serverMessageSequence))
@@ -474,12 +482,14 @@ namespace JKClient {
 			}
 
 			int deltaNum = msg.ReadByte();
+			Debug.WriteLine(deltaNum);
 			if (deltaNum == 0) {
 				newSnap.DeltaNum = -1;
 			} else {
 				newSnap.DeltaNum = newSnap.MessageNum - deltaNum;
 			}
 			newSnap.Flags = msg.ReadByte();
+			Debug.WriteLine(newSnap.Flags);
 			if (newSnap.DeltaNum <= 0) {
 				newSnap.Valid = true;
 				oldSnap = null;
@@ -572,9 +582,10 @@ namespace JKClient {
 
 			int len = msg.ReadByte();
 
+			Debug.WriteLine(len);
 			//if (len > sizeof(byte)*32) {
-				//oldSnapHandle.Free();
-				//throw new JKClientException("ParseSnapshot: Invalid size %d for areamask");
+			//oldSnapHandle.Free();
+			//throw new JKClientException("ParseSnapshot: Invalid size %d for areamask");
 			//}
 
 			msg.ReadData(null, len);
@@ -644,6 +655,7 @@ namespace JKClient {
 			}
 		}
 		private unsafe void ParsePacketEntities(in Message msg, in ClientSnapshot *oldSnap, in ClientSnapshot *newSnap) {
+			bool mohEntityNumSubtract = this.ClientHandler is MOHClientHandler && this.Protocol > (int)ProtocolVersion.Protocol8;
 			newSnap->ParseEntitiesNum = this.parseEntitiesNum;
 			newSnap->NumEntities = 0;
 			EntityState *oldstate;
@@ -651,6 +663,10 @@ namespace JKClient {
 			int oldindex = 0;
 			int oldnum;
 			int newnum = msg.ReadBits(Common.GEntitynumBits);
+            if (mohEntityNumSubtract)
+            {
+				newnum = (ushort)(newnum - 1) % Common.MaxGEntities;
+			}
 			while (true) {
 				if (oldSnap != null && oldindex < oldSnap->NumEntities) {
 					oldstate = ((EntityState *)oldstateHandle.AddrOfPinnedObject()) + ((oldSnap->ParseEntitiesNum + oldindex) & (JKClient.MaxParseEntities-1));
@@ -669,11 +685,19 @@ namespace JKClient {
 						oldindex++;
 						msg.ReadDeltaEntity(oldstate, newstate, newnum, this.ClientHandler, this.serverFrameTime, showNetString);
 						newnum = msg.ReadBits(Common.GEntitynumBits);
+						if (mohEntityNumSubtract)
+						{
+							newnum = (ushort)(newnum - 1) % Common.MaxGEntities;
+						}
 					} else if (oldnum > newnum) {
 						fixed (EntityState *bl = &this.entityBaselines[newnum]) {
 							msg.ReadDeltaEntity(bl, newstate, newnum, this.ClientHandler, this.serverFrameTime, showNetString);
 						}
 						newnum = msg.ReadBits(Common.GEntitynumBits);
+						if (mohEntityNumSubtract)
+						{
+							newnum = (ushort)(newnum - 1) % Common.MaxGEntities;
+						}
 					}
 					if (newstate->Number == Common.MaxGEntities-1)
 						continue;
@@ -1088,7 +1112,7 @@ namespace JKClient {
 
 					case 30:
 						iInfo = msg.ReadByte();
-						msg.ReadString( protocol);//strcpy(cgi.HudDrawElements[iInfo].shaderName, msg.ReadString());
+						msg.ReadString( protocol,true);//strcpy(cgi.HudDrawElements[iInfo].shaderName, msg.ReadString());
 													  //cgi.HudDrawElements[iInfo].string[0] = 0;
 													  //cgi.HudDrawElements[iInfo].pFont = NULL;
 													  //cgi.HudDrawElements[iInfo].fontName[0] = 0;
@@ -1130,12 +1154,12 @@ namespace JKClient {
 					case 36:
 						iInfo = msg.ReadByte();
 						//cgi.HudDrawElements[iInfo].hShader = 0;
-						msg.ReadString(protocol);//strcpy(cgi.HudDrawElements[iInfo].string, msg.ReadString());
+						msg.ReadString(protocol, true);//strcpy(cgi.HudDrawElements[iInfo].string, msg.ReadString());
 						break;
 
 					case 37:
 						iInfo = msg.ReadByte();
-						msg.ReadString(protocol);//strcpy(cgi.HudDrawElements[iInfo].fontName, msg.ReadString());
+						msg.ReadString(protocol, true);//strcpy(cgi.HudDrawElements[iInfo].fontName, msg.ReadString());
 													  //cgi.HudDrawElements[iInfo].hShader = 0;
 													  //cgi.HudDrawElements[iInfo].shaderName[0] = 0;
 													  // load the font
@@ -1170,7 +1194,7 @@ namespace JKClient {
 							iLarge = msg.ReadBits( 1);
 							iInfo = msg.ReadBits( 6);
 							//szTmp = msg.ReadString(protocol);
-							msg.ReadString(protocol);
+							msg.ReadString(protocol, true);
 
 							//iOldEnt = current_entity_number;
 

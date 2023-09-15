@@ -38,7 +38,7 @@ namespace JKClient
 
 			return f;
 		}
-		unsafe void WriteFloat( float f)
+		public unsafe void WriteFloat( float f)
 		{
 			int l = *(int*)&f;
 

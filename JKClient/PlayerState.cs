@@ -430,5 +430,9 @@ namespace JKClient {
 		public float MusicVolumeFadeTime;
 		public int ReverbType;
 		public float ReverbLevel;
+
+		// MOHAA expansions:
+		public int RadarInfo;
+		public QuakeBoolean Voted;
 	}
 }

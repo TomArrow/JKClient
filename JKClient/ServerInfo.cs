@@ -65,7 +65,7 @@ namespace JKClient
 		public string MOHHUDMessage { get; internal set; }
 		internal bool InfoSet;
 		internal long Start;
-		internal void SetInfo(in InfoString info) {
+		internal void SetInfo(in InfoString info, bool isMasterInfo = false) {
 			InfoStringValues = info.ToArray();
 			if (info.Count <= 0) {
 				return;
@@ -79,7 +79,10 @@ namespace JKClient
 			this.Game = info["game"];
 			this.MinPing = info["minPing"].Atoi();
 			this.MaxPing = info["maxPing"].Atoi();
-			this.InfoSet = true;
+            if (!isMasterInfo) // If this is the data from the master server it may not be truly up to date anymore.
+            {
+				this.InfoSet = true;
+			}
 		}
 		internal void SetConfigstringInfo(in InfoString info) {
 			ConfigStringInfoStringValues = info.ToArray();

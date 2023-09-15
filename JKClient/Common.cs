@@ -66,7 +66,7 @@ namespace JKClient {
 
 		public static bool ProtocolIsMOH(ProtocolVersion protocol)
         {
-			return protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8; // Only base MOHAA supported atm.
+			return protocol >= ProtocolVersion.Protocol6 && protocol <= ProtocolVersion.Protocol8 || protocol==ProtocolVersion.Protocol17; // TODO Support 15 and 16 too?
 		}
 
 		const int NUMVERTEXNORMALS = 162;

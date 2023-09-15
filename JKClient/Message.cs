@@ -94,7 +94,7 @@ namespace JKClient {
 			{
 				emptyMessage.WriteByte(postEOFMetadataMarker[i]);
 			}
-			emptyMessage.WriteBigString(Common.SByteFromString(meta));
+			emptyMessage.WriteBigString(Common.SByteFromString(meta),ProtocolVersion.Protocol15);
 
 			emptyMessage.WriteByte(eofValue);
 
@@ -566,35 +566,60 @@ namespace JKClient {
 			bool isMOH = Common.ProtocolIsMOH(protocol);
 			bool isMOHWithScrambledString = isMOH && protocol > ProtocolVersion.Protocol8;
 			if (s == null || s.Length <= 0) {
-				this.WriteByte(0);
+				this.WriteByte(isMOHWithScrambledString ? StrCharToNetByte[0] : 0);
 			} else {
 				int l = Common.StrLen(s);
 				if (l >= (isMOH ? Common.MaxStringCharsMOH : Common.MaxStringChars)) {
-					this.WriteByte(0);
+					this.WriteByte(isMOHWithScrambledString ? StrCharToNetByte[0] : 0);
 					return;
 				}
-				byte []b = new byte[l+1];
-				fixed (sbyte *ss = s) {
-					Marshal.Copy((IntPtr)ss, b, 0, l);
-				}
-				this.WriteData(b, l+1);
+                if (isMOHWithScrambledString)
+                {
+					for (int i = 0; i < l; i++)
+					{
+						this.WriteByte(StrCharToNetByte[s[i]]);
+					}
+					this.WriteByte(StrCharToNetByte[0]);
+				} else
+                {
+					byte []b = new byte[l+1];
+					fixed (sbyte *ss = s) {
+						Marshal.Copy((IntPtr)ss, b, 0, l);
+					}
+					this.WriteData(b, l+1);
+                }
 			}
 		}
 
-		public unsafe void WriteBigString(sbyte []s) { // TODO someday: moh scrambled messages.
+		public unsafe void WriteBigString(sbyte []s, ProtocolVersion protocol) { // TODO someday: moh scrambled messages.
+
+			bool isMOH = Common.ProtocolIsMOH(protocol);
+			bool isMOHWithScrambledString = isMOH && protocol > ProtocolVersion.Protocol8;
+
 			if (s == null || s.Length <= 0) {
-				this.WriteByte(0);
+				this.WriteByte(isMOHWithScrambledString ? StrCharToNetByte[0] : 0);
 			} else {
 				int l = Common.StrLen(s);
 				if (l >= Common.BigInfoString) {
-					this.WriteByte(0);
+					this.WriteByte(isMOHWithScrambledString ? StrCharToNetByte[0] : 0);
 					return;
 				}
-				byte []b = new byte[l+1];
-				fixed (sbyte *ss = s) {
-					Marshal.Copy((IntPtr)ss, b, 0, l);
+				if (isMOHWithScrambledString)
+                {
+					for (int i = 0; i < l; i++)
+					{
+						this.WriteByte(StrCharToNetByte[s[i]]);
+					}
+					this.WriteByte(StrCharToNetByte[0]);
+				} else
+                {
+					byte[] b = new byte[l + 1];
+					fixed (sbyte* ss = s)
+					{
+						Marshal.Copy((IntPtr)ss, b, 0, l);
+					}
+					this.WriteData(b, l + 1);
 				}
-				this.WriteData(b, l+1);
 			}
 		}
 
@@ -765,9 +790,9 @@ namespace JKClient {
 			}
 			return c;
 		}
-		public sbyte []ReadString(ProtocolVersion protocol) {
+		public sbyte []ReadString(ProtocolVersion protocol,bool forceNonScrambled = false) {
 			bool isMOH = Common.ProtocolIsMOH(protocol);
-			bool isMOHithScrambledString = isMOH && protocol > ProtocolVersion.Protocol8;
+			bool isMOHithScrambledString = isMOH && protocol > ProtocolVersion.Protocol8 && !forceNonScrambled;
 			int realMaxStringChars = isMOH ? Common.MaxStringCharsMOH : Common.MaxStringChars;
 
 			sbyte []str = new sbyte[Common.MaxStringCharsMOH];
@@ -870,6 +895,8 @@ namespace JKClient {
         {
 
 			bool isMOH = clientHandler is MOHClientHandler;
+			bool isMOHSpecialEntNum = isMOH && clientHandler.Protocol > (int)ProtocolVersion.Protocol8;
+
 			ProtocolVersion protocol = (ProtocolVersion)clientHandler.Protocol;
 
 			bool[] deltasNeeded = new bool[146]; // MOHAA
@@ -881,7 +908,15 @@ namespace JKClient {
 				{
 					return;
 				}
-				this.WriteBits(from->Number, Common.GEntitynumBits);
+                if (isMOHSpecialEntNum)
+                {
+
+					this.WriteBits((from->Number + 1) % Common.MaxGEntities, Common.GEntitynumBits);
+				} else
+                {
+					this.WriteBits(from->Number, Common.GEntitynumBits);
+				}
+				
 				this.WriteBits(1, 1);
 				return;
 			}
@@ -931,13 +966,27 @@ namespace JKClient {
 					return;     // nothing at all
 				}
 				// write two bits for no change
-				this.WriteBits(to->Number, Common.GEntitynumBits);
+				if (isMOHSpecialEntNum)
+				{
+					this.WriteBits((to->Number + 1) % Common.MaxGEntities, Common.GEntitynumBits);
+				}
+				else
+				{
+					this.WriteBits(to->Number, Common.GEntitynumBits);
+				}
 				this.WriteBits(0, 1);       // not removed
 				this.WriteBits(0, 1);       // no delta
 				return;
 			}
 
-			this.WriteBits(to->Number, Common.GEntitynumBits);
+			if (isMOHSpecialEntNum)
+			{
+				this.WriteBits((to->Number + 1) % Common.MaxGEntities, Common.GEntitynumBits);
+			}
+			else
+			{
+				this.WriteBits(to->Number, Common.GEntitynumBits);
+			}
 			this.WriteBits(0, 1);           // not removed
 			this.WriteBits(1, 1);           // we have a delta
 
@@ -1262,6 +1311,12 @@ namespace JKClient {
 
 			var fields = clientHandler.GetPlayerStateFields(isVehicle, isPilot);
 			int lc = this.ReadByte();
+
+			if(lc > fields.Count || lc < 0)
+            {
+				throw new Exception($"ReadDeltaPlayerState: lc is {lc}, not between 0 and field count {fields.Count}");
+            }
+
 			int* fromF, toF;
 			int trunc;
 			for (int i = 0; i < lc; i++) {

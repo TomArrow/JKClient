@@ -18,7 +18,7 @@ namespace JKClient
         {
             if (allProtocols)
             {
-                AdditionalProtocols = new int[] { (int)ProtocolVersion.Protocol6, (int)ProtocolVersion.Protocol7 };
+                AdditionalProtocols = new int[] { (int)ProtocolVersion.Protocol6, (int)ProtocolVersion.Protocol7,(int)ProtocolVersion.Protocol15, (int)ProtocolVersion.Protocol16, (int)ProtocolVersion.Protocol17 };
             }
         }
         public virtual IEnumerable<ServerBrowser.ServerAddress> GetMasterServers()

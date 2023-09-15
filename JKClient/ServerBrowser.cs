@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
 using System.Text;
@@ -153,9 +154,10 @@ namespace JKClient {
 
 			if (isMOH)
 			{
+				bool expansions = this.BrowserHandler.AdditionalProtocols.Contains((int)ProtocolVersion.Protocol17);
+				
 
-
-				XNullServerData[] serverList = null;
+				List<XNullServerData> serverList = new List<XNullServerData>();
 				await Task.Run(() => {
 					try
 					{
@@ -166,55 +168,84 @@ namespace JKClient {
 							bool didConnect = webSocket.ConnectAsync(socketLocation, cts.Token).Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
 							if (didConnect)
 							{
-								byte[] cmd = Encoding.UTF8.GetBytes("getservers mohaa");
-								bool didSend = false;
-								didSend = webSocket.SendAsync(new ArraySegment<byte>(cmd), WebSocketMessageType.Text,true,cts.Token).Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
-
-								if (didSend)
+								for (int i = 0; i < 3; i++)
 								{
-									byte[] receiveBuffer = new byte[8096];
-									ArraySegment<byte> receiveBufferSegment = new ArraySegment<byte>(receiveBuffer);
-									string response = "";
-									bool messageReceivedFully = false;
-									using (MemoryStream ms = new MemoryStream())
+
+									if (i > 0  && !expansions)
 									{
-										bool finished = false;
-										while (true)
+										break;
+									}
+
+									string cmdString = "getservers mohaa";
+									if (i == 1)
+									{
+										cmdString = "getservers mohaas";
+									}
+									else if (i == 2)
+									{
+										cmdString = "getservers mohaab";
+									}
+									byte[] cmd = Encoding.UTF8.GetBytes(cmdString);
+									bool didSend = false;
+									didSend = webSocket.SendAsync(new ArraySegment<byte>(cmd), WebSocketMessageType.Text, true, cts.Token).Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+
+									if (didSend)
+									{
+										byte[] receiveBuffer = new byte[8096];
+										ArraySegment<byte> receiveBufferSegment = new ArraySegment<byte>(receiveBuffer);
+										string response = "";
+										bool messageReceivedFully = false;
+										using (MemoryStream ms = new MemoryStream())
 										{
-											Task<WebSocketReceiveResult> receiveTask = webSocket.ReceiveAsync(receiveBufferSegment, cts.Token);
-											bool success = receiveTask.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
-											if (success)
+											bool finished = false;
+											while (true)
 											{
-												WebSocketReceiveResult status = receiveTask.Result;
-												ms.Write(receiveBuffer, 0, status.Count);
-												if (status.EndOfMessage)
+												Task<WebSocketReceiveResult> receiveTask = webSocket.ReceiveAsync(receiveBufferSegment, cts.Token);
+												bool success = receiveTask.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+												if (success)
 												{
-													messageReceivedFully = true;
+													WebSocketReceiveResult status = receiveTask.Result;
+													ms.Write(receiveBuffer, 0, status.Count);
+													if (status.EndOfMessage)
+													{
+														Debug.WriteLine($"Server browser MOH: Received response to {cmdString}");
+														messageReceivedFully = true;
+														break;
+													}
+												}
+												else
+												{
+													Debug.WriteLine($"Server browser MOH: Failed to receive response to {cmdString}");
 													break;
 												}
-											} else
+											}
+											ms.Seek(0, SeekOrigin.Begin);
+											response = Encoding.UTF8.GetString(ms.ToArray());
+										}
+										//Debug.WriteLine(response);
+										if (messageReceivedFully)
+										{
+											JsonSerializerOptions opts = new JsonSerializerOptions();
+											opts.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals | System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
+
+											Debug.WriteLine(response);
+											XNullServerData[] deserialized = JsonSerializer.Deserialize<XNullServerData[]>(response, opts);
+											if (deserialized != null)
 											{
-												break;
+												serverList.AddRange(deserialized);
+											} else
+                                            {
+												Debug.WriteLine($"Failed to deserialize response to {cmdString}");
 											}
 										}
-										ms.Seek(0, SeekOrigin.Begin);
-										response = Encoding.UTF8.GetString(ms.ToArray());
+										//byte[] 
+										//webSocket.ReceiveAsync()
 									}
-									//Debug.WriteLine(response);
-									if (messageReceivedFully)
-									{
-										JsonSerializerOptions opts = new JsonSerializerOptions();
-										opts.NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals | System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString;
-
-										serverList = JsonSerializer.Deserialize<XNullServerData[]>(response, opts);
-									}
-									//byte[] 
-									//webSocket.ReceiveAsync()
 								}
 							}
 							bool closedGracefully = webSocket.CloseAsync(WebSocketCloseStatus.NormalClosure,String.Empty, cts.Token).Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
-                            if (!closedGracefully)
-                            {
+							if (!closedGracefully)
+							{
 								Debug.WriteLine($"MOH master server web socket did not close gracefully.");
 							}
 						}
@@ -226,23 +257,29 @@ namespace JKClient {
 				});
 
 				if(serverList!= null )
-                {
+				{
 					foreach(XNullServerData server in serverList)
-                    {
+					{
 						byte[] ip = IPAddress.TryParse(server.ip, out IPAddress ipAddress) ? ipAddress.GetAddressBytes() : null;
 						if(ip != null)
-                        {
+						{
 							var serverInfo = new ServerInfo()
 							{
 								Address = new NetAddress(ip,(ushort)server.port),
 								Start = Common.Milliseconds
 							};
+							if(server.status != null)
+                            {
+								InfoString statusFromMaster = new InfoString(server.status);
+								serverInfo.SetInfo(statusFromMaster,true);
+							}
 							this.globalServers[serverInfo.Address] = serverInfo;
 							//this.OutOfBandPrint(serverInfo.Address, "getstatus");
 							this.OutOfBandPrint(serverInfo.Address, "getinfo xxx");
 						}
 					}
-                }
+				}
+				
 
 			} else { 
 
@@ -513,6 +550,7 @@ namespace JKClient {
 			case ProtocolVersion.Protocol6:
 			case ProtocolVersion.Protocol7:
 			case ProtocolVersion.Protocol8:
+			case ProtocolVersion.Protocol17: // TODO Support 15,16 too?
 				return new MOHBrowserHandler(protocol);
 			case ProtocolVersion.Protocol25:
 			case ProtocolVersion.Protocol26:

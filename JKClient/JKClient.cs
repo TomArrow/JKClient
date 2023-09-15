@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Numerics;
+using System.Security.Cryptography;
 
 namespace System.Runtime.CompilerServices
 {
@@ -86,6 +87,7 @@ namespace JKClient {
 		private int infoRequestTime = -9999;
 		private int connectPacketCount = 0;
 		private int challenge = 0;
+		private string getKeyChallenge = "";
 		private int checksumFeed = 0;
 		private float serverFrameTime = 0; // MOH
 		private int reliableSequence = 0;
@@ -364,6 +366,71 @@ namespace JKClient {
 				this.ExecuteCommand($"userinfo \"{userInfo}\"");
 			}
 		}
+
+
+		// MOHAA stuff.
+		byte[] MD5Print(byte[] input)
+		{
+			byte[] output = new byte[32];
+			char[] hex_digits = new char[] {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+			uint i;
+
+			for (i = 0; i < 16; i++)
+			{
+				output[i * 2] = (byte)hex_digits[input[i] / 16];
+				output[i * 2 + 1] = (byte)hex_digits[input[i] % 16];
+			}
+			return output;
+		}
+		enum CDResponseMethod
+		{
+			CDResponseMethod_NEWAUTH, // method = 0 for normal auth
+			CDResponseMethod_REAUTH   // method = 1 for ison proof
+		}
+		private string mohCdKey = "                                ";
+		// method = 0 for normal auth response from game server
+		// method = 1 for reauth response originating from keymaster
+		byte[] mohGCDComputeResponse(string cdkey, string challenge, CDResponseMethod method)
+		{
+			const int RESPONSE_SIZE = 73;
+			const int RAWSIZE = 512;
+			string rawout = null;
+			uint anyrandom;
+			string randstr = null;
+
+
+			/* check to make sure we weren't passed a huge cd key/challenge */
+			if (cdkey.Length * 2 + challenge.Length + 8 >= RAWSIZE)
+			{
+				return Encoding.ASCII.GetBytes("CD Key or challenge too long");
+			}
+
+			Random rnd = new Random();
+			anyrandom = ((uint)rnd.Next(0, ((int)ushort.MaxValue) + 1) << 16 | (uint)rnd.Next(0, ((int)ushort.MaxValue) + 1));
+			randstr = anyrandom.ToString("{0:X8}");
+
+            if (method == 0)
+            {
+				rawout = cdkey + (anyrandom % 0xFFFF) + challenge;
+            } else
+			{
+				rawout = challenge + (anyrandom % 0xFFFF) + cdkey;
+			}
+
+			using (MD5 md5 = MD5CryptoServiceProvider.Create())
+            {
+				byte[] response = new byte[RESPONSE_SIZE];
+				byte[] part1 = MD5Print(md5.ComputeHash(Encoding.ASCII.GetBytes(cdkey)));
+				Array.Copy(part1, response,part1.Length);
+				byte[] part2 = Encoding.ASCII.GetBytes(randstr);
+				Array.Copy(part2, 0, response,32, part2.Length);
+				byte[] part3 = MD5Print(md5.ComputeHash(Encoding.ASCII.GetBytes(rawout)));
+				Array.Copy(part3, 0, response, 40, part3.Length);
+				return response;
+			}
+		}
+		// MOHAA stuff end
+
 		private void CheckForResend() {
 			if (this.Status != ConnectionStatus.Connecting && this.Status != ConnectionStatus.Challenging) {
 				return;
@@ -374,6 +441,12 @@ namespace JKClient {
 			this.connectTime = this.realTime;
 			this.connectPacketCount++;
 			switch (this.Status) {
+			case ConnectionStatus.Authorizing: // MOH stuff.
+				byte[] response = this.mohGCDComputeResponse(this.mohCdKey,this.getKeyChallenge,CDResponseMethod.CDResponseMethod_REAUTH);
+				string responseString = Encoding.ASCII.GetString(response);
+					Debug.WriteLine($"Sending authorizeThis (reauth) command to {this.serverAddress.ToString()}");
+					this.OutOfBandPrint(this.serverAddress, $"authorizeThis {responseString}");
+				break;
 			case ConnectionStatus.Connecting:
 				this.ClientHandler.RequestAuthorization(this.CDKey, (address, data2) => {
 					this.OutOfBandPrint(address, data2);
@@ -403,7 +476,15 @@ namespace JKClient {
 					Debug.WriteLine($"Sending connect command to {this.serverAddress.ToString()}");
 					if(this.ClientHandler is MOHClientHandler)
                     {
-						data = $"connect \"\\challenge\\{this.challenge}\\qport\\{this.port}\\protocol\\{this.Protocol}{this.userInfo}\"";
+						if(this.Protocol >= (int)ProtocolVersion.Protocol6 && this.Protocol <= (int)ProtocolVersion.Protocol8)
+                        {
+
+							data = $"connect \"\\challenge\\{this.challenge}\\qport\\{this.port}\\protocol\\{this.Protocol}{this.userInfo}\"";
+                        } else
+                        {
+
+							data = $"connect \"\\clientType\\Breakthrough\\challenge\\{this.challenge}\\qport\\{this.port}\\protocol\\{this.Protocol}{this.userInfo}\"";
+                        }
 					}
                     else
                     {
@@ -1025,8 +1106,26 @@ namespace JKClient {
 				this.serverInfo.InfoPacketReceivedTime = DateTime.Now;
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			}
-			else if (string.Compare(c, "challengeResponse", StringComparison.OrdinalIgnoreCase) == 0) {
+			else if (string.Compare(c, "getKey", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (this.Status != ConnectionStatus.Connecting) {
+					return;
+				}
+				//c = command.Argv(2);
+				if (address != this.serverAddress) {
+					//if (string.IsNullOrEmpty(c) || c.Atoi() != this.challenge)
+						return;
+				}
+				this.Status = ConnectionStatus.Authorizing;
+				this.getKeyChallenge = command.Argv(1);
+				byte[] response = this.mohGCDComputeResponse(this.mohCdKey, this.getKeyChallenge, CDResponseMethod.CDResponseMethod_NEWAUTH);
+				string responseString = Encoding.ASCII.GetString(response);
+				Debug.WriteLine($"Sending authorizeThis (newauth) command to {this.serverAddress.ToString()}");
+				this.OutOfBandPrint(this.serverAddress, $"authorizeThis {responseString}");
+				this.connectPacketCount = 0;
+				this.serverAddress = address;
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
+			} else if (string.Compare(c, "challengeResponse", StringComparison.OrdinalIgnoreCase) == 0) {
+				if (this.Status != ConnectionStatus.Connecting && this.Status != ConnectionStatus.Authorizing) {
 					return;
 				}
 				c = command.Argv(2);
@@ -1285,6 +1384,11 @@ namespace JKClient {
 		}
 		public static IClientHandler GetKnownClientHandler(ProtocolVersion protocol, ClientVersion version) {
 			switch (protocol) {
+			case ProtocolVersion.Protocol6:
+			case ProtocolVersion.Protocol7:
+			case ProtocolVersion.Protocol8:
+			case ProtocolVersion.Protocol17:
+				return new MOHClientHandler(protocol, version);
 			case ProtocolVersion.Protocol25:
 			case ProtocolVersion.Protocol26:
 				return new JAClientHandler(protocol, version);
@@ -1628,7 +1732,7 @@ namespace JKClient {
 							len = Common.StrLen(cs);
 							byte[] bytes = new byte[len];
 							Marshal.Copy((IntPtr)cs, bytes, 0, len);
-							msg.WriteBigString((sbyte[])(Array)bytes);
+							msg.WriteBigString((sbyte[])(Array)bytes,(ProtocolVersion)this.Protocol);
 						}
 					}
 
@@ -1665,6 +1769,11 @@ namespace JKClient {
 					msg.WriteLong(this.clientNum);
 					// write the checksum feed
 					msg.WriteLong(this.checksumFeed);
+
+                    if (isMOH && this.Protocol > (int)ProtocolVersion.Protocol8)
+                    {
+						msg.WriteFloat(this.serverFrameTime); // MOHAA expansion packs are weird. Weirder than MOHAA.
+                    }
 
                     if (this.ClientHandler is JAClientHandler) // RMG nonsense. Take the easy way for now. Maybe do nicer someday.
 					{

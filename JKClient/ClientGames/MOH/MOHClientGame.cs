@@ -6,8 +6,12 @@ namespace JKClient
 {
 	public class MOHClientGame : ClientGame
 	{
+		private bool isExpansion = false;
+
 		public MOHClientGame(IJKClientImport client, int serverMessageNum, int serverCommandSequence, int clientNum)
-			: base(client, serverMessageNum, serverCommandSequence, clientNum) { }
+			: base(client, serverMessageNum, serverCommandSequence, clientNum) {
+			isExpansion = client.Protocol > (int)ProtocolVersion.Protocol8;
+		}
 		internal override int GetConfigstringIndex(Configstring index)
 		{
 			switch (index)
@@ -17,7 +21,7 @@ namespace JKClient
 				case Configstring.Players:
 					return (int)ConfigstringMOH.Players;
 				case Configstring.LevelStartTime:
-					return (int)ConfigstringMOH.LevelStartTime;
+					return isExpansion ? (int)ConfigstringMOH.LevelStartTime : (int)ConfigstringMOH.LevelStartTimeOld;
 			}
 			return 0;
 		}
@@ -59,7 +63,8 @@ namespace JKClient
 		}
 		public enum ConfigstringMOH
 		{
-			LevelStartTime = 12,
+			LevelStartTime = 10,
+			LevelStartTimeOld = 12,
 			Sounds = 1076,
 			Players = 1684
 		}

@@ -457,8 +457,8 @@ namespace JKClient {
 				MessageNum = this.serverMessageSequence
 			};
 
-			Debug.WriteLine(newSnap.ServerTime);
-			Debug.WriteLine(newSnap.ServerTimeResidual);
+			//Debug.WriteLine(newSnap.ServerTime);
+			//Debug.WriteLine(newSnap.ServerTimeResidual);
 
 			lock (bufferedDemoMessages)
 			{
@@ -482,14 +482,14 @@ namespace JKClient {
 			}
 
 			int deltaNum = msg.ReadByte();
-			Debug.WriteLine(deltaNum);
+			//Debug.WriteLine(deltaNum);
 			if (deltaNum == 0) {
 				newSnap.DeltaNum = -1;
 			} else {
 				newSnap.DeltaNum = newSnap.MessageNum - deltaNum;
 			}
 			newSnap.Flags = msg.ReadByte();
-			Debug.WriteLine(newSnap.Flags);
+			//Debug.WriteLine(newSnap.Flags);
 			if (newSnap.DeltaNum <= 0) {
 				newSnap.Valid = true;
 				oldSnap = null;
@@ -582,7 +582,7 @@ namespace JKClient {
 
 			int len = msg.ReadByte();
 
-			Debug.WriteLine(len);
+			//Debug.WriteLine(len);
 			//if (len > sizeof(byte)*32) {
 			//oldSnapHandle.Free();
 			//throw new JKClientException("ParseSnapshot: Invalid size %d for areamask");

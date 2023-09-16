@@ -1169,7 +1169,7 @@ namespace JKClient {
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "print", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (address == this.serverAddress) {
-					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol);
+					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol,true);
 					var cmd = new Command(new string []{ "print", s });
 					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 					Debug.WriteLine(s);
@@ -1179,7 +1179,7 @@ namespace JKClient {
 				}
 			} else if (string.Compare(c, "droperror", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (address == this.serverAddress) {
-					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol); 
+					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol,true); 
 					var cmd = new Command(new string []{ "droperror", s }); 
 					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 					Debug.WriteLine(s);
@@ -1730,8 +1730,8 @@ namespace JKClient {
 							msg.WriteByte((int)ServerCommandOperations.Configstring);
 							msg.WriteShort(i);
 							len = Common.StrLen(cs);
-							byte[] bytes = new byte[len];
-							Marshal.Copy((IntPtr)cs, bytes, 0, len);
+							byte[] bytes = new byte[len+1];
+							Marshal.Copy((IntPtr)cs, bytes, 0, len+1);
 							msg.WriteBigString((sbyte[])(Array)bytes,(ProtocolVersion)this.Protocol);
 						}
 					}

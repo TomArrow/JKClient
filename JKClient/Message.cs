@@ -575,11 +575,10 @@ namespace JKClient {
 				}
                 if (isMOHWithScrambledString)
                 {
-					for (int i = 0; i < l; i++)
+					for (int i = 0; i <= l; i++)
 					{
-						this.WriteByte(StrCharToNetByte[s[i]]);
+						this.WriteByte(StrCharToNetByte[(byte)s[i]]);
 					}
-					this.WriteByte(StrCharToNetByte[0]);
 				} else
                 {
 					byte []b = new byte[l+1];
@@ -606,11 +605,10 @@ namespace JKClient {
 				}
 				if (isMOHWithScrambledString)
                 {
-					for (int i = 0; i < l; i++)
+					for (int i = 0; i <= l; i++)
 					{
-						this.WriteByte(StrCharToNetByte[s[i]]);
+						this.WriteByte(StrCharToNetByte[(byte)s[i]]);
 					}
-					this.WriteByte(StrCharToNetByte[0]);
 				} else
                 {
 					byte[] b = new byte[l + 1];
@@ -823,8 +821,8 @@ namespace JKClient {
 			}
 			return str;
 		}
-		public string ReadStringAsString(ProtocolVersion protocol) {
-			sbyte []str = this.ReadString(protocol);
+		public string ReadStringAsString(ProtocolVersion protocol, bool forceNonScrambled = false) {
+			sbyte []str = this.ReadString(protocol, forceNonScrambled);
 			return Common.ToString(str);
 		}
 		public sbyte []ReadBigString(bool mohScrambledString) {

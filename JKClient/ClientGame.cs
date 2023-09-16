@@ -14,6 +14,7 @@ namespace JKClient {
 	public interface IJKClientImport {
 		internal void OnEntityEvent(EntityEventArgs entityEventArgs);
 		internal int MaxClients { get; }
+		public int Protocol { get; }
 		public void GetCurrentSnapshotNumber(out int snapshotNumber, out int serverTime);
 		internal bool GetSnapshot(in int snapshotNumber, ref Snapshot snapshot);
 		internal bool GetServerCommand(in int serverCommandNumber, out Command command);
@@ -249,11 +250,38 @@ namespace JKClient {
 			} else {
 				var info = new InfoString(configstring);
 				this.ClientInfo[clientNum].ClientNum = clientNum;
-				this.ClientInfo[clientNum].Team = (Team)info["t"].Atoi();
-				if(this is MOHClientGame)
+                if (isMOH)
                 {
 					this.ClientInfo[clientNum].Team = Team.Spectator;
+					this.ClientInfo[clientNum].IsActiveMOH = true;
+                    if (!string.IsNullOrEmpty(info["team"])) // MOH expansions actually do this :)
+                    {
+						int mohTeam = info["team"].Atoi();
+                        switch (mohTeam)
+                        {
+							case 0: // TEAM_NONE
+								this.ClientInfo[clientNum].IsActiveMOH = false;
+								this.ClientInfo[clientNum].Team = Team.Spectator;
+								break;
+							default:
+							case 1: // TEAM_SPECTATOR
+								this.ClientInfo[clientNum].Team = Team.Spectator;
+								break;
+							case 2: // TEAM_FREEFORALL
+								this.ClientInfo[clientNum].Team = Team.Free;
+								break;
+							case 3: // TEAM_ALLIES
+								this.ClientInfo[clientNum].Team = Team.Blue;
+								break;
+							case 4: // TEAM_AXIS
+								this.ClientInfo[clientNum].Team = Team.Red;
+								break;
+						}
 
+					}
+				} else
+                {
+					this.ClientInfo[clientNum].Team = (Team)info["t"].Atoi();
 				}
 				if (info.ContainsKey("skill"))
                 {

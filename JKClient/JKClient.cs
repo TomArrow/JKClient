@@ -658,6 +658,7 @@ namespace JKClient {
 					// If any additional values/stats changed, not super skippable
 					if (msg.ReadBits(1) != 0) return false;
 				}
+				oldSnapHandle.Free();
 			}
 
 			// Entities
@@ -1229,6 +1230,34 @@ namespace JKClient {
 			this.cmds[this.cmdNumber & UserCommand.CommandMask] = default;
 			this.cmds[this.cmdNumber & UserCommand.CommandMask] = newCmd;
 
+			this.Stats.keyActiveW = newCmd.ForwardMove > 0;
+			this.Stats.keyActiveS = newCmd.ForwardMove < 0;
+			this.Stats.keyActiveA = newCmd.RightMove < 0;
+			this.Stats.keyActiveD = newCmd.RightMove > 0;
+			this.Stats.keyActiveJump = newCmd.Upmove > 0;
+			this.Stats.keyActiveCrouch = newCmd.Upmove < 0;
+			this.Stats.keyActive0 = 0 < (newCmd.Buttons & (1 << 0));
+			this.Stats.keyActive1 = 0 < (newCmd.Buttons & (1 << 1));
+			this.Stats.keyActive2 = 0 < (newCmd.Buttons & (1 << 2));
+			this.Stats.keyActive3 = 0 < (newCmd.Buttons & (1 << 3));
+			this.Stats.keyActive4 = 0 < (newCmd.Buttons & (1 << 4));
+			this.Stats.keyActive5 = 0 < (newCmd.Buttons & (1 << 5));
+			this.Stats.keyActive6 = 0 < (newCmd.Buttons & (1 << 6));
+			this.Stats.keyActive7 = 0 < (newCmd.Buttons & (1 << 7));
+			this.Stats.keyActive8 = 0 < (newCmd.Buttons & (1 << 8));
+			this.Stats.keyActive9 = 0 < (newCmd.Buttons & (1 << 9));
+			this.Stats.keyActive10 = 0 < (newCmd.Buttons & (1 << 10));
+			this.Stats.keyActive11 = 0 < (newCmd.Buttons & (1 << 11));
+			this.Stats.keyActive12 = 0 < (newCmd.Buttons & (1 << 12));
+			this.Stats.keyActive13 = 0 < (newCmd.Buttons & (1 << 13));
+			this.Stats.keyActive14 = 0 < (newCmd.Buttons & (1 << 14));
+			this.Stats.keyActive15 = 0 < (newCmd.Buttons & (1 << 15));
+			this.Stats.keyActive16 = 0 < (newCmd.Buttons & (1 << 16));
+			this.Stats.keyActive17 = 0 < (newCmd.Buttons & (1 << 17));
+			this.Stats.keyActive18 = 0 < (newCmd.Buttons & (1 << 18));
+			this.Stats.keyActive19 = 0 < (newCmd.Buttons & (1 << 19));
+			this.Stats.keyActive20 = 0 < (newCmd.Buttons & (1 << 20));
+
 		}
 		private void SendCommand() {
 			if (this.Status < ConnectionStatus.Connected) {
@@ -1311,6 +1340,7 @@ namespace JKClient {
 				encoding = encoding ?? Common.Encoding;
 				Marshal.Copy(encoding.GetBytes(cmd+'\0'), 0, (IntPtr)(reliableCommand), encoding.GetByteCount(cmd)+1);
 			}
+			this.Stats.lastCommand = cmd;
 		}
 		public int GetUnacknowledgedReliableCommandCount()
         {

@@ -65,7 +65,36 @@ namespace JKClient
                 return lastUserPacketDelta == 0 ? 0 : (int)(1000 / lastUserPacketDelta);
             }
         }
+        public int deltaDelta { get; internal set; }
 
+        public string lastCommand { get; internal set; }
+        public bool keyActiveW { get; internal set; }
+        public bool keyActiveA { get; internal set; }
+        public bool keyActiveS { get; internal set; }
+        public bool keyActiveD { get; internal set; }
+        public bool keyActiveJump { get; internal set; }
+        public bool keyActiveCrouch { get; internal set; }
+        public bool keyActive0 { get; internal set; }
+        public bool keyActive1 { get; internal set; }
+        public bool keyActive2 { get; internal set; }
+        public bool keyActive3 { get; internal set; }
+        public bool keyActive4 { get; internal set; }
+        public bool keyActive5 { get; internal set; }
+        public bool keyActive6 { get; internal set; }
+        public bool keyActive7 { get; internal set; }
+        public bool keyActive8 { get; internal set; }
+        public bool keyActive9 { get; internal set; }
+        public bool keyActive10 { get; internal set; }
+        public bool keyActive11 { get; internal set; }
+        public bool keyActive12 { get; internal set; }
+        public bool keyActive13 { get; internal set; }
+        public bool keyActive14 { get; internal set; }
+        public bool keyActive15 { get; internal set; }
+        public bool keyActive16 { get; internal set; }
+        public bool keyActive17 { get; internal set; }
+        public bool keyActive18 { get; internal set; }
+        public bool keyActive19 { get; internal set; }
+        public bool keyActive20 { get; internal set; }
 
 
         public event PropertyChangedEventHandler PropertyChanged;

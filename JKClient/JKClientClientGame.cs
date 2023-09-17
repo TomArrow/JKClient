@@ -57,20 +57,21 @@ namespace JKClient {
 				// if any of the frames between this and the previous snapshot
 				// had to be extrapolated, nudge our sense of time back a little
 				// the granularity of +1 / -2 is too high for timescale modified frametimes
-				/*if (com_timescale->value == 0 || com_timescale->value == 1)
+				//if (com_timescale->value == 0 || com_timescale->value == 1)
 				{
-					if (cl.extrapolatedSnapshot)
+					if (this.clExtrapolatedSnapshot)
 					{
-						cl.extrapolatedSnapshot = qfalse;
-						cl.serverTimeDelta -= 2;
+						this.clExtrapolatedSnapshot = false;
+						this.clServerTimeDelta -= 2;
 					}
 					else
 					{
 						// otherwise, move our sense of time forward to minimize total latency
-						cl.serverTimeDelta++;
+						this.clServerTimeDelta++;
 					}
-				}*/
+				}
 			}
+			this.Stats.deltaDelta = deltaDelta;
 		}
 		private void SetTime() {
 			if (this.Status != ConnectionStatus.Active) {
@@ -104,6 +105,11 @@ namespace JKClient {
 				this.clServerTime = this.clOldServerTime;
 			}
 			this.clOldServerTime = this.clServerTime;
+
+			if(this.realTime + this.clServerTimeDelta >= this.snap.ServerTime - 5)
+            {
+				this.clExtrapolatedSnapshot = true;
+            }
 
             if (this.newSnapshots)
             {

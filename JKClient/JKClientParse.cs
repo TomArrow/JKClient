@@ -25,7 +25,7 @@ namespace JKClient {
 		private int clServerTime = 0; // What we wanna send in commands
 		private int clOldServerTime = 0; // What we wanna send in commands
 		private int clServerTimeDelta = 0; // What we wanna send in commands
-
+		private bool clExtrapolatedSnapshot = false;
 		public int DemoCurrentTimeApproximate => this.demoTimeTrackerApproximate.DemoCurrentTime;
 		public int DemoCurrentTimeRealDelayed => this.demoTimeTrackerRealDelayed.DemoCurrentTime; // Due to delayed writing, this value might be a bit old.
 
@@ -344,6 +344,7 @@ namespace JKClient {
 			this.clServerTime = 0;
 			this.clOldServerTime = 0;
 			this.clServerTimeDelta = 0;
+			this.clExtrapolatedSnapshot = false;
 			//this.DemoCurrentTime = 0;
 			//this.DemoBaseTime = 0;
 			//this.DemoStartTime = 0;

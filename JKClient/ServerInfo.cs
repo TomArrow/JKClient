@@ -62,7 +62,7 @@ namespace JKClient
 		public bool NWH { get; internal set; } // NWH mod detection
 		public int FloodProtect { get; internal set; } = -1; // -1 if not yet set, -2 if server does not send it at all
 		public bool Pure { get; internal set; }
-		public string MOHHUDMessage { get; internal set; }
+		public string MOHScoreboardPICover { get; internal set; }
 		internal bool InfoSet;
 		internal long Start;
 		internal void SetInfo(in InfoString info, bool isMasterInfo = false) {

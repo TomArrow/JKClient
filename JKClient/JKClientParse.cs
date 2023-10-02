@@ -392,6 +392,7 @@ namespace JKClient {
 			this.lastPacketTime = 0;
 			this.serverAddress = null;
 			this.connectTime = 0;
+			this.mohConnectTimeExtraDelay = 0;
 			this.infoRequestTime = 0;
 			this.connectPacketCount = 0;
 			this.challenge = 0;
@@ -648,7 +649,7 @@ namespace JKClient {
 			}
 
 
-			if (this.SnapshotParsed.GetInvocationList().Length > 0)
+			if (this.SnapshotParsed?.GetInvocationList().Length > 0)
             {
 				Snapshot eventSnapsshot = new Snapshot();
 				(this as IJKClientImport).GetSnapshot(this.snap.MessageNum, ref eventSnapsshot);

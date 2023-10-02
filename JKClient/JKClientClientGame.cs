@@ -36,7 +36,8 @@ namespace JKClient {
 			const int RESET_TIME = 500;
 			this.newSnapshots = false;
 			int newDelta = this.snap.ServerTime - this.realTime;
-			int deltaDelta = Math.Abs(newDelta - this.clServerTimeDelta);
+			int deltaDeltaRel = newDelta - this.clServerTimeDelta;
+			int deltaDelta = deltaDeltaRel == int.MinValue ? int.MaxValue : Math.Abs(deltaDeltaRel); // deltaDeltaRel == int.MinValue check prevents crashes in super weird situations?
 			if (deltaDelta > RESET_TIME)
 			{
 				this.clServerTimeDelta = newDelta;
@@ -197,7 +198,7 @@ namespace JKClient {
 				this.ServerInfoChanged?.Invoke(this.ServerInfo,false);
 			}
 #if DEBUG
-			if(this.DebugConfigStrings && this.DebugEventHappened.GetInvocationList().Length > 0)
+			if(this.DebugConfigStrings && this.DebugEventHappened?.GetInvocationList().Length > 0)
             {
 				// Check back if the configstring was correctly written.
 				string shouldString = command.Argv(2);

@@ -84,6 +84,7 @@ namespace JKClient {
 		private int lastPacketTime = 0;
 		private NetAddress serverAddress;
 		private int connectTime = -9999;
+		private int mohConnectTimeExtraDelay = 200;
 		private int infoRequestTime = -9999;
 		private int connectPacketCount = 0;
 		private int challenge = 0;
@@ -432,7 +433,7 @@ namespace JKClient {
 		// MOHAA stuff end
 
 		private void CheckForResend() {
-			if (this.Status != ConnectionStatus.Connecting && this.Status != ConnectionStatus.Challenging) {
+			if (this.Status != ConnectionStatus.Connecting && this.Status != ConnectionStatus.Challenging && this.Status != ConnectionStatus.Authorizing) {
 				return;
 			}
 			if (this.realTime - this.connectTime < JKClient.RetransmitTimeOut) {
@@ -1122,6 +1123,7 @@ namespace JKClient {
 				string responseString = Encoding.ASCII.GetString(response);
 				Debug.WriteLine($"Sending authorizeThis (newauth) command to {this.serverAddress.ToString()}");
 				this.OutOfBandPrint(this.serverAddress, $"authorizeThis {responseString}");
+				this.connectTime = isMOH ? (this.realTime - JKClient.RetransmitTimeOut + this.mohConnectTimeExtraDelay) : -99999; // MOH is weird. If you send two connectionless commands very shortly after each other, for some reason the server will not properly process/receive the second one. 
 				this.connectPacketCount = 0;
 				this.serverAddress = address;
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
@@ -1137,7 +1139,7 @@ namespace JKClient {
 				this.challenge = command.Argv(1).Atoi();
 				this.Status = ConnectionStatus.Challenging;
 				this.connectPacketCount = 0;
-				this.connectTime = isMOH ? (this.realTime-JKClient.RetransmitTimeOut+200) : -99999; // MOH is weird. If you send two connectionless commands very shortly after each other, for some reason the server will not properly process/receive the second one. 
+				this.connectTime = isMOH ? (this.realTime-JKClient.RetransmitTimeOut+this.mohConnectTimeExtraDelay) : -99999; // MOH is weird. If you send two connectionless commands very shortly after each other, for some reason the server will not properly process/receive the second one. 
 				this.serverAddress = address;
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "connectResponse", StringComparison.OrdinalIgnoreCase) == 0) {
@@ -1171,6 +1173,24 @@ namespace JKClient {
 			} else if (string.Compare(c, "print", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (address == this.serverAddress) {
 					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol,true);
+					if (isMOH && this.Status== ConnectionStatus.Challenging && s == "Server is for low pings only\n")
+					{
+						this.mohConnectTimeExtraDelay -= 10;
+
+						if (this.mohConnectTimeExtraDelay < 0)
+						{
+							this.mohConnectTimeExtraDelay = 200;
+							Debug.WriteLine("JKClient: Cannot connect due to ping. Resetting extra connect delay to 200 and restarting connection process.");
+						}
+						else
+						{
+							Debug.WriteLine($"JKClient: Cannot connect due to ping. Trying to lower extra connect delay to {this.mohConnectTimeExtraDelay} and restarting connection process.");
+						}
+						this.connectTime = -9999;
+						this.infoRequestTime = -9999;
+						this.connectPacketCount = 0;
+						this.Status = ConnectionStatus.Connecting;
+					}
 					var cmd = new Command(new string []{ "print", s });
 					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 					Debug.WriteLine(s);
@@ -1181,6 +1201,23 @@ namespace JKClient {
 			} else if (string.Compare(c, "droperror", StringComparison.OrdinalIgnoreCase) == 0) {
 				if (address == this.serverAddress) {
 					s = msg.ReadStringAsString((ProtocolVersion)this.Protocol,true); 
+					if(isMOH && this.Status == ConnectionStatus.Challenging && s == "Server is for low pings only")
+                    {
+						this.mohConnectTimeExtraDelay -= 10;
+
+						if (this.mohConnectTimeExtraDelay < 0)
+                        {
+							this.mohConnectTimeExtraDelay = 200;
+							Debug.WriteLine("JKClient: Cannot connect due to ping. Resetting extra connect delay to 200 and restarting connection process.");
+						} else
+                        {
+							Debug.WriteLine($"JKClient: Cannot connect due to ping. Trying to lower extra connect delay to {this.mohConnectTimeExtraDelay} and restarting connection process.");
+						}
+						this.connectTime = -9999;
+						this.infoRequestTime = -9999;
+						this.connectPacketCount = 0;
+						this.Status = ConnectionStatus.Connecting;
+					}
 					var cmd = new Command(new string []{ "droperror", s }); 
 					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 					Debug.WriteLine(s);
@@ -1380,6 +1417,7 @@ namespace JKClient {
 				this.serverAddress = serverAddress;
 				this.challenge = ((random.Next() << 16) ^ random.Next()) ^ (int)Common.Milliseconds;
 				this.connectTime = -9999;
+				this.mohConnectTimeExtraDelay = 200;
 				this.infoRequestTime = -9999;
 				this.connectPacketCount = 0;
 				this.Status = ConnectionStatus.Connecting;

@@ -100,9 +100,9 @@ namespace JKClient {
 				}
 				foreach (var keyValuePair in this) 
 				{
-					Debug.WriteLine($"InfoString.ToString(): WEIRD, {keyValuePair.Key} not caught in parameterOrderList.");
 					if (!usedParameters.Contains(keyValuePair.Key))
 					{
+						Debug.WriteLine($"InfoString.ToString(): WEIRD, {keyValuePair.Key} not caught in parameterOrderList.");
 						builder
 						.Append(InfoString.Delimiter)
 						.Append(keyValuePair.Key)

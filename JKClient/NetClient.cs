@@ -3,13 +3,18 @@ using System.Threading;
 using System.Threading.Tasks;
 
 namespace JKClient {
+
+	public delegate void InternalTaskStartedEventHandler(object sender, in Task task, string description);
 	public abstract class NetClient : IDisposable {
+
 		private protected readonly NetSystem net;
 		private readonly byte []packetReceived;
 		private CancellationTokenSource cts;
 		public bool Started { get; private set; }
 		private readonly protected INetHandler NetHandler;
 		public int Protocol => this.NetHandler.Protocol;
+
+		public event InternalTaskStartedEventHandler InternalTaskStarted;
 		internal NetClient(INetHandler netHandler) {
 			if (netHandler == null) {
 				throw new JKClientException(new ArgumentNullException(nameof(netHandler)));
@@ -18,6 +23,11 @@ namespace JKClient {
 			this.NetHandler = netHandler;
 			this.packetReceived = new byte[this.NetHandler.MaxMessageLength];
 		}
+
+		protected void OnInternalTaskStarted(Task task, string description)
+        {
+			InternalTaskStarted?.Invoke(this, task, description);
+        }
 
 		public void Start(Func<JKClientException, Task> exceptionCallback) {
 			if (this.Started) {
@@ -28,11 +38,13 @@ namespace JKClient {
 			this.OnStart();
 			this.cts = new CancellationTokenSource();
 
-			Task.Factory.StartNew(this.Run, this.cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap().ContinueWith((t) => {
+			Task backgroundTask = Task.Factory.StartNew(this.Run, this.cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap().ContinueWith((t) => {
 
 					this.Stop(true);
 					exceptionCallback?.Invoke(new JKClientException(t.Exception));
 			}, TaskContinuationOptions.OnlyOnFaulted); // Don't use OnlyOnFaulted. It's buggy and won't catch exceptions thrown inside event handlers.
+
+			this.OnInternalTaskStarted(backgroundTask,$"{this.GetType().ToString()} Loop");
 		}
 		public void Stop(bool afterFailure = false) {
 			if (!this.Started) {

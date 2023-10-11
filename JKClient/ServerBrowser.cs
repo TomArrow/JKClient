@@ -68,6 +68,10 @@ namespace JKClient {
 		private protected override async Task Run() {
 			const int frameTime = 8;
 			while (true) {
+				if (!this.Started)
+				{
+					break;
+				}
 				this.GetPacket();
 				this.HandleServersList();
 				this.HandleFullServerInfoTasks();
@@ -158,7 +162,7 @@ namespace JKClient {
 				
 
 				List<XNullServerData> serverList = new List<XNullServerData>();
-				await Task.Run(() => {
+				Task XnullQueryTask = Task.Run(() => {
 					try
 					{
 						using (ClientWebSocket webSocket = new ClientWebSocket()) { 
@@ -256,7 +260,10 @@ namespace JKClient {
 					}
 				});
 
-				if(serverList!= null )
+				OnInternalTaskStarted(XnullQueryTask,"ServerBrowser X-Null Query Task");
+				await XnullQueryTask;
+
+				if (serverList!= null )
 				{
 					foreach(XNullServerData server in serverList)
 					{

@@ -111,6 +111,7 @@ namespace JKClient {
 		private protected virtual void OnStart() {}
 		private protected virtual void OnStop(bool afterFailure) {}
 		public void Dispose() {
+			this.Stop();
 			this.net?.Dispose();
 		}
 	}

@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Numerics;
 using System.Security.Cryptography;
+using System.Web;
 
 namespace System.Runtime.CompilerServices
 {
@@ -68,6 +69,7 @@ namespace JKClient {
 		private ClientGame clientGame;
 		private TaskCompletionSource<bool> connectTCS;
 
+		private Dictionary<string, string> extraDemoMeta = new Dictionary<string, string>();
 		public Statistics Stats { get; init; } = new Statistics();
         public ClientEntity[] Entities => clientGame != null? clientGame.Entities : null;
         public int playerStateClientNum => snap.PlayerState.ClientNum;
@@ -114,6 +116,27 @@ namespace JKClient {
 		int Demowaiting;   // don't record until a non-delta message is received. Changed to int. 0=not waiting. 1=waiting for delta message with correct deltanum. 2= waiting for full snapshot
 		const double DemoRecordBufferedReorderTimeout = 10;
 		int DemoLastWrittenSequenceNumber = -1;
+
+		public void SetExtraDemoMetaData(Dictionary<string,string> extraDemoMetaDataA)
+        {
+			if(extraDemoMetaDataA != null)
+            {
+                lock (extraDemoMeta)
+                {
+					foreach (var kvp in extraDemoMetaDataA)
+					{
+						extraDemoMeta[kvp.Key] = kvp.Value;
+					}
+				}
+            }
+        }
+		public void ClearExtraDemoMetaData()
+        {
+            lock (extraDemoMeta)
+            {
+				extraDemoMeta.Clear();
+			}
+        }
 
 		BufferedDemoMessageContainer DemoAfkSnapsDropLastDroppedMessage = null; // With afk snap skipping, we wanna always keep the last one and write it when a change is detected, so that playing the demo doesn't result in unnatural movement from longer interpolation times.
 		int DemoAfkSnapsDropLastDroppedMessageNumber = -1;
@@ -1687,7 +1710,17 @@ namespace JKClient {
 				sb.Append(",\"oip\":\""); // original IP
 				sb.Append(this.serverAddress.ToString());
 			}
+            lock (extraDemoMeta) { 
+				foreach(var kvp in extraDemoMeta)
+				{
+					if(kvp.Value != null && kvp.Key != null)
+					{
+						sb.Append($"\",\"{HttpUtility.JavaScriptStringEncode(kvp.Key)}\":\"{HttpUtility.JavaScriptStringEncode(kvp.Value)}");
+					}
+				}
+			}
 			sb.Append("\"}");
+			Debug.WriteLine($"JKClient demo meta: {sb.ToString()}");
 			string metaData = sb.ToString();
 			int eofOperation = ClientHandler is JOClientHandler ? (int)ServerCommandOperations.EOF - 1 : (int)ServerCommandOperations.EOF;
 			if (isMOH)

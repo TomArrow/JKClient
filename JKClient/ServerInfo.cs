@@ -118,7 +118,7 @@ namespace JKClient
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
 			this.MaxClients = info["sv_maxclients"].Atoi();
-			this.Game = info["game"];
+			//this.Game = info["game"];
 			this.MinPing = info["sv_minPing"].Atoi();
 			this.MaxPing = info["sv_maxPing"].Atoi();
 			this.FPS = info["sv_fps"].Atoi();

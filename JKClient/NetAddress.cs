@@ -49,6 +49,9 @@ namespace JKClient {
 		public override int GetHashCode() {
 			return this.hashCode;
 		}
+		public int IPAsLong() {
+			return (this.IP == null || this.IP.Length < 4) ? 0 : BitConverter.ToInt32(this.IP,0);
+		}
 		public override string ToString() {
 			var builder = new StringBuilder();
 			for (int i = 0; i < this.IP.Length; i++) {

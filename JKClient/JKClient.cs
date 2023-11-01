@@ -279,7 +279,7 @@ namespace JKClient {
 		
 		
 		public event Action<ServerInfo,bool> ServerInfoChanged; // bool says whether the change included a new gamestate
-		public JKClient(IClientHandler clientHandler) : base(clientHandler) {
+		public JKClient(IClientHandler clientHandler, SocksProxy? proxy = null) : base(clientHandler, proxy) {
 			if(clientHandler is MOHClientHandler)
             {
 				userInfo = new InfoString(UserInfoMOH,mohCvars.Reverse());

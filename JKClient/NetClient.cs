@@ -4,8 +4,19 @@ using System.Threading.Tasks;
 
 namespace JKClient {
 
+	public struct SocksProxy
+    {
+		public NetAddress address;
+		public string username;
+		public string password;
+		internal NetAddress udpRelayAddress;
+		internal bool active;
+    }
+
 	public delegate void InternalTaskStartedEventHandler(object sender, in Task task, string description);
 	public abstract class NetClient : IDisposable {
+
+
 
 		private protected readonly NetSystem net;
 		private readonly byte []packetReceived;
@@ -15,11 +26,11 @@ namespace JKClient {
 		public int Protocol => this.NetHandler.Protocol;
 
 		public event InternalTaskStartedEventHandler InternalTaskStarted;
-		internal NetClient(INetHandler netHandler) {
+		internal NetClient(INetHandler netHandler, SocksProxy? proxy = null) {
 			if (netHandler == null) {
 				throw new JKClientException(new ArgumentNullException(nameof(netHandler)));
 			}
-			this.net = new NetSystem(netHandler.DefaultPort);
+			this.net = new NetSystem(netHandler.DefaultPort, proxy);
 			this.NetHandler = netHandler;
 			this.packetReceived = new byte[this.NetHandler.MaxMessageLength];
 		}

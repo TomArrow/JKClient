@@ -1637,6 +1637,8 @@ namespace JKClient {
 				DemoLastFullFlush = 0;
 				DemoLastFullFlushTime = DateTime.Now;
 				Demorecording = false;
+				AbsoluteDemoName = null;
+				DemoName = null;
 				Demowaiting = 0;
 				//Com_Printf("Stopped demo.\n");
 				Stats.demoSize = 0;

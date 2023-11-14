@@ -1614,7 +1614,10 @@ namespace JKClient {
 		{
 			int len;
 
-            lock (DemofileLock) {
+
+			WriteBufferedDemoMessages(true); // Flush all messages into the demo file.
+
+			lock (DemofileLock) {
 
 
 				if (!Demorecording)
@@ -1622,8 +1625,6 @@ namespace JKClient {
 					//Com_Printf("Not recording a demo.\n");
 					return;
 				}
-
-				WriteBufferedDemoMessages(true); // Flush all messages into the demo file.
 
 				// finish up
 				len = -1;

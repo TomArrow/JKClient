@@ -43,6 +43,7 @@ namespace JKClient
 		public int? RealClients { get; internal set; } = null;
 		public int Clients { get; internal set; }
 		public int ClientsIncludingBots { get; internal set; }
+		public bool RealClientCountProvidedByInfo { get; internal set; }
 		public int MaxClients { get; internal set; }
 		public int MinPing { get; internal set; }
 		public int MaxPing { get; internal set; }

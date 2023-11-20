@@ -28,7 +28,17 @@ namespace JKClient {
 			};
 		}
 		public virtual void HandleInfoPacket(in ServerInfo serverInfo, in InfoString info) {
-			this.NeedStatus = true;
+			// We often use the same serverbrowser for both jka and jo. switch here.
+            if (serverInfo.Protocol >= ProtocolVersion.Protocol25 && serverInfo.Protocol <= ProtocolVersion.Protocol26 )
+            {
+				this.NeedStatus = JABrowserHandler.HandleInfoPacketJA(serverInfo, info);
+			} else
+            {
+				this.NeedStatus = HandleInfoPacketJO(serverInfo, info);
+			}
+		}
+		public static bool HandleInfoPacketJO(in ServerInfo serverInfo, in InfoString info) {
+			bool needStatus = true;
 			switch (serverInfo.Protocol) {
 			case ProtocolVersion.Protocol15:
 				serverInfo.Version = ClientVersion.JO_v1_02;
@@ -38,7 +48,7 @@ namespace JKClient {
 				break;
 			}
 			if (info.Count <= 0) {
-				return;
+				return needStatus;
 			}
 			int gameType = info["gametype"].Atoi();
 			//JO doesn't have Power Duel, the rest game types match
@@ -50,9 +60,24 @@ namespace JKClient {
 			serverInfo.TrueJedi = info["truejedi"].Atoi() != 0;
 			serverInfo.WeaponDisable = info["wdisable"].Atoi() != 0;
 			serverInfo.ForceDisable = info["fdisable"].Atoi() != 0;
+			return needStatus;
 		}
 		public virtual void HandleStatusResponse(in ServerInfo serverInfo, in InfoString info) {
-			if (info["version"].Contains("v1.03")) {
+			// We often use the same serverbrowser for both jka and jo. switch here.
+			if (serverInfo.Protocol >= ProtocolVersion.Protocol25 && serverInfo.Protocol <= ProtocolVersion.Protocol26)
+			{
+				JABrowserHandler.HandleStatusResponseJA(serverInfo, info);
+			}
+			else
+			{
+				HandleStatusResponseJO(serverInfo, info);
+			}
+			this.NeedStatus = false;
+		}
+		public static void HandleStatusResponseJO(in ServerInfo serverInfo, in InfoString info)
+        {
+			if (info["version"].Contains("v1.03"))
+			{
 				serverInfo.Version = ClientVersion.JO_v1_03;
 			}
 			int gameType = info["g_gametype"].Atoi();
@@ -62,7 +87,6 @@ namespace JKClient {
 				gameType++;
 			}
 			serverInfo.GameType = (GameType)gameType;
-			this.NeedStatus = false;
 		}
 	}
 }

@@ -15,32 +15,60 @@ namespace JKClient {
 			};
 		}
 		public virtual void HandleInfoPacket(in ServerInfo serverInfo, in InfoString info) {
-			this.NeedStatus = true;
-			switch (serverInfo.Protocol) {
-			case ProtocolVersion.Protocol25:
-				serverInfo.Version = ClientVersion.JA_v1_00;
-				break;
-			case ProtocolVersion.Protocol26:
-				serverInfo.Version = ClientVersion.JA_v1_01;
-				break;
+			// We often use the same serverbrowser for both jka and jo. switch here.
+			if (serverInfo.Protocol >= ProtocolVersion.Protocol15 && serverInfo.Protocol <= ProtocolVersion.Protocol16)
+			{
+				this.NeedStatus = JOBrowserHandler.HandleInfoPacketJO(serverInfo, info);
 			}
-			if (info.Count <= 0) {
-				return;
+			else
+			{
+				this.NeedStatus = HandleInfoPacketJA(serverInfo, info);
+			}
+		}
+		public static bool HandleInfoPacketJA(in ServerInfo serverInfo, in InfoString info)
+        {
+			bool needStatus = true;
+			switch (serverInfo.Protocol)
+			{
+				case ProtocolVersion.Protocol25:
+					serverInfo.Version = ClientVersion.JA_v1_00;
+					break;
+				case ProtocolVersion.Protocol26:
+					serverInfo.Version = ClientVersion.JA_v1_01;
+					break;
+			}
+			if (info.Count <= 0)
+			{
+				return needStatus;
 			}
 			serverInfo.GameType = (GameType)info["gametype"].Atoi();
 			serverInfo.NeedPassword = info["needpass"].Atoi() != 0;
 			serverInfo.TrueJedi = info["truejedi"].Atoi() != 0;
 			serverInfo.WeaponDisable = info["wdisable"].Atoi() != 0;
 			serverInfo.ForceDisable = info["fdisable"].Atoi() != 0;
-			if (info.ContainsKey("g_humanplayers")) {
-				this.NeedStatus = false;
+			if (info.ContainsKey("g_humanplayers"))
+			{
+				needStatus = false;
+				serverInfo.RealClientCountProvidedByInfo = true;
 				serverInfo.RealClients = serverInfo.Clients = info["g_humanplayers"].Atoi();
 			}
+			return needStatus;
 		}
 		public virtual void HandleStatusResponse(in ServerInfo serverInfo, in InfoString info) {
-			serverInfo.GameType = (GameType)info["g_gametype"].Atoi();
+			// We often use the same serverbrowser for both jka and jo. switch here.
+			if (serverInfo.Protocol >= ProtocolVersion.Protocol15 && serverInfo.Protocol <= ProtocolVersion.Protocol16)
+			{
+				JOBrowserHandler.HandleStatusResponseJO(serverInfo, info);
+			}
+			else
+			{
+				HandleStatusResponseJA(serverInfo, info);
+			}
 			this.NeedStatus = false;
-
+		}
+		public static void HandleStatusResponseJA(in ServerInfo serverInfo, in InfoString info)
+        {
+			serverInfo.GameType = (GameType)info["g_gametype"].Atoi();
 		}
 	}
 }

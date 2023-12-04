@@ -45,6 +45,7 @@ namespace JKClient
 		public int ClientsIncludingBots { get; internal set; }
 		public bool RealClientCountProvidedByInfo { get; internal set; }
 		public int MaxClients { get; internal set; }
+		public int? PrivateClients { get; internal set; }
 		public int MinPing { get; internal set; }
 		public int MaxPing { get; internal set; }
 		public int FPS { get; internal set; }
@@ -100,6 +101,7 @@ namespace JKClient
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
 			this.MaxClients = info["sv_maxclients"].Atoi();
+			this.PrivateClients = info["sv_privateClients"].Atoi();
 			this.MinPing = info["sv_minping"].Atoi();
 			this.MaxPing = info["sv_maxping"].Atoi();
 			this.FPS = info["sv_fps"].Atoi();
@@ -119,6 +121,7 @@ namespace JKClient
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
 			this.MaxClients = info["sv_maxclients"].Atoi();
+			this.PrivateClients = info["sv_privateClients"].Atoi();
 			//this.Game = info["game"];
 			this.MinPing = info["sv_minPing"].Atoi();
 			this.MaxPing = info["sv_maxPing"].Atoi();

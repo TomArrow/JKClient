@@ -97,6 +97,7 @@ namespace JKClient {
 		private int reliableAcknowledge = 0;
 		private sbyte [][]reliableCommands;
 		private int serverMessageSequence = 0;
+		private int maxSequenceNum = 0;
 		private int serverCommandSequence = 0;
 		private int lastExecutedServerCommand = 0;
 		private int desiredSnaps = 1000;
@@ -1059,6 +1060,7 @@ namespace JKClient {
 				headerBytes = msg.ReadCount;
 
 				this.serverMessageSequence = *(int*)b;
+				this.maxSequenceNum = Math.Max(this.serverMessageSequence,this.maxSequenceNum);
 				this.lastPacketTime = this.realTime;
 				this.ParseServerMessage(msg);
 
@@ -1522,7 +1524,11 @@ namespace JKClient {
 				Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
 				Demofile.Write(msg.Data, headerBytes, len);
 
-                if (serverTime.HasValue) // This messsage contains a snapshot. Update the server time of actually written messages (we write delayed for reordering)
+
+				this.currentDemoWrittenSequenceNumber = sequenceNumber;
+				this.currentDemoMaxSequenceNumber = currentDemoMaxSequenceNumber.HasValue ? Math.Max(sequenceNumber, this.currentDemoMaxSequenceNumber.Value) : sequenceNumber;
+
+				if (serverTime.HasValue) // This messsage contains a snapshot. Update the server time of actually written messages (we write delayed for reordering)
                 {
 					currentDemoWrittenServerTime = serverTime.Value;
 					this.UpdateDemoTime();

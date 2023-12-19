@@ -30,6 +30,8 @@ namespace JKClient {
 		public int DemoCurrentTimeRealDelayed => this.demoTimeTrackerRealDelayed.DemoCurrentTime; // Due to delayed writing, this value might be a bit old.
 
 		private int? currentDemoWrittenServerTime = null;
+		private int? currentDemoWrittenSequenceNumber = null;
+		private int? currentDemoMaxSequenceNumber = null;
 		DemoTimeTracker demoTimeTrackerApproximate = new DemoTimeTracker();
 		DemoTimeTracker demoTimeTrackerRealDelayed = new DemoTimeTracker();
 
@@ -64,6 +66,8 @@ namespace JKClient {
 			if(!this.Demorecording || this.Demowaiting > 0)
             {
 				this.currentDemoWrittenServerTime = null;
+				this.currentDemoWrittenSequenceNumber = null;
+				this.currentDemoMaxSequenceNumber = null;
 				this.demoTimeTrackerApproximate.DemoCurrentTime = 0;
 				this.demoTimeTrackerApproximate.DemoBaseTime = 0;
 				this.demoTimeTrackerApproximate.DemoStartTime = 0;
@@ -78,7 +82,7 @@ namespace JKClient {
 
 
 			// This is tracking the approximate time based on parsed snapshots, 
-			if (this.snap.ServerTime < this.demoTimeTrackerApproximate.LastKnownTime && this.snap.ServerTime < 10000)
+			if (this.snap.ServerTime < this.demoTimeTrackerApproximate.LastKnownTime && this.maxSequenceNum == this.serverMessageSequence /*&& this.snap.ServerTime < 10000*/)
 			{ // Assume a servertime reset (new serverTime is under 10 secs). 
 				this.demoTimeTrackerApproximate.DemoBaseTime = this.demoTimeTrackerApproximate.DemoCurrentTime; // Remember fixed offset into demo time.
 				this.demoTimeTrackerApproximate.DemoStartTime = this.snap.ServerTime;
@@ -87,8 +91,8 @@ namespace JKClient {
 			// This is tracking the real current demotime of messages in the demo, but it's delayed because we don't write messages to the demo immediately, in case we receive them out of order.
 			if (this.currentDemoWrittenServerTime.HasValue)
             {
-				if (this.currentDemoWrittenServerTime.Value < this.demoTimeTrackerRealDelayed.LastKnownTime && this.currentDemoWrittenServerTime.Value < 10000)
-				{ // Assume a servertime reset (new serverTime is under 10 secs). 
+				if (this.currentDemoWrittenServerTime.Value < this.demoTimeTrackerRealDelayed.LastKnownTime && this.currentDemoMaxSequenceNumber == this.currentDemoWrittenSequenceNumber /*&& this.currentDemoWrittenServerTime.Value < 10000*/)
+				{ // Assume a servertime reset (new serverTime is under 10 secs). (outdated, instead check that the demo packets are in sequence. They really always should be.)
 					this.demoTimeTrackerRealDelayed.DemoBaseTime = this.demoTimeTrackerRealDelayed.DemoCurrentTime; // Remember fixed offset into demo time.
 					this.demoTimeTrackerRealDelayed.DemoStartTime = this.currentDemoWrittenServerTime.Value;
 
@@ -401,6 +405,7 @@ namespace JKClient {
 			this.reliableSequence = 0;
 			this.reliableAcknowledge = 0;
 			this.serverMessageSequence = 0;
+			this.maxSequenceNum = 0;
 			this.serverCommandSequence = 0;
 			this.lastExecutedServerCommand = 0;
 			this.netChannel = null;

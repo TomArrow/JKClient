@@ -368,7 +368,7 @@ namespace JKClient {
 			this.socksSocket?.Close(5);
 		}
 	}
-	internal static class NetSystemExtensions {
+	public static class NetSystemExtensions {
 		public static IPEndPoint ToIPEndPoint(this NetAddress address) {
 			return new IPEndPoint(new IPAddress(address.IP), address.Port);
 		}

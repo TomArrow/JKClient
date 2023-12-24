@@ -410,6 +410,11 @@ namespace JKClient {
 			this.lastExecutedServerCommand = 0;
 			this.netChannel = null;
 
+			this.messageIntervals = new int[messageIntervalsMeasureCount];
+			this.lastMessageReceivedTime = 0;
+			this.messageIntervalMeasurementIndex = 0;
+			this.messageIntervalAverage = 1000;
+
 			this.Demowaiting = 0;
 			this.Demorecording = false;
 			this.bufferedDemoMessages.Clear();

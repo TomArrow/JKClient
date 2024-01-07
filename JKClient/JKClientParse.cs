@@ -250,13 +250,14 @@ namespace JKClient {
 					if (newnum < 0 || newnum >= Common.MaxGEntities) {
 						throw new JKClientException($"Baseline number out of range: {newnum}");
 					}
+					bool fakeNonDelta = false;
 					fixed (EntityState* nesMoh = &EntityState.NullMOH)
 					{
 						fixed (EntityState* nes = &EntityState.Null)
 						{
 							fixed (EntityState* bl = &this.entityBaselines[newnum])
 							{
-								msg.ReadDeltaEntity(isMOH ? nesMoh : nes, bl, newnum, this.ClientHandler,this.serverFrameTime, showNetString);
+								msg.ReadDeltaEntity(isMOH ? nesMoh : nes, bl, newnum, this.ClientHandler,this.serverFrameTime, ref fakeNonDelta, showNetString);
 							}
 						}
 					}
@@ -460,6 +461,8 @@ namespace JKClient {
 
 			bool isMOH = this.ClientHandler is MOHClientHandler;
 
+			bool isFakeNonDelta = false;
+
 			ClientSnapshot *oldSnap;
 			var oldSnapHandle = GCHandle.Alloc(this.snapshots, GCHandleType.Pinned);
 			var newSnap = new ClientSnapshot() {
@@ -494,6 +497,67 @@ namespace JKClient {
 			}
 
 			int deltaNum = msg.ReadByte();
+
+			if(deltaNum > 127)
+            {
+				if (PingAdjust != 0)
+				{
+					int originaldeltanum = deltaNum;
+					/*// With pingadjust we can sometimes accidentally confirm a packet that wasn't even sent yet, resulting a wrap around,
+					// which can result in a deltaNum like 255 (actually -1). 
+					deltaNum = (sbyte)(byte)deltaNum;
+					// First let's get the actual true signed deltaNum by casting to sbyte
+					// We must then consider that any server usually has a PACKET_BACKUP of 32 max
+					// Our own rotary array has a higher PACKET_BACKUP so we cannot blindly apply the same deltaNum.
+					// Ok examples:
+					// deltaNum is -1: So we assume that the source message num is the current snap + 1.
+					// So in our rotary array we would go +1. 
+					int tmpSourceSnapNum = newSnap.MessageNum - deltaNum;
+					// But what we really need to ask is: What number would it be in the rotary array on the server?
+					// Let's say the number is 33. With our PACKET_BACKUP of 256, we actually have an array index of 33.
+					// But on the server, 33 wraps around to 1. 
+					// So while on our client we would be trying to actually reference snapshot 33, the server is referencing snapshot 1.
+					// So let's now figure out the array index that the server likely used:
+					int serverArrayIndexDelta = tmpSourceSnapNum & 31;
+					// And now we can try to guess which snapshot num was stored on the server in that index.
+					// We can make a relatively safe assumption that it is the last number smaller than newSnap.MessageNum which fits into that index.
+					// Let's figure out the array index in which THIS current snapshot is stored on the server:
+					int serverArrayIndexCurrent = newSnap.MessageNum & 31;
+					int referencedMsgNum = 0;
+					if (serverArrayIndexDelta <= serverArrayIndexCurrent)
+					{
+						// If the current array index is higher than the referenced one, we can simply subtract the difference.
+						referencedMsgNum = newSnap.MessageNum - serverArrayIndexCurrent + serverArrayIndexDelta;
+					}
+                    else
+					{
+						// If it is lower, we must go back to index 0 by subtracting the current array index, and then subtract the amount of frames we'd have to go back to reach the desired index.
+						// Let's say the current index is 0 already, and the desired index is 31.
+						// Then we have to subtract the current index (0), aka subtract nothing.
+						// And then we must subtract 1. We arrive at 1 by saying 32-desiredIndex(31) = 1.
+						referencedMsgNum = newSnap.MessageNum - serverArrayIndexCurrent - (32- serverArrayIndexDelta);
+					}
+					// Now we know the referenced message num and can correct the deltaNum.
+					deltaNum = newSnap.MessageNum - referencedMsgNum;*/
+
+					// All of the above is nice and all but it can be simplified a lot actually...
+					deltaNum = deltaNum & 31; // Gives the same results and is much simpler.
+
+					if(deltaNum == 0)
+                    {
+						Debug.WriteLine($"ParseSnapshot: deltaNum > 127 with pingadjust: {originaldeltanum}, fixing to {deltaNum} which is ZERO, YIKES!!!!");
+					} else
+					{
+						Debug.WriteLine($"ParseSnapshot: deltaNum > 127 with pingadjust: {originaldeltanum}, fixing to {deltaNum}");
+					}
+				}
+				else
+                {
+
+					Debug.WriteLine($"ParseSnapshot: deltaNum > 127: {deltaNum}");
+				}
+			}
+
 			//Debug.WriteLine(deltaNum);
 			if (deltaNum == 0) {
 				newSnap.DeltaNum = -1;
@@ -602,11 +666,11 @@ namespace JKClient {
 
 			msg.ReadData(null, len);
 			if (this.ClientHandler.CanParseSnapshot()) {
-				msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->PlayerState : null, &newSnap.PlayerState, false, this.ClientHandler,showNetString);
+				msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->PlayerState : null, &newSnap.PlayerState, false, this.ClientHandler,ref isFakeNonDelta, showNetString);
 				if (this.ClientHandler.CanParseVehicle && newSnap.PlayerState.VehicleNum != 0) {
-					msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->VehiclePlayerState : null, &newSnap.VehiclePlayerState, true, this.ClientHandler, showNetString);
+					msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->VehiclePlayerState : null, &newSnap.VehiclePlayerState, true, this.ClientHandler, ref isFakeNonDelta, showNetString);
 				}
-				this.ParsePacketEntities(in msg, in oldSnap, &newSnap);
+				this.ParsePacketEntities(in msg, in oldSnap, &newSnap, ref isFakeNonDelta);
 
                 if (isMOH)
                 {
@@ -618,6 +682,16 @@ namespace JKClient {
                 }
 			}
 			oldSnapHandle.Free();
+            if (isFakeNonDelta)
+            {
+				if(deltaNum == 0)
+				{
+					Stats.fakeNonDeltaSnaps++;
+				} else
+                {
+					Stats.corruptDeltaSnaps++;
+                }
+            }
 			if (!newSnap.Valid) {
 				return;
 			}
@@ -666,7 +740,7 @@ namespace JKClient {
 				this.OnSnapshotParsed(new SnapshotParsedEventArgs(eventSnapsshot, this.snap.MessageNum));
 			}
 		}
-		private unsafe void ParsePacketEntities(in Message msg, in ClientSnapshot *oldSnap, in ClientSnapshot *newSnap) {
+		private unsafe void ParsePacketEntities(in Message msg, in ClientSnapshot *oldSnap, in ClientSnapshot *newSnap, ref bool fakeNonDelta) {
 			bool mohEntityNumSubtract = this.ClientHandler is MOHClientHandler && this.Protocol > (int)ProtocolVersion.Protocol8;
 			newSnap->ParseEntitiesNum = this.parseEntitiesNum;
 			newSnap->NumEntities = 0;
@@ -695,7 +769,7 @@ namespace JKClient {
 						oldindex++;
 					} else if (oldnum == newnum) {
 						oldindex++;
-						msg.ReadDeltaEntity(oldstate, newstate, newnum, this.ClientHandler, this.serverFrameTime, showNetString);
+						msg.ReadDeltaEntity(oldstate, newstate, newnum, this.ClientHandler, this.serverFrameTime,ref fakeNonDelta, showNetString);
 						newnum = msg.ReadBits(Common.GEntitynumBits);
 						if (mohEntityNumSubtract)
 						{
@@ -703,7 +777,7 @@ namespace JKClient {
 						}
 					} else if (oldnum > newnum) {
 						fixed (EntityState *bl = &this.entityBaselines[newnum]) {
-							msg.ReadDeltaEntity(bl, newstate, newnum, this.ClientHandler, this.serverFrameTime, showNetString);
+							msg.ReadDeltaEntity(bl, newstate, newnum, this.ClientHandler, this.serverFrameTime, ref fakeNonDelta, showNetString);
 						}
 						newnum = msg.ReadBits(Common.GEntitynumBits);
 						if (mohEntityNumSubtract)

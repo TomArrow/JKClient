@@ -20,6 +20,10 @@ namespace JKClient {
         {
 			return this.rawString;
         }
+		public string RawStringOrConcatenated()
+        {
+			return string.IsNullOrWhiteSpace(this.rawString) ? "\""+string.Join("\" \"",this.argv)+"\"" : this.rawString;
+        }
 		private static IEnumerable<string> TokenizeString(string line) {
 			const char delimiter = ' ', textQualifier = '"';
 			if (line == null) {

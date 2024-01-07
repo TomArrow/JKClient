@@ -1103,7 +1103,7 @@ namespace JKClient {
 
 		}
 
-		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler, float frameTime, StringBuilder debugString = null) {
+		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler, float frameTime, ref bool fakeNonDelta, StringBuilder debugString = null) {
 			if (number < 0 || number >= Common.MaxGEntities) {
 				throw new JKClientException($"Bad delta entity number: {number}");
 			}
@@ -1269,6 +1269,17 @@ namespace JKClient {
 						}
 					}
 					fields[i].Adjust?.Invoke(toF);
+					if (*toF == *fromF)
+					{
+						// We likely received a delta snapshot from -32, which transmitted as deltaNum 0
+						// So we assumed it was a non-delta but it actually wasn't.
+						// It's a lame way of detecting it but what can ya do!
+						fakeNonDelta = true;
+						if (print)
+						{
+							debugString.Append($"\nES: DELTA BUT VALUE UNCHANGED: {fields[i].Name}:{*fromF} ({*(float*)fromF}) == {*toF} ({*(float*)toF}) \n");
+						}
+					}
 				}
 			}
 			for (int i = lc; i < fields.Count; i++) {
@@ -1282,7 +1293,7 @@ namespace JKClient {
 				debugString.Append($"\n");
 			}
 		}
-		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler, StringBuilder debugString = null) {
+		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler, ref bool fakeNonDelta, StringBuilder debugString = null) {
 
 			bool isMOH = clientHandler is MOHClientHandler;
 			ProtocolVersion protocol = (ProtocolVersion)clientHandler.Protocol;
@@ -1402,6 +1413,17 @@ namespace JKClient {
 						}
 					}
 					fields[i].Adjust?.Invoke(toF);
+					if (delta == false && *toF == *fromF)
+					{
+						// We likely received a delta snapshot from -32, which transmitted as deltaNum 0
+						// So we assumed it was a non-delta but it actually wasn't.
+						// It's a lame way of detecting it but what can ya do!
+						fakeNonDelta = true;
+						if (print)
+						{
+							debugString.Append($"\nPS: DELTA BUT VALUE UNCHANGED: {fields[i].Name}:{*fromF} ({*(float*)fromF}) == {*toF} ({*(float*)toF}) \n");
+						}
+					}
 				}
 			}
 			for (int i = lc; i < fields.Count; i++) {

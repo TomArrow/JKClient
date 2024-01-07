@@ -27,6 +27,8 @@ namespace JKClient
         public int deltaSnapMaxDelay { get; internal set; } // Amount of milliseconds we have to delay to guarantee we keep getting delta snaps. This is live adjusted all the time automatically.
         public Int64 deltaSnaps { get; internal set; }
         public Int64 nonDeltaSnaps { get; internal set; }
+        public Int64 fakeNonDeltaSnaps { get; internal set; }
+        public Int64 corruptDeltaSnaps { get; internal set; }
         public Int64 totalMessages { get; internal set; }
         public Int64 messagesSkipped { get; internal set; }
         public Int64 messagesOutOfOrder { get; internal set; }

@@ -20,6 +20,8 @@ namespace JKClient
 
 	//TODO: remake to struct?
 	public sealed class ServerInfo {
+		internal long lastInfoRequestSent = 0L; // Try to avoid sending duplicate requests
+		internal long lastStatusRequestSent = 0L;
 		public KeyValuePair<string, string>[] InfoStringValues { get; internal set; } = null;
 		public KeyValuePair<string, string>[] StatusInfoStringValues { get; internal set; } = null;
 		public KeyValuePair<string, string>[] ConfigStringInfoStringValues { get; internal set; } = null;

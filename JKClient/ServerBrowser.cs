@@ -30,6 +30,7 @@ namespace JKClient {
 				}
 			}
         }
+		private long serverRefreshRequested = 0L;
 		private long serverRefreshTimeout = 0L;
 		private readonly ConcurrentDictionary<NetAddress, FullServerInfoTask> fullServerInfoTasks;
 		private readonly HashSet<NetAddress> fullServerInfoTasksToRemove;
@@ -63,6 +64,7 @@ namespace JKClient {
 			this.getListTCS?.TrySetCanceled();
 			this.refreshListTCS?.TrySetCanceled();
 			this.serverRefreshTimeout = 0L;
+			this.serverRefreshRequested = 0L;
 			base.OnStop(afterFailure);
 		}
 		private protected override async Task Run() {
@@ -86,6 +88,7 @@ namespace JKClient {
 				this.getListTCS?.TrySetResult(this.globalServers.Values);
 				this.refreshListTCS?.TrySetResult(this.globalServers.Values);
 				this.serverRefreshTimeout = 0L;
+				this.serverRefreshRequested = 0L;
 			}
 		}
 		private void HandleFullServerInfoTasks() {
@@ -141,6 +144,7 @@ namespace JKClient {
 			this.getListTCS = new TaskCompletionSource<IEnumerable<ServerInfo>>();
 			this.globalServers.Clear();
 			this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
+			this.serverRefreshRequested = Common.Milliseconds;
 			lock (hiddenServers) // For servers that aren't reported to the master server. Set via SetHiddenServers();
 			{
 				foreach (NetAddress hiddenServer in hiddenServers)
@@ -321,6 +325,7 @@ namespace JKClient {
 			this.refreshListTCS?.TrySetCanceled();
 			this.refreshListTCS = new TaskCompletionSource<IEnumerable<ServerInfo>>();
 			this.serverRefreshTimeout = Common.Milliseconds + this.RefreshTimeout;
+			this.serverRefreshRequested = Common.Milliseconds;
 			foreach (var server in this.globalServers) {
 				var serverInfo = server.Value;
 				serverInfo.InfoSet = false;
@@ -425,12 +430,23 @@ namespace JKClient {
 					}
 					int port = (*buffptr++) << 8;
 					port += *buffptr++;
-					var serverInfo = new ServerInfo() {
-						Address = new NetAddress(ip, (ushort)port),
-						Start = Common.Milliseconds
-					};
-					this.globalServers[serverInfo.Address] = serverInfo;
-					this.OutOfBandPrint(serverInfo.Address, "getinfo xxx");
+
+					NetAddress serverAddress = new NetAddress(ip, (ushort)port);
+					if (this.globalServers.ContainsKey(serverAddress) && this.globalServers[serverAddress].lastInfoRequestSent >= this.serverRefreshRequested && this.serverRefreshRequested > 0L)
+					{
+						// This is likely a duplicate from another master server, ignore.
+						Debug.WriteLine($"Avoiding duplicate getinfo to {serverAddress.ToString()}; lastInfoSent {this.globalServers[serverAddress].lastInfoRequestSent} >= refreshRequested {this.serverRefreshRequested}");
+                    } else
+					{
+						var serverInfo = new ServerInfo()
+						{
+							Address = serverAddress,
+							Start = Common.Milliseconds,
+							lastInfoRequestSent = Common.Milliseconds
+						};
+						this.globalServers[serverInfo.Address] = serverInfo;
+						this.OutOfBandPrint(serverInfo.Address, "getinfo xxx");
+					}
 					if (*buffptr != 92 && *buffptr != 47) { //'\\' '/'
 						break;
 					}

@@ -44,5 +44,25 @@ namespace JKClient {
 			ForceDrainJK2 = 2048,
 			MouseMOH = 1<<15
 		}
+
+		public QuakeBoolean forceWriteThisCmd; // If not true, this one can be skipped to reduce traffic.
+
+		internal unsafe bool IdenticalTo(UserCommand otherCmd)
+        {
+			return this.ForwardMove == otherCmd.ForwardMove
+				&& this.RightMove == otherCmd.RightMove
+				&& this.Upmove == otherCmd.Upmove
+				&& this.GenericCmd == otherCmd.GenericCmd
+				&& this.InventorySelection == otherCmd.InventorySelection
+				&& this.ForceSelection == otherCmd.ForceSelection
+				&& this.Weapon == otherCmd.Weapon
+				&& this.Buttons == otherCmd.Buttons
+				&& this.Angles[0] == otherCmd.Angles[0]
+				&& this.Angles[1] == otherCmd.Angles[1]
+				&& this.Angles[2] == otherCmd.Angles[2]
+				&& this.Buttons == otherCmd.Buttons
+				;
+
+		} 
 	}
 }

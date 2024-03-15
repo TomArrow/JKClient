@@ -54,6 +54,8 @@ namespace JKClient {
 
 		public int PingAdjust = 0; // Adjust our visible ping (can lead to instabilities)
 
+		public int TrafficReduceUntilClientFps = 10; // Need a minimum fps of 10 for client commands. Rest can be traffic-reduced by yeeting duplicate commands.
+
 		public volatile int SnapOrderTolerance = 100;
 		public volatile bool SnapOrderToleranceDemoSkipPackets = false;
 		private const int LastPacketTimeOut = 5 * 60000;
@@ -1310,7 +1312,6 @@ namespace JKClient {
             {
 				return; // Never let time flow backwards.
 			}*/ // actually this seems to do more harm than good. we're already limited with thread.sleep and sometimes servers reset time and we can accidentally get sstuck in MoveNoDelta and record HUGE files.
-			this.Stats.lastUserCommandDelta = userCmdDelta;
 			
 			UserCommand newCmd = new UserCommand() { ServerTime = this.clServerTime };
 
@@ -1324,6 +1325,16 @@ namespace JKClient {
             {
 				if(insertCmd.ServerTime > this.cmds[(this.cmdNumber) & UserCommand.CommandMask].ServerTime && insertCmd.ServerTime < newCmd.ServerTime)
                 {
+					if (!insertCmd.forceWriteThisCmd && insertCmd.IdenticalTo(this.cmds[this.cmdNumber & UserCommand.CommandMask]) && CanCullUserCmd(insertCmd.ServerTime, this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime))
+					{
+						// Skip this. Traffic reduction.
+						Debug.WriteLine($"Warning: insert command was traffic reduced. Might wanna use forceWriteThisCmd? Oldservertime: {this.cmds[(this.cmdNumber) & UserCommand.CommandMask].ServerTime}, cmd servertime: {newCmd.ServerTime}");
+						this.Stats.userCmdCulled(true);
+						continue;
+					} else
+                    {
+						this.Stats.userCmdCulled(false);
+					}
 					this.cmdNumber++;
 					this.cmds[this.cmdNumber & UserCommand.CommandMask] = default;
 					this.cmds[this.cmdNumber & UserCommand.CommandMask] = insertCmd;
@@ -1332,6 +1343,18 @@ namespace JKClient {
 					Debug.WriteLine($"Warning: insert command serverTime was {insertCmd.ServerTime} which does not fit within {this.cmds[(this.cmdNumber) & UserCommand.CommandMask].ServerTime} and {newCmd.ServerTime}");
                 }
 			}
+
+            if (!newCmd.forceWriteThisCmd && newCmd.IdenticalTo(this.cmds[this.cmdNumber & UserCommand.CommandMask]) && CanCullUserCmd(newCmd.ServerTime, this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime)) 
+            {
+				// Skip this. Traffic reduction.
+				this.Stats.userCmdCulled(true);
+				return;
+            } else
+			{
+				this.Stats.userCmdCulled(false);
+			}
+
+			this.Stats.lastUserCommandDelta = userCmdDelta;
 
 			this.cmdNumber++;
 			this.cmds[this.cmdNumber & UserCommand.CommandMask] = default;
@@ -1380,6 +1403,17 @@ namespace JKClient {
 			this.Stats.lastUserPacketDelta = delta;
 			this.WritePacket();
 		}
+
+		private bool CanCullUserCmd(int serverTime, int oldServerTime)
+        {
+			int serverTimeDeltaSinceLastUserCmd = serverTime - oldServerTime;
+
+			// Reduce network traffic.
+			// We have no new commands to sent (neither reliable nor user) and last packet was sent X milliseconds ago where X is smaller than the millisecond value of the minimum client fps we want.
+			// Don't wanna be seen as ddosing people but sometimes we do need a high fps (like if we are doing actual gameplay)
+			return this.TrafficReduceUntilClientFps > 0 && serverTimeDeltaSinceLastUserCmd > 0 && serverTimeDeltaSinceLastUserCmd < (1000 / this.TrafficReduceUntilClientFps);
+		}
+
 		private void WritePacket() {
 			if (this.netChannel == null) {
 				return;
@@ -1400,12 +1434,20 @@ namespace JKClient {
 					msg.WriteLong(Math.Max(this.serverMessageSequence - (PingAdjust/this.messageIntervalAverage),0));
 				}
 				msg.WriteLong(this.serverCommandSequence);
+				int reliableCount = 0;
 				for (int i = this.reliableAcknowledge + 1; i <= this.reliableSequence; i++) {
 					msg.WriteByte((int)ClientCommandOperations.ClientCommand);
 					msg.WriteLong(i);
 					msg.WriteString(this.reliableCommands[i & (this.MaxReliableCommands-1)],(ProtocolVersion)this.Protocol);
+					reliableCount++;
 				}
-				int oldPacketNum = (this.netChannel.OutgoingSequence - 1 - 1) & JKClient.PacketMask;
+				
+				// Actually new messages since last actually sent command
+				int realOldPacketNum = (this.netChannel.OutgoingSequence - 1) & JKClient.PacketMask;
+				int realCount = this.cmdNumber - this.outPackets[realOldPacketNum].CommandNumber;
+				int realTimeSinceLastPacket = this.realTime - this.outPackets[realOldPacketNum].RealTime;
+
+				int oldPacketNum = (this.netChannel.OutgoingSequence - 1 - 1) & JKClient.PacketMask; // With packetdup default of 1 assumed.
 				int count = this.cmdNumber - this.outPackets[oldPacketNum].CommandNumber;
 				if (count > JKClient.MaxPacketUserCmds) {
 					count = JKClient.MaxPacketUserCmds;
@@ -1432,6 +1474,20 @@ namespace JKClient {
 						oldcmd = this.cmds[j];
 					}
 				}
+
+				if (this.TrafficReduceUntilClientFps > 0 && realTimeSinceLastPacket > 0 && reliableCount == 0 && realCount == 0 && realTimeSinceLastPacket < (1000 / this.TrafficReduceUntilClientFps))
+				{
+					// Reduce network traffic.
+					// We have no new commands to sent (neither reliable nor user) and last packet was sent X milliseconds ago where X is smaller than the millisecond value of the minimum client fps we want.
+					// Don't wanna be seen as ddosing people but sometimes we do need a high fps (like if we are doing actual gameplay)
+					this.Stats.userPacketCulled(true);
+					return;
+				}
+                else
+                {
+					this.Stats.userPacketCulled(false);
+				}
+
 				int packetNum = this.netChannel.OutgoingSequence & JKClient.PacketMask;
 				this.outPackets[packetNum].RealTime = this.realTime;
 				this.outPackets[packetNum].ServerTime = oldcmd.ServerTime;

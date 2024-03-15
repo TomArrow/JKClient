@@ -49,6 +49,54 @@ namespace JKClient
                 return lastFrameDelta == 0 ? 0 : (int)(1000 / lastFrameDelta);
             } }
 
+        internal UInt64 userCmdCulling { get; private set; }
+        internal UInt64 userCmdCullingIndex { get; private set; } = 0;
+        internal void userCmdCulled (bool culled)
+        {
+            UInt64 bitIndex = userCmdCullingIndex % 64L;
+            UInt64 bitValue = (1UL << (int)bitIndex);
+            if (!culled)
+            {
+                userCmdCulling &= ~bitValue;
+            }
+            else
+            {
+                userCmdCulling |= bitValue;
+            }
+            userCmdCullingIndex++;
+        } 
+        internal UInt64 userPacketCulling { get; private set; }
+        internal UInt64 userPacketCullingIndex { get; private set; } = 0;
+        internal void userPacketCulled(bool culled)
+        {
+            UInt64 bitIndex = userPacketCullingIndex % 64L;
+            UInt64 bitValue = (1UL << (int)bitIndex);
+            if (!culled)
+            {
+                userPacketCulling &= ~bitValue;
+            }
+            else
+            {
+                userPacketCulling |= bitValue;
+            }
+            userPacketCullingIndex++;
+        } 
+        [DependsOn("userCmdCulling")]
+        public int userCmdCullingPercentage
+        {
+            get
+            {
+                return 100*userCmdCulling.PopCount()/64;
+            }
+        }
+        [DependsOn("userPacketCulling")]
+        public int userPacketCullingPercentage
+        {
+            get
+            {
+                return 100* userPacketCulling.PopCount()/64;
+            }
+        }
         public Int64 lastUserCommandDelta { get; internal set; }
         [DependsOn("lastUserCommandDelta")]
         public int lastUserCommandDeltaFPS

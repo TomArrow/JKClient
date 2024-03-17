@@ -1446,6 +1446,7 @@ namespace JKClient {
 				int realOldPacketNum = (this.netChannel.OutgoingSequence - 1) & JKClient.PacketMask;
 				int realCount = this.cmdNumber - this.outPackets[realOldPacketNum].CommandNumber;
 				int realTimeSinceLastPacket = this.realTime - this.outPackets[realOldPacketNum].RealTime;
+				int reliableSeqDiffSinceLastPacket = this.reliableSequence - this.outPackets[realOldPacketNum].ReliableSequence;
 
 				int oldPacketNum = (this.netChannel.OutgoingSequence - 1 - 1) & JKClient.PacketMask; // With packetdup default of 1 assumed.
 				int count = this.cmdNumber - this.outPackets[oldPacketNum].CommandNumber;
@@ -1475,10 +1476,13 @@ namespace JKClient {
 					}
 				}
 
-				if (this.TrafficReduceUntilClientFps > 0 && realTimeSinceLastPacket > 0 && reliableCount == 0 && realCount == 0 && realTimeSinceLastPacket < (1000 / this.TrafficReduceUntilClientFps))
+				if (this.TrafficReduceUntilClientFps > 0 && realTimeSinceLastPacket > 0 && (reliableCount == 0 || reliableSeqDiffSinceLastPacket == 0) && realCount == 0 && realTimeSinceLastPacket < (1000 / this.TrafficReduceUntilClientFps))
 				{
 					// Reduce network traffic.
-					// We have no new commands to sent (neither reliable nor user) and last packet was sent X milliseconds ago where X is smaller than the millisecond value of the minimum client fps we want.
+					// We have no new commands to sent:
+					// - No new usercmds
+					// - No new reliable commands that weren't already sent (or all already acknowledged)
+					// and last packet was sent X milliseconds ago where X is smaller than the millisecond value of the minimum client fps we want.
 					// Don't wanna be seen as ddosing people but sometimes we do need a high fps (like if we are doing actual gameplay)
 					this.Stats.userPacketCulled(true);
 					return;
@@ -1492,6 +1496,7 @@ namespace JKClient {
 				this.outPackets[packetNum].RealTime = this.realTime;
 				this.outPackets[packetNum].ServerTime = oldcmd.ServerTime;
 				this.outPackets[packetNum].CommandNumber = this.cmdNumber;
+				this.outPackets[packetNum].ReliableSequence = this.reliableSequence;
 				msg.WriteByte((int)ClientCommandOperations.EOF);
 				this.Encode(msg);
                 if (!this.GhostPeer) // As a ghost peer we want to get stuck in CON_CONNECTING forever. Hack for rare circumstances

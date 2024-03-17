@@ -6,5 +6,6 @@ namespace JKClient {
 		public int CommandNumber;
 		public int ServerTime;
 		public int RealTime;
+		public int ReliableSequence;
 	}
 }

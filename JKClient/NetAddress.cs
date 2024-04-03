@@ -63,8 +63,8 @@ namespace JKClient {
 			builder.Append(':').Append(this.Port);
 			return builder.ToString();
 		}
-		public static NetAddress FromString(string address, ushort port = 0) {
-			return NetSystem.StringToAddress(address, port);
+		public static NetAddress FromString(string address, ushort port = 0, bool doDNSLookup = true) {
+			return NetSystem.StringToAddress(address, port, doDNSLookup);
 		}
 
         public int CompareTo(object obj) // For sorting

@@ -335,7 +335,7 @@ namespace JKClient {
 				return false;
 			}
 		}
-		public static async Task<NetAddress> StringToAddressAsync(string address, ushort port = 0) {
+		public static async Task<NetAddress> StringToAddressAsync(string address, ushort port = 0, bool doDNSLookup = true) {
 			byte []ip;
 			int index = address.IndexOf(':');
 			if (port <= 0) {
@@ -346,21 +346,33 @@ namespace JKClient {
 			}
 			ip = IPAddress.TryParse(address.Substring(0, index), out IPAddress ipAddress) ? ipAddress.GetAddressBytes() : null;
 			if (ip == null) {
-				try {
-					var hostEntry = await Dns.GetHostEntryAsync(address);
-					ip = hostEntry.AddressList.FirstOrDefault(adr => adr.AddressFamily == AddressFamily.InterNetwork)?.GetAddressBytes();
-				} catch (SocketException exception) {
-					if (exception.SocketErrorCode == SocketError.HostNotFound) {
-						return null;
-					} else {
-						throw;
+                if (doDNSLookup)
+				{
+					try
+					{
+						var hostEntry = await Dns.GetHostEntryAsync(address);
+						ip = hostEntry.AddressList.FirstOrDefault(adr => adr.AddressFamily == AddressFamily.InterNetwork)?.GetAddressBytes();
 					}
-				}
+					catch (SocketException exception)
+					{
+						if (exception.SocketErrorCode == SocketError.HostNotFound)
+						{
+							return null;
+						}
+						else
+						{
+							throw;
+						}
+					}
+				} else
+                {
+					return null;
+                }
 			}
 			return new NetAddress(ip, port);
 		}
-		public static NetAddress StringToAddress(string address, ushort port = 0) {
-			return NetSystem.StringToAddressAsync(address, port).Result;
+		public static NetAddress StringToAddress(string address, ushort port = 0, bool doDNSLookup = true) {
+			return NetSystem.StringToAddressAsync(address, port, doDNSLookup).Result;
 		}
 		public void Dispose() {
 			this.disposed = true;

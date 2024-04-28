@@ -263,6 +263,7 @@ namespace JKClient {
 
 		public bool AfkDropSnaps { get; set; } = false;
 		public int AfkDropSnapsMinFPS { get; set; } = 2;
+		public int AfkDropSnapsMinFPSBots { get; set; } = 1000; // safe default but we really want a bit less..
 		public Guid Guid {
 			get => Guid.TryParse(this.userInfo[this.GuidKey], out Guid guid) ? guid : Guid.Empty;
 			set {
@@ -272,6 +273,10 @@ namespace JKClient {
 		}
 		public string CDKey { get; set; } = string.Empty;
 		public ClientInfo []ClientInfo => this.clientGame?.ClientInfo;
+		internal bool[] ClientIsConfirmedBot = new bool[128]; // clientgame will set this for us, hehe. putting 128 as the limit in case we ever support a 128 player game
+		internal bool SaberModDetected = false;
+
+
 		private readonly ServerInfo serverInfo = new ServerInfo();
 		public ServerInfo ServerInfo {
 			get {
@@ -284,6 +289,10 @@ namespace JKClient {
 				this.serverInfo.SetConfigstringInfo(info);
 				this.serverInfo.SetSystemConfigstringInfo(info2);
 				this.ClientHandler.SetExtraConfigstringInfo(this.serverInfo, info);
+				if (this.serverInfo.GameName.ToLowerInvariant().Contains("sabermod"))
+				{
+					this.SaberModDetected = true;
+				}
 				return this.serverInfo;
 			}
 		}
@@ -624,8 +633,9 @@ namespace JKClient {
 			this.lastMessageReceivedTime = messageReceivedTime;
 		}
 
-		private unsafe bool MessageCheckSuperSkippable(Message msg, int deltaNum)
+		private unsafe bool MessageCheckSuperSkippable(Message msg, int deltaNum, ref bool superSkippableButBotMovement)
         {
+			int maxClients = this.ClientHandler.MaxClients;
 			int randomTmpValue = 0;
 			bool isMOH = this.ClientHandler is MOHClientHandler;
 			ProtocolVersion protocol = (ProtocolVersion)this.Protocol;
@@ -648,17 +658,20 @@ namespace JKClient {
             if (lc > fields.Count)
             {
 				throw new Exception($"MessageCheckSuperSkippable: ps lc was {lc} but field count is {fields.Count}");
-            }
+			}
+			int psClientNum = this.snap.PlayerState.ClientNum;
 			if (lc > 0) {
+				bool psSuperSkippable = true;
 				for (int i = 0; i < lc; i++)
 				{
 					if (msg.ReadBits(1) != 0)
 					{
 						if (fields[i].Name != nameof(PlayerState.CommandTime))
 						{
-							return false;
-						} else
+							psSuperSkippable = false;
+						}// else
                         {
+							int value = -1;
 							if (isMOH)
 							{
 								switch (fields[i].Type)
@@ -683,21 +696,36 @@ namespace JKClient {
 								}
 							} else { 
 								int bits = fields[i].Bits;
-								msg.ReadBits( bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits); // Very short form of reading a field and discarding it the result.
+								randomTmpValue = msg.ReadBits( bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits); // Very short form of reading a field and discarding it the result. Edit: actually we keep the result now to read clientnum
 
+							}
+							if (fields[i].Name == nameof(PlayerState.ClientNum))
+							{
+								psClientNum = randomTmpValue;
 							}
 						}
 
 					}
 				}
+                if (!psSuperSkippable)
+                {
+                    if (psClientNum >=0 && psClientNum < maxClients && this.ClientIsConfirmedBot[psClientNum])
+                    {
+						superSkippableButBotMovement = true;
+					} else
+                    {
+						return false;
+                    }
+                }
 			}
 
 			// If any additional values/stats changed, not super skippable
 			if (msg.ReadBits(1) != 0) return false;
 
 			// Sad, since nothing changed we have to check if the PS we'd be deltaing from has vehiclenum for JKA
-			if (this.ClientHandler.CanParseVehicle) 
-            {
+			if (this.ClientHandler.CanParseVehicle)
+			{
+				bool vehicleSuperSkippable = true;
 				var oldSnapHandle = GCHandle.Alloc(this.snapshots, GCHandleType.Pinned);
 				var oldSnap = ((ClientSnapshot*)oldSnapHandle.AddrOfPinnedObject()) + (deltaNum & JKClient.PacketMask);
 				if (oldSnap->PlayerState.VehicleNum != 0) {
@@ -713,9 +741,10 @@ namespace JKClient {
 							{
 								if (vehFields[i].Name != nameof(PlayerState.CommandTime))
 								{
-									return false;
+									vehicleSuperSkippable = false;
+									//return false; // hmm how to deal with bots and vehicles? maybe solve another time, not sure how this is communicated.
 								}
-								else
+								//else
 								{
 									int bits = vehFields[i].Bits;
 									msg.ReadBits(bits == 0 ? (msg.ReadBits(1) == 0 ? Message.FloatIntBits : 32) : bits); // Very short form of reading a field and discarding it the result.
@@ -729,6 +758,17 @@ namespace JKClient {
 					if (msg.ReadBits(1) != 0) return false;
 				}
 				oldSnapHandle.Free();
+				if (!vehicleSuperSkippable)
+				{
+					if (psClientNum >= 0 && psClientNum < maxClients && this.ClientIsConfirmedBot[psClientNum])
+					{
+						superSkippableButBotMovement = true;
+					}
+					else
+					{
+						return false;
+					}
+				}
 			}
 
 			// Entities
@@ -754,9 +794,16 @@ namespace JKClient {
 						{
 							if (eFields[i].Offset != entityStateCommandTimeOffset)
 							{
-								return false;
+								if (newnum >= 0 && newnum < maxClients && this.ClientIsConfirmedBot[newnum])
+								{
+									superSkippableButBotMovement = true;
+								}
+								else
+								{
+									return false;
+								}
 							}
-							else
+							//else
 							{
                                 if (isMOH)
                                 {
@@ -838,7 +885,7 @@ namespace JKClient {
 		// We don't ever wanna skip messasges with gamestate or commands, or with non-delta messages.
 		// But we can skip delta messages to artificially limit snaps.
 		// Superskippable: delta snapshot with no changes.
-		private bool MessageIsSkippable(in Message msg, int newSnapNum, ref int serverTimeHere, ref bool superSkippable)
+		private bool MessageIsSkippable(in Message msg, int newSnapNum, ref int serverTimeHere, ref bool superSkippable, ref bool superSkippableButBotMovement)
         {
 			bool isMOH = this.ClientHandler is MOHClientHandler;
 
@@ -891,10 +938,16 @@ namespace JKClient {
 						Stats.messagesSkippable++;
 						canSkip = true; // This is the only situation where we wanna skip. Message contains no gamestate or commands, only snapshot, and it's a delta snapshot.
 
-						superSkippable = MessageCheckSuperSkippable(msg, theDeltaNum);
+						superSkippable = MessageCheckSuperSkippable(msg, theDeltaNum, ref superSkippableButBotMovement);
                         if (superSkippable)
                         {
-							Stats.messagesSuperSkippable++;
+                            if (superSkippableButBotMovement)
+                            {
+								Stats.messagesSuperSkippableButBotMovement++;
+							} else
+							{
+								Stats.messagesSuperSkippable++;
+							}
 						}
 					}
 					else
@@ -964,7 +1017,8 @@ namespace JKClient {
 
 						bool didWeSkipThis = false;
 						bool superSkippable = false;
-						if (MessageIsSkippable(in msg, newSnapNum, ref newServerTime, ref superSkippable))
+						bool superSkippableButBotMovement = false;
+						if (MessageIsSkippable(in msg, newSnapNum, ref newServerTime, ref superSkippable, ref superSkippableButBotMovement))
 						{
 							// TODO Measure round trip from client to server and back 
 							// Then subtract that from measured PACKET_BACKUP(32)/sv snaps
@@ -1005,7 +1059,7 @@ namespace JKClient {
                             {
                                 if (superSkippable) { 
 
-									int maxDelta = 1000 / this.AfkDropSnapsMinFPS;
+									int maxDelta = superSkippableButBotMovement ? (1000 / this.AfkDropSnapsMinFPSBots) : (1000 / this.AfkDropSnapsMinFPS);
 
 									maxDelta = Math.Min(this.deltaSnapMaxDelay, maxDelta); // Dynamically adjusted safety to avoid non-delta snaps.
 

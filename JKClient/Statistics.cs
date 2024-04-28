@@ -34,6 +34,7 @@ namespace JKClient
         public Int64 messagesOutOfOrder { get; internal set; }
         public Int64 messagesSkippable { get; internal set; }
         public Int64 messagesSuperSkippable { get; internal set; }
+        public Int64 messagesSuperSkippableButBotMovement { get; internal set; }
         public Int64 messagesUnskippableSvc { get; internal set; }
         public Int64 messagesUnskippableNewCommands { get; internal set; }
         public Int64 messagesUnskippableNonDelta { get; internal set; }

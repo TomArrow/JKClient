@@ -26,6 +26,12 @@ namespace JKClient {
 		private readonly StringBuilder bigInfoString = new StringBuilder(Common.BigInfoString, Common.BigInfoString);
 
 
+		void IJKClientImport.TellBotSkill(int clientNum, float value)
+		{
+			// gross to track this in "engine" but for our afk snap skipping we need this because
+			// we may end up in a situation where one player is afking, but a bot is running around
+			ClientIsConfirmedBot[clientNum] = value > (this.SaberModDetected ? 0.1f : -0.5f);
+		}
 		private void FirstSnapshot()
         {
 			this.clServerTimeDelta = this.snap.ServerTime - this.realTime;

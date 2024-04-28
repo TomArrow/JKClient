@@ -21,6 +21,7 @@ namespace JKClient {
 		internal string GetConfigstring(in int index);
 		internal void ExecuteServerCommand(CommandEventArgs eventArgs);
 		internal void NotifyClientInfoChanged();
+		internal void TellBotSkill(int clientNum, float value);
 	}
 	public abstract class ClientGame {
 		protected readonly bool Initialized = false;
@@ -298,6 +299,7 @@ namespace JKClient {
 				this.ClientInfo[clientNum].GRedTeam = info["g_redteam"];
 				this.ClientInfo[clientNum].GBlueTeam = info["g_blueteam"];
 				this.ClientInfo[clientNum].InfoValid = true;
+				this.Client.TellBotSkill(clientNum,this.ClientInfo[clientNum].BotSkill);
 			}
 			if (this.Initialized) {
 				this.Client.NotifyClientInfoChanged();

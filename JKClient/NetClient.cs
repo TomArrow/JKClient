@@ -42,14 +42,14 @@ namespace JKClient {
 
 
 		public event EventHandler<ErrorMessageEventArgs> ErrorMessageCreated;
-		private void OnErrorMessageCreated(string errorMessage)
+		private void OnErrorMessageCreated(string errorMessage, string errorMessageDetails)
 		{
-			ErrorMessageCreated?.Invoke(this, new ErrorMessageEventArgs(errorMessage));
+			ErrorMessageCreated?.Invoke(this, new ErrorMessageEventArgs(errorMessage, errorMessageDetails));
 		}
 
-		protected void Msg_ErrorMessageCreated(string msg)
+		protected void Msg_ErrorMessageCreated(string msg, string msgDetails)
 		{
-			OnErrorMessageCreated(msg);
+			OnErrorMessageCreated(msg, msgDetails);
 		}
 
 		public void Start(Func<JKClientException, Task> exceptionCallback) {

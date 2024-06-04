@@ -7,9 +7,11 @@ namespace JKClient
 	public sealed class ErrorMessageEventArgs
 	{
 		public string errorMessage;
-		internal ErrorMessageEventArgs(string errorMessageA)
+		public string errorMessageDetail;
+		internal ErrorMessageEventArgs(string errorMessageA, string errorMessageDetailA)
 		{
 			errorMessage = errorMessageA;
+			errorMessageDetail = errorMessageDetailA;
 		}
 	}
 }

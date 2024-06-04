@@ -419,10 +419,10 @@ namespace JKClient {
 
 		private StringBuilder msgDebugLog = new StringBuilder();
 
-		internal event Action<string> ErrorMessageCreated;
+		internal event Action<string,string> ErrorMessageCreated;
 		private void OnErrorMessageCreated(string errorMessage)
         {
-			ErrorMessageCreated?.Invoke($"{errorMessage}; history if available: \n{msgDebugLog.ToString()}");
+			ErrorMessageCreated?.Invoke(errorMessage, msgDebugLog.ToString());
         }
 
 		private void doDebugLog(string details)

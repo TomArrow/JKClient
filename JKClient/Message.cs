@@ -1,9 +1,13 @@
 ﻿
 #define FASTHUFFMAN // Based on: https://github.com/mightycow/uberdemotools/commit/685b132abc4803f4c813fa07928cd9a4099e5d59
 
+#define STRONGREADDEBUG
+
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -109,6 +113,7 @@ namespace JKClient {
 			long oldSize = demoSize;
 
 			var msg = new Message(new byte[49152], sizeof(byte) * 49152);
+			//msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			Common.MemSet(msg.Data, 0, sizeof(byte) * msg.MaxSize);
 			using (BinaryReader br = new BinaryReader(fs))
 			{
@@ -363,7 +368,9 @@ namespace JKClient {
 		public int? serverTime = null;
 	}
 
+
 	internal  sealed partial class Message {
+		
 		public const int FloatIntBits = 13;
 		private const int FloatIntBias = (1<<(Message.FloatIntBits-1));
 		private int bit = 0;
@@ -410,6 +417,51 @@ namespace JKClient {
 			return retVal;
         }
 
+		private StringBuilder msgDebugLog = new StringBuilder();
+
+		internal event Action<string> ErrorMessageCreated;
+		private void OnErrorMessageCreated(string errorMessage)
+        {
+			ErrorMessageCreated?.Invoke($"{errorMessage}; history if available: \n{msgDebugLog.ToString()}");
+        }
+
+		private void doDebugLog(string details)
+        {
+			//(string calledMethod, string callingMethod) = getCallingAndCalledMethod(2);
+			//msgDebugLog.Append($"{calledMethod}<={callingMethod}: {details}\n");
+			//(string calledMethod, string callingMethod) = getCallingAndCalledMethod(2);
+			msgDebugLog.Append($"{details}\n");
+		}
+		private (string,string) getCallingAndCalledMethod(int skipFrames = 1)
+        {
+			StringBuilder sb = new StringBuilder();
+			StackTrace st = new StackTrace();
+
+			int selfIndex = 0;
+			//string calledMethod = null;
+			for (int i = skipFrames; i < st.FrameCount; i++)
+            {
+                StackFrame frame = st.GetFrame(i);
+				if (!frame.HasMethod()) continue;
+                System.Reflection.MethodBase method = frame.GetMethod();
+				if (method.DeclaringType != typeof(Message))
+                {
+					// find the first method in the stacktrace that isn't inside Message and return it.
+					return (sb.ToString(), $"{method.ReflectedType.ToString()}::{method.Name.ToString()}({frame.GetFileLineNumber()})"); 
+                } else
+                {
+					if(selfIndex > 0)
+					{
+						sb.Append($"<={method.Name.ToString()}({frame.GetFileLineNumber()})");
+					} else
+					{
+						sb.Append($"{method.Name.ToString()}({frame.GetFileLineNumber()})");
+					}
+					selfIndex++;
+				}
+            }
+			return (sb.ToString(), null);
+        }
 
 		// MOHAA Scrambled String table
 		// Scrambled string conversion (write)
@@ -451,18 +503,27 @@ namespace JKClient {
 
 
 
-		public void Bitstream() {
+		public void Bitstream([CallerMemberName] string callingMethod = null) {
 			this.OOB = false;
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>Bitstream()");
+#endif
 		}
-		public void SaveState() {
+		public void SaveState([CallerMemberName] string callingMethod = null) {
 			this.bitSaved = this.bit;
 			this.oobSaved = this.OOB;
 			this.readCountSaved = this.ReadCount;
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>SaveState()");
+#endif
 		}
-		public void RestoreState() {
+		public void RestoreState([CallerMemberName] string callingMethod = null) {
 			this.bit = this.bitSaved;
 			this.OOB = this.oobSaved;
 			this.ReadCount = this.readCountSaved;
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>RestoreState()");
+#endif
 		}
 		public unsafe void WriteBits(int value, int bits) {
 			if (this.MaxSize - this.CurSize < 4) {
@@ -684,8 +745,9 @@ namespace JKClient {
 			this.bit = 0;
 			this.OOB = oob;
 		}
-		public unsafe int ReadBits(int bits) {
+		public unsafe int ReadBits(int bits, [CallerMemberName] string callingMethod = null) {
 			int value = 0;
+			int obits = bits;
 			bool sgn;
 			if (bits < 0) {
 				bits = -bits;
@@ -765,6 +827,9 @@ namespace JKClient {
 					value |= -1 ^ ((1 << bits) - 1);
 				}
 			}
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>ReadsBits({obits}):{value}");
+#endif
 			return value;
 		}
 		public int ReadByte() {
@@ -1282,6 +1347,12 @@ namespace JKClient {
 					}
 				}
 			}
+
+			if(lc < 0 || lc >= fields.Count)
+            {
+				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}");
+			}
+
 			for (int i = lc; i < fields.Count; i++) {
 				fromF = (int*)((byte*)from + fields[i].Offset);
 				toF = (int*)((byte*)to + fields[i].Offset);
@@ -1321,10 +1392,16 @@ namespace JKClient {
 			var fields = clientHandler.GetPlayerStateFields(isVehicle, isPilot);
 			int lc = this.ReadByte();
 
-			if(lc > fields.Count || lc < 0)
-            {
-				throw new Exception($"ReadDeltaPlayerState: lc is {lc}, not between 0 and field count {fields.Count}");
-            }
+
+			if (lc < 0 || lc >= fields.Count)
+			{
+				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}");
+			}
+
+			//if (lc >= fields.Count || lc < 0)
+			//{
+			//	throw new Exception($"ReadDeltaPlayerState: lc is {lc}, not between 0 and field count {fields.Count}");
+			//}
 
 			int* fromF, toF;
 			int trunc;
@@ -1426,6 +1503,7 @@ namespace JKClient {
 					}
 				}
 			}
+
 			for (int i = lc; i < fields.Count; i++) {
 				fromF = (int*)((byte*)from + fields[i].Offset);
 				toF = (int*)((byte*)to + fields[i].Offset);

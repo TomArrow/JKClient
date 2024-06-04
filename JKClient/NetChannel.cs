@@ -216,6 +216,7 @@ namespace JKClient {
 			}
 			byte []buf = new byte[NetChannel.MaxPacketLen];
 			var msg = new Message(buf, sizeof(byte)*NetChannel.MaxPacketLen, true);
+			//msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			msg.WriteLong(this.OutgoingSequence);
 			this.OutgoingSequence++;
 			msg.WriteShort(this.qport);
@@ -225,6 +226,7 @@ namespace JKClient {
 		public unsafe void TransmitNextFragment() {
 			byte []buf = new byte[NetChannel.MaxPacketLen];
 			var msg = new Message(buf, sizeof(byte)*NetChannel.MaxPacketLen, true);
+			//msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			msg.WriteLong(this.OutgoingSequence | NetChannel.FragmentBit);
 			msg.WriteShort(this.qport);
 			int fragmentLength = NetChannel.FragmentSize;

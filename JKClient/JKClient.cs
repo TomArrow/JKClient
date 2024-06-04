@@ -171,7 +171,8 @@ namespace JKClient {
 		public IClientHandler ClientHandler => this.NetHandler as IClientHandler;
 
 		public ClientVersion Version => this.ClientHandler.Version;
-		
+
+
 		public event EventHandler<SnapshotParsedEventArgs> SnapshotParsed;
 		internal void OnSnapshotParsed(SnapshotParsedEventArgs eventArgs)
         {
@@ -1477,6 +1478,7 @@ namespace JKClient {
 				var oldcmd = new UserCommand();
 				byte[] data = new byte[this.ClientHandler.MaxMessageLength];
 				var msg = new Message(data, sizeof(byte)*this.ClientHandler.MaxMessageLength);
+                msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 				msg.Bitstream();
 				msg.WriteLong(this.serverId);
 				if (PingAdjust == 0)
@@ -1563,7 +1565,9 @@ namespace JKClient {
 				}
 			}
 		}
-		private unsafe void AddReliableCommand(string cmd, bool disconnect = false, Encoding encoding = null) {
+
+
+        private unsafe void AddReliableCommand(string cmd, bool disconnect = false, Encoding encoding = null) {
 			int unacknowledged = this.reliableSequence - this.reliableAcknowledge;
 			fixed (sbyte *reliableCommand = this.reliableCommands[++this.reliableSequence & (this.MaxReliableCommands-1)]) {
 				encoding = encoding ?? Common.Encoding;
@@ -1869,6 +1873,7 @@ namespace JKClient {
 			bool isMOH = this.ClientHandler is MOHClientHandler;
 			byte[] data = new byte[ClientHandler.MaxMessageLength];
 			var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
+			msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			msg.Bitstream(); 
 			msg.WriteLong(reliableSequence);
 			StringBuilder sb = new StringBuilder();
@@ -1984,6 +1989,7 @@ namespace JKClient {
 
 					// write out the gamestate message
 					var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
+					msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 
 					msg.Bitstream();
 

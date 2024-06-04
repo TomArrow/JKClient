@@ -40,6 +40,18 @@ namespace JKClient {
 			InternalTaskStarted?.Invoke(this, task, description);
         }
 
+
+		public event EventHandler<ErrorMessageEventArgs> ErrorMessageCreated;
+		private void OnErrorMessageCreated(string errorMessage)
+		{
+			ErrorMessageCreated?.Invoke(this, new ErrorMessageEventArgs(errorMessage));
+		}
+
+		protected void Msg_ErrorMessageCreated(string msg)
+		{
+			OnErrorMessageCreated(msg);
+		}
+
 		public void Start(Func<JKClientException, Task> exceptionCallback) {
 			if (this.Started) {
 				return;
@@ -71,6 +83,7 @@ namespace JKClient {
 		}
 		private protected void GetPacket() {
 			var netmsg = new Message(this.packetReceived, sizeof(byte)*this.NetHandler.MaxMessageLength);
+			netmsg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			NetAddress address = null;
 			while (this.net.GetPacket(ref address, netmsg)) {
 				if ((uint)netmsg.CurSize <= netmsg.MaxSize) {
@@ -114,6 +127,7 @@ namespace JKClient {
 			var mbuf = new Message(msg, msg.Length) {
 				CurSize = length+ (isMOH ? 5 : 4)
 			};
+			//mbuf.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			Huffman.Compress(mbuf, isMOH ? 13 : 12);
 			this.net.SendPacket(mbuf.CurSize, mbuf.Data, address);
 		}

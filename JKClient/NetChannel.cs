@@ -49,6 +49,11 @@ namespace JKClient {
 			//this.fragmentBuffer = new byte[this.maxMessageLength];
 			this.unsentBuffer = new byte[this.maxMessageLength];
 		}
+		internal event Action<string, string> ErrorMessageCreated;
+		private void OnErrorMessageCreated(string errorMessage)
+		{
+			ErrorMessageCreated?.Invoke(errorMessage, null);
+		}
 		public unsafe bool Process(Message msg, bool isMOH, ref int sequenceNumber, ref bool validButOutOfOrder) {
 			msg.BeginReading(true);
 			int sequence = msg.ReadLong();
@@ -183,7 +188,6 @@ namespace JKClient {
 				this.fragmentLength = 0;*/
 				msg.RestoreState();
 
-#if STRONGREADDEBUG
 				string duplicatedFragmentsFound = "(no)";
                 if (duplicateFragmentReceived)
                 {
@@ -203,7 +207,9 @@ namespace JKClient {
 						}
 					}
 					duplicatedFragmentsFound = dfsb.ToString();
+					OnErrorMessageCreated($"Duplicated fragments in assembled message: {duplicatedFragmentsFound}");
 				}
+#if STRONGREADDEBUG
 				msg.doDebugLogExt($"Fragments reassembled & state restored: sequence {sequence}, incomingSequence {this.incomingSequence}, cursize {msg.CurSize}, bit {msg.Bit}, oob {msg.OOB}, readCount {msg.ReadCount}, lastFragment {thisFragmentBuffer.lastFragment}, fragmentTotalLength {thisFragmentBuffer.totalLength}, outOfOrder {isOutOfOrder}, duplicatedFragments {duplicatedFragmentsFound}");
 #endif
 

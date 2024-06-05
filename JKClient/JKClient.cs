@@ -1278,6 +1278,7 @@ namespace JKClient {
 						return;
 					}
 					this.netChannel = new NetChannel(this.net, address, this.port, this.ClientHandler.MaxMessageLength);
+                    this.netChannel.ErrorMessageCreated += NetChannel_ErrorMessageCreated;
 					this.Status = ConnectionStatus.Connected;
 					this.lastPacketSentTime = -9999;
 				}
@@ -1357,7 +1358,13 @@ namespace JKClient {
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			}
 		}
-		private void CreateNewCommand()
+
+        private void NetChannel_ErrorMessageCreated(string arg1, string arg2)
+        {
+			OnErrorMessageCreated(arg1, arg2);
+        }
+
+        private void CreateNewCommand()
 		{
 			if (this.Status < ConnectionStatus.Primed) {
 				return;

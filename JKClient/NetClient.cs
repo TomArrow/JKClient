@@ -42,7 +42,7 @@ namespace JKClient {
 
 
 		public event EventHandler<ErrorMessageEventArgs> ErrorMessageCreated;
-		private void OnErrorMessageCreated(string errorMessage, string errorMessageDetails)
+		protected void OnErrorMessageCreated(string errorMessage, string errorMessageDetails)
 		{
 			ErrorMessageCreated?.Invoke(this, new ErrorMessageEventArgs(errorMessage, errorMessageDetails));
 		}

@@ -1350,7 +1350,7 @@ namespace JKClient {
 				}
 			}
 
-			if(lc < 0 || lc >= fields.Count)
+			if(lc < 0 || lc > fields.Count)
             {
 				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}, msgCursize {this.CurSize}, msgReadCount {this.ReadCount}, msgBit {this.Bit}");
 			}
@@ -1395,7 +1395,7 @@ namespace JKClient {
 			int lc = this.ReadByte();
 
 
-			if (lc < 0 || lc >= fields.Count)
+			if (lc < 0 || lc > fields.Count)
 			{
 				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}, msgCursize {this.CurSize}, msgReadCount {this.ReadCount}, msgBit {this.Bit}");
 			}

@@ -1,8 +1,6 @@
 ﻿
 #define FASTHUFFMAN // Based on: https://github.com/mightycow/uberdemotools/commit/685b132abc4803f4c813fa07928cd9a4099e5d59
 
-#define STRONGREADDEBUG
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -431,6 +429,10 @@ namespace JKClient {
 			//msgDebugLog.Append($"{calledMethod}<={callingMethod}: {details}\n");
 			//(string calledMethod, string callingMethod) = getCallingAndCalledMethod(2);
 			msgDebugLog.Append($"{details}\n");
+		}
+		internal void doDebugLogExt(string details)
+        {
+			doDebugLog($"Exterrnal message manipulation: {details}");
 		}
 		private (string,string) getCallingAndCalledMethod(int skipFrames = 1)
         {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text;
 
 namespace JKClient {
 
@@ -8,14 +9,14 @@ namespace JKClient {
 		public const double FragmentBuffersTimeout = 10;
 
 		public byte[] data;//[MAX_MSGLEN]; // actual data
-		public bool[] fragmentsReceived;//[MAX_MSGLEN / FRAGMENT_SIZE + 1]; // array indicating if a particular fragment has been received
+		public int[] fragmentsReceived;//[MAX_MSGLEN / FRAGMENT_SIZE + 1]; // array indicating if a particular fragment has been received
 		public int lastFragment; // index of the last fragment. 0 means we don't know yet.
 		public int totalLength; // length of the entire message
 		public DateTime time; // when was this fragment buffer last accessed? we want to clean up old unfinished fragment buffers.
 		public FragmentAssemblyBuffer(int maxMessageLength)
 		{
 			data = new byte[maxMessageLength];
-			fragmentsReceived = new bool[maxMessageLength / NetChannel.FragmentSize + 1];
+			fragmentsReceived = new int[maxMessageLength / NetChannel.FragmentSize + 1];
 		}
 	}
 
@@ -99,11 +100,11 @@ namespace JKClient {
 					fragmentBuffers.Remove(key);
                 }
 
-                if (!fragmentBuffers.ContainsKey(sequence))
+				//bool isNewBuffer = !fragmentBuffers.ContainsKey(sequence);
+				if (!fragmentBuffers.ContainsKey(sequence))
 				{
 					fragmentBuffers.Add(sequence, new FragmentAssemblyBuffer(this.maxMessageLength));
 				}
-				bool isNewBuffer = !fragmentBuffers.ContainsKey(sequence);
 
 				FragmentAssemblyBuffer thisFragmentBuffer = fragmentBuffers[sequence]; // This will either find or insert the element.
 
@@ -132,13 +133,15 @@ namespace JKClient {
 				bool isLastFragment = fragmentLength != NetChannel.FragmentSize;
 				Array.Copy(msg.Data, msg.ReadCount, thisFragmentBuffer.data,fragmentStart, fragmentLength);
 				//Com_Memcpy(thisFragmentBuffer->data + fragmentStart,msg->data + msg->readcount, fragmentLength);
-				thisFragmentBuffer.fragmentsReceived[currentFragment] = true;
+				thisFragmentBuffer.fragmentsReceived[currentFragment]++;
 				thisFragmentBuffer.time = DateTime.Now;
 				if (isLastFragment)
 				{
 					thisFragmentBuffer.lastFragment = currentFragment;
 					thisFragmentBuffer.totalLength = fragmentStart + fragmentLength;
 				}
+
+				bool duplicateFragmentReceived = false;
 
 				// Any fragments missing?
 				if (thisFragmentBuffer.lastFragment == 0)
@@ -149,9 +152,13 @@ namespace JKClient {
 				{
 					for (int i = thisFragmentBuffer.lastFragment; i >= 0; i--)
 					{
-						if (!thisFragmentBuffer.fragmentsReceived[i])
+						if (thisFragmentBuffer.fragmentsReceived[i] == 0)
 						{
 							return false; // If any fragment is missing, there's no point in continuing here.
+						} else if (thisFragmentBuffer.fragmentsReceived[i] > 1)
+                        {
+							duplicateFragmentReceived = true;
+
 						}
 					}
 				}
@@ -175,6 +182,30 @@ namespace JKClient {
 				msg.CurSize = this.fragmentLength + 4;
 				this.fragmentLength = 0;*/
 				msg.RestoreState();
+
+#if STRONGREADDEBUG
+				string duplicatedFragmentsFound = "(no)";
+                if (duplicateFragmentReceived)
+                {
+					StringBuilder dfsb = new StringBuilder();
+					int index = 0;
+					for (int i = thisFragmentBuffer.lastFragment; i >= 0; i--)
+					{
+						if (thisFragmentBuffer.fragmentsReceived[i] > 1)
+						{
+							duplicateFragmentReceived = true;
+							if(index > 0)
+							{
+								dfsb.Append($", ");
+							}
+							dfsb.Append($"fragment {i} received {thisFragmentBuffer.fragmentsReceived[i]} times");
+							index++;
+						}
+					}
+					duplicatedFragmentsFound = dfsb.ToString();
+				}
+				msg.doDebugLogExt($"Fragments reassembled & state restored: sequence {sequence}, incomingSequence {this.incomingSequence}, cursize {msg.CurSize}, bit {msg.Bit}, oob {msg.OOB}, readCount {msg.ReadCount}, lastFragment {thisFragmentBuffer.lastFragment}, fragmentTotalLength {thisFragmentBuffer.totalLength}, outOfOrder {isOutOfOrder}, duplicatedFragments {duplicatedFragmentsFound}");
+#endif
 
 				thisFragmentBuffer = null;
 				fragmentBuffers.Remove(sequence); // Now that the message is fully assembled, we can discard the fragment buffer

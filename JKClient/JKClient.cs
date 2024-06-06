@@ -658,7 +658,7 @@ namespace JKClient {
 			int lc = msg.ReadByte();
             if (lc > fields.Count)
             {
-				throw new Exception($"MessageCheckSuperSkippable: ps lc was {lc} but field count is {fields.Count}");
+				throw new JKClientException($"MessageCheckSuperSkippable: ps lc was {lc} but field count is {fields.Count}");
 			}
 			int psClientNum = this.snap.PlayerState.ClientNum;
 			if (lc > 0) {

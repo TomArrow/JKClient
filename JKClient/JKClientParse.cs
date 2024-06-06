@@ -787,6 +787,13 @@ namespace JKClient {
 					}
 					if (newstate->Number == Common.MaxGEntities-1)
 						continue;
+
+					if (msg.ReadCount > msg.CurSize)
+					{
+						msg.CreateErrorMessage("ParsePacketEntities: end of message");
+						throw new JKClientException("ParsePacketEntities: end of message");
+					}
+
 					this.parseEntitiesNum++;
 					this.parseEntitiesNum &= (JKClient.MaxParseEntities-1);
 					newSnap->NumEntities++;

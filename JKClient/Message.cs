@@ -432,7 +432,7 @@ namespace JKClient {
 		}
 		internal void doDebugLogExt(string details)
         {
-			doDebugLog($"Exterrnal message manipulation: {details}");
+			doDebugLog($"External message manipulation: {details}");
 		}
 		private (string,string) getCallingAndCalledMethod(int skipFrames = 1)
         {
@@ -742,12 +742,15 @@ namespace JKClient {
 				this.WriteDeltaKey(key, from.GenericCmd, to.GenericCmd, 8);
 			}
 		}
-		public void BeginReading(bool oob = false) {
+		public void BeginReading(bool oob = false, [CallerMemberName] string callingMethod = null) {
 			this.ReadCount = 0;
 			this.bit = 0;
 			this.OOB = oob;
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>BeginReading(oob:{oob})");
+#endif
 		}
-		public unsafe int ReadBits(int bits, [CallerMemberName] string callingMethod = null) {
+		public unsafe int ReadBits(int bits, string earlierCallingMethod = null, string note = null, [CallerMemberName] string callingMethod = null) {
 			int value = 0;
 			int obits = bits;
 			bool sgn;
@@ -830,32 +833,41 @@ namespace JKClient {
 				}
 			}
 #if STRONGREADDEBUG
-			doDebugLog($"{callingMethod}=>ReadsBits({obits}):{value}");
+			string overflow = this.ReadCount > this.CurSize ? $" / overflowed:{this.ReadCount}>{this.CurSize}" : "";
+			string noteString = note != null ? " (note: {note})" : "";
+			if (earlierCallingMethod != null)
+			{
+				doDebugLog($"{earlierCallingMethod}=>{callingMethod}=>ReadBits({obits}):{value}{noteString}{overflow}");
+			}
+            else
+			{
+				doDebugLog($"{callingMethod}=>ReadBits({obits}):{value}{noteString}{overflow}");
+			}
 #endif
 			return value;
 		}
-		public int ReadByte() {
-			int c = (byte)this.ReadBits(8);
+		public int ReadByte([CallerMemberName] string callingMethod = null) {
+			int c = (byte)this.ReadBits(8, callingMethod);
 			if (this.ReadCount > this.CurSize) {
 				c = -1;
 			}
 			return c;
 		}
-		public int ReadShort() {
-			int c = (short)this.ReadBits(16);
+		public int ReadShort([CallerMemberName] string callingMethod = null) {
+			int c = (short)this.ReadBits(16, callingMethod);
 			if (this.ReadCount > this.CurSize) {
 				c = -1;
 			}
 			return c;
 		}
-		public int ReadLong() {
-			int c = this.ReadBits(32);
+		public int ReadLong([CallerMemberName] string callingMethod = null) {
+			int c = this.ReadBits(32, callingMethod);
 			if (this.ReadCount > this.CurSize) {
 				c = -1;
 			}
 			return c;
 		}
-		public sbyte []ReadString(ProtocolVersion protocol,bool forceNonScrambled = false) {
+		public sbyte []ReadString(ProtocolVersion protocol,bool forceNonScrambled = false, [CallerMemberName] string callingMethod = null) {
 			bool isMOH = Common.ProtocolIsMOH(protocol);
 			bool isMOHithScrambledString = isMOH && protocol > ProtocolVersion.Protocol8 && !forceNonScrambled;
 			int realMaxStringChars = isMOH ? Common.MaxStringCharsMOH : Common.MaxStringChars;
@@ -886,13 +898,16 @@ namespace JKClient {
 			} else {
 				str[sizeof(sbyte)* realMaxStringChars - 1] = 0;
 			}
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>ReadString() finished: {str}");
+#endif
 			return str;
 		}
 		public string ReadStringAsString(ProtocolVersion protocol, bool forceNonScrambled = false) {
 			sbyte []str = this.ReadString(protocol, forceNonScrambled);
 			return Common.ToString(str);
 		}
-		public sbyte []ReadBigString(bool mohScrambledString) {
+		public sbyte []ReadBigString(bool mohScrambledString, [CallerMemberName] string callingMethod = null) {
 			sbyte []str = new sbyte[Common.BigInfoString];
 			int l, c;
 			l = 0;
@@ -915,13 +930,16 @@ namespace JKClient {
 				l++;
 			} while (l < sizeof(sbyte)*Common.BigInfoString-1);
 			str[l] = 0;
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>ReadBigString() finished: {str}");
+#endif
 			return str;
 		}
 		public string ReadBigStringAsString(bool mohScrambledString) {
 			sbyte []str = this.ReadBigString(mohScrambledString);
 			return Common.ToString(str);
 		}
-		public sbyte []ReadStringLine(ProtocolVersion protocol) {
+		public sbyte []ReadStringLine(ProtocolVersion protocol, [CallerMemberName] string callingMethod = null) {
 
 			bool isMOH = Common.ProtocolIsMOH(protocol);
 			bool isMOHithScrambledString = protocol > ProtocolVersion.Protocol8;
@@ -942,6 +960,9 @@ namespace JKClient {
 				l++;
 			} while (l < sizeof(sbyte)* realMaxStringChars - 1);
 			str[l] = 0;
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>ReadStringLine() finished: {str}");
+#endif
 			return str;
 		}
 		public string ReadStringLineAsString(ProtocolVersion protocol) {
@@ -949,10 +970,13 @@ namespace JKClient {
 			return Common.ToString(str);
 		}
 		//we don't really need any Data in assetsless client
-		public void ReadData(byte []data, int len) {
+		public void ReadData(byte []data, int len, [CallerMemberName] string callingMethod = null) {
 			for (int i = 0; i < len; i++) {
 				/*data[i] = (byte)*/this.ReadByte();
 			}
+#if STRONGREADDEBUG
+			doDebugLog($"{callingMethod}=>ReadData() finished.");
+#endif
 		}
 
 		// TODO: This must be adapted to the new Q3 stuff I think, see ReadDeltaEntity.
@@ -1170,7 +1194,7 @@ namespace JKClient {
 
 		}
 
-		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler, float frameTime, ref bool fakeNonDelta, StringBuilder debugString = null) {
+		public unsafe void ReadDeltaEntity(EntityState *from, EntityState *to, int number, IClientHandler clientHandler, float frameTime, ref bool fakeNonDelta, StringBuilder debugString = null, [CallerMemberName] string callingMethod = null) {
 			if (number < 0 || number >= Common.MaxGEntities) {
 				throw new JKClientException($"Bad delta entity number: {number}");
 			}
@@ -1180,7 +1204,7 @@ namespace JKClient {
 
 			bool print = debugString != null;
 
-			if (this.ReadBits(1) == 1) {
+			if (this.ReadBits(1, callingMethod) == 1) {
 				Common.MemSet(to, 0, sizeof(EntityState));
 				to->Number = Common.MaxGEntities - 1;
                 if (print)
@@ -1189,7 +1213,7 @@ namespace JKClient {
                 }
 				return;
 			}
-			if (this.ReadBits(1) == 0) {
+			if (this.ReadBits(1, callingMethod) == 0) {
 				*to = *from;
 				to->Number = number;
 				return;
@@ -1210,7 +1234,7 @@ namespace JKClient {
 			for (int i = 0; i < lc; i++) {
 				fromF = (int*)((byte*)from + fields[i].Offset);
 				toF = (int*)((byte*)to + fields[i].Offset);
-				if (this.ReadBits(1) == 0) {
+				if (this.ReadBits(1, callingMethod) == 0) {
 					*toF = *fromF;
 				} else {
 
@@ -1296,7 +1320,7 @@ namespace JKClient {
 								}
 								break;
 							default:
-								throw new Exception($"ReadDeltaEntity (MOH): unrecognized entity field type {i} for field\n");
+								throw new JKClientException($"ReadDeltaEntity (MOH): unrecognized entity field type {i} for field\n");
 								//break;
 						}
 					} else
@@ -1304,11 +1328,11 @@ namespace JKClient {
 
 						int bits = fields[i].Bits;
 						if (bits == 0) {
-							if (this.ReadBits(1) == 0) {
+							if (this.ReadBits(1, callingMethod) == 0) {
 								*(float*)toF = 0.0f;
 							} else {
-								if (this.ReadBits(1) == 0) {
-									trunc = this.ReadBits(Message.FloatIntBits);
+								if (this.ReadBits(1, callingMethod) == 0) {
+									trunc = this.ReadBits(Message.FloatIntBits, callingMethod);
 									trunc -= Message.FloatIntBias;
 									*(float*)toF = trunc;
 									if (print)
@@ -1316,7 +1340,7 @@ namespace JKClient {
 										debugString.Append($"{fields[i].Name}:{trunc} ");
 									}
 								} else {
-									*toF = this.ReadBits(32);
+									*toF = this.ReadBits(32, callingMethod);
 									if (print)
 									{
 										debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
@@ -1324,10 +1348,10 @@ namespace JKClient {
 								}
 							}
 						} else {
-							if (this.ReadBits(1) == 0) {
+							if (this.ReadBits(1, callingMethod) == 0) {
 								*toF = 0;
 							} else {
-								*toF = this.ReadBits(bits);
+								*toF = this.ReadBits(bits, callingMethod);
 								if (print)
 								{
 									debugString.Append($"{fields[i].Name}:{*toF} ");
@@ -1366,7 +1390,11 @@ namespace JKClient {
 				debugString.Append($"\n");
 			}
 		}
-		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler, ref bool fakeNonDelta, StringBuilder debugString = null) {
+		public void CreateErrorMessage(string detail)
+        {
+			OnErrorMessageCreated($"Externally trigger message error: {detail}: msgCursize {this.CurSize}, msgReadCount {this.ReadCount}, msgBit {this.Bit}");
+		}
+		public unsafe void ReadDeltaPlayerstate(PlayerState *from, PlayerState *to, bool isVehicle, IClientHandler clientHandler, ref bool fakeNonDelta, StringBuilder debugString = null, [CallerMemberName] string callingMethod = null) {
 
 			bool isMOH = clientHandler is MOHClientHandler;
 			ProtocolVersion protocol = (ProtocolVersion)clientHandler.Protocol;
@@ -1382,7 +1410,7 @@ namespace JKClient {
 			}
 			*to = *from;
 			bool isPilot() {
-				return this.ReadBits(1) != 0;
+				return this.ReadBits(1, callingMethod) != 0;
 			}
 
 			bool print = debugString != null;
@@ -1402,7 +1430,7 @@ namespace JKClient {
 
 			//if (lc >= fields.Count || lc < 0)
 			//{
-			//	throw new Exception($"ReadDeltaPlayerState: lc is {lc}, not between 0 and field count {fields.Count}");
+			//	throw new JKClientException($"ReadDeltaPlayerState: lc is {lc}, not between 0 and field count {fields.Count}");
 			//}
 
 			int* fromF, toF;
@@ -1410,7 +1438,7 @@ namespace JKClient {
 			for (int i = 0; i < lc; i++) {
 				fromF = (int*)((byte*)from + fields[i].Offset);
 				toF = (int*)((byte*)to + fields[i].Offset);
-				if (this.ReadBits(1) == 0) {
+				if (this.ReadBits(1, callingMethod) == 0) {
 					*toF = *fromF;
 				} else {
                     if (isMOH)
@@ -1468,8 +1496,8 @@ namespace JKClient {
 
 						int bits = fields[i].Bits;
 						if (bits == 0) {
-							if (this.ReadBits(1) == 0) {
-								trunc = this.ReadBits(Message.FloatIntBits);
+							if (this.ReadBits(1, callingMethod) == 0) {
+								trunc = this.ReadBits(Message.FloatIntBits, callingMethod);
 								trunc -= Message.FloatIntBias;
 								*(float*)toF = trunc;
 								if (print)
@@ -1477,14 +1505,14 @@ namespace JKClient {
 									debugString.Append($"{fields[i].Name}:{trunc} ");
 								}
 							} else {
-								*toF = this.ReadBits(32);
+								*toF = this.ReadBits(32, callingMethod);
 								if (print)
 								{
 									debugString.Append($"{fields[i].Name}:{*(float*)toF} ");
 								}
 							}
 						} else {
-							*toF = this.ReadBits(bits); 
+							*toF = this.ReadBits(bits, callingMethod); 
 							if (print)
 							{
 								debugString.Append($"{fields[i].Name}:{*toF} ");
@@ -1513,8 +1541,8 @@ namespace JKClient {
 				//fields[i].Adjust?.Invoke(toF);
 			}
 			int tmpValue = 0;
-			if (this.ReadBits(1) != 0) {
-				if (this.ReadBits(1) != 0) {
+			if (this.ReadBits(1, callingMethod, "Stats") != 0) {
+				if (this.ReadBits(1, callingMethod) != 0) {
 					int bits = isMOH ? this.ReadLong(): this.ReadShort();
 					int statCount = isMOH ? 32 : 16;
 					for (int i = 0; i < statCount; i++) {
@@ -1522,7 +1550,7 @@ namespace JKClient {
 							if (i == 4
 								&& (clientHandler.Protocol == (int)ProtocolVersion.Protocol25
 								|| clientHandler.Protocol == (int)ProtocolVersion.Protocol26)) {
-								tmpValue = this.ReadBits(19);
+								tmpValue = this.ReadBits(19, callingMethod);
 								if (print && (tmpValue != to->Stats[i] || !delta))
                                 {
 									debugString.Append($"stats[{i}]:{tmpValue} ");
@@ -1544,7 +1572,7 @@ namespace JKClient {
 					int i, bits;
 
 					// parse activeItems
-					if (this.ReadBits( 1) != 0)
+					if (this.ReadBits( 1, callingMethod, "ActiveItems") != 0)
 					{
 						//LOG("PS_ITEMS");
 						bits = this.ReadByte();
@@ -1558,7 +1586,7 @@ namespace JKClient {
 					}
 
 					// parse ammo_amount
-					if (this.ReadBits( 1) != 0)
+					if (this.ReadBits( 1, callingMethod, "AmmoAmount") != 0)
 					{
 						//LOG("PS_AMMO_AMOUNT");
 						bits = this.ReadShort();
@@ -1572,7 +1600,7 @@ namespace JKClient {
 					}
 
 					// parse ammo_name_index
-					if (this.ReadBits( 1) != 0)
+					if (this.ReadBits( 1, callingMethod, "AmmoNameIndex") != 0)
 					{
 						//LOG("PS_AMMO");
 						bits = this.ReadShort();
@@ -1586,7 +1614,7 @@ namespace JKClient {
 					}
 
 					// parse powerups
-					if (this.ReadBits( 1) != 0)
+					if (this.ReadBits( 1, callingMethod, "MaxAmmoAmount") != 0)
 					{
 						//LOG("PS_MAX_AMMO_AMOUNT");
 						bits = this.ReadShort();
@@ -1601,7 +1629,7 @@ namespace JKClient {
 				} else
                 {
 
-					if (this.ReadBits(1) != 0) {
+					if (this.ReadBits(1, callingMethod, "Persistant") != 0) {
 						int bits = this.ReadShort();
 						for (int i = 0; i < 16; i++) {
 							if ((bits & (1<<i)) != 0) {
@@ -1614,7 +1642,7 @@ namespace JKClient {
 							}
 						}
 					}
-					if (this.ReadBits(1) != 0) {
+					if (this.ReadBits(1, callingMethod, "Ammo") != 0) {
 						int bits = this.ReadShort();
 						for (int i = 0; i < 16; i++) {
 							if ((bits & (1<<i)) != 0) {
@@ -1627,7 +1655,7 @@ namespace JKClient {
 							}
 						}
 					}
-					if (this.ReadBits(1) != 0) {
+					if (this.ReadBits(1, callingMethod, "Powerups") != 0) {
 						int bits = this.ReadShort();
 						for (int i = 0; i < 16; i++) {
 							if ((bits & (1<<i)) != 0) {

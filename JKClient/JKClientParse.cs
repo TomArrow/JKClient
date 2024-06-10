@@ -16,7 +16,7 @@ namespace JKClient {
 	public sealed partial class JKClient {
 		private const int PacketBackup = 256;
 		private const int PacketMask = (JKClient.PacketBackup-1);
-		private const int MaxParseEntities = 2048;
+		private const int MaxParseEntities = JKClient.PacketBackup * 64; // this assumes no more than 64 entities per packet on average. is it really reliable? idk. packets can theoretically have even 1024 ents? //2048;
 #region ClientActive
 		private ClientSnapshot snap = new ClientSnapshot();
 		private int serverTime = 0;
@@ -746,6 +746,8 @@ namespace JKClient {
 			newSnap->NumEntities = 0;
 			EntityState *oldstate;
 			var oldstateHandle = GCHandle.Alloc(this.parseEntities, GCHandleType.Pinned);
+			IntPtr debugAddress = oldstateHandle.AddrOfPinnedObject();
+
 			int oldindex = 0;
 			int oldnum;
 			int newnum = msg.ReadBits(Common.GEntitynumBits);
@@ -761,7 +763,7 @@ namespace JKClient {
 					oldstate = null;
 					oldnum = 99999;
 				}
-				fixed (EntityState *newstate = &this.parseEntities[this.parseEntitiesNum]) {
+				fixed (EntityState *newstate = &this.parseEntities[this.parseEntitiesNum & (JKClient.MaxParseEntities - 1)]) {
 					if (oldstate == null && (newnum == (Common.MaxGEntities-1))) {
 						break;
 					} else if (oldnum < newnum) {
@@ -769,6 +771,12 @@ namespace JKClient {
 						oldindex++;
 					} else if (oldnum == newnum) {
 						oldindex++;
+						if(newnum == (Common.MaxGEntities - 1))
+                        { // debugging. apparently one of these can happen.
+							IntPtr debugAddress2 = oldstateHandle.AddrOfPinnedObject();
+							IntPtr debugAddress3 = (IntPtr)newstate;
+							OnErrorMessageCreated($"Wtf, I'm oldnum == newnum but also newnum == (Common.MaxGEntities - 1); oldindex {oldindex}, oldnum {oldnum}, newnum {newnum}, newState->number {newstate->Number}, oldSnap->ParseEntitiesNum {(oldSnap != null ? oldSnap->ParseEntitiesNum : -9999999)}, oldindex {oldindex}, this.parseEntitiesNum {this.parseEntitiesNum}, newSnap->NumEntities {newSnap->NumEntities}, oldSnap->MessageNum {(oldSnap is null ? -99999 : oldSnap->MessageNum)}, oldSnap->DeltaNum {(oldSnap is null ? -99999 : oldSnap->DeltaNum)}, newSnap->MessageNum {newSnap->MessageNum}, newSnap->DeltaNum {newSnap->DeltaNum}, debugAddress {debugAddress}, debugAddress2 {debugAddress2}, debugAddress3 {debugAddress3}",null);
+                        }
 						msg.ReadDeltaEntity(oldstate, newstate, newnum, this.ClientHandler, this.serverFrameTime,ref fakeNonDelta, showNetString);
 						newnum = msg.ReadBits(Common.GEntitynumBits);
 						if (mohEntityNumSubtract)
@@ -776,6 +784,12 @@ namespace JKClient {
 							newnum = (ushort)(newnum - 1) % Common.MaxGEntities;
 						}
 					} else if (oldnum > newnum) {
+						if(newnum == (Common.MaxGEntities - 1))
+						{ // debugging. apparently one of these can happen.
+							IntPtr debugAddress2 = oldstateHandle.AddrOfPinnedObject();
+							IntPtr debugAddress3 = (IntPtr)newstate;
+							OnErrorMessageCreated($"Wtf, I'm oldnum > newnum but also newnum == (Common.MaxGEntities - 1); oldindex {oldindex}, oldnum {oldnum}, newnum {newnum}, newState->number {newstate->Number}, oldSnap->ParseEntitiesNum {(oldSnap != null ? oldSnap->ParseEntitiesNum : -9999999)}, oldindex {oldindex}, this.parseEntitiesNum {this.parseEntitiesNum}, newSnap->NumEntities {newSnap->NumEntities}, oldSnap->MessageNum {(oldSnap is null ? -99999 : oldSnap->MessageNum)}, oldSnap->DeltaNum {(oldSnap is null ? -99999 : oldSnap->DeltaNum)}, newSnap->MessageNum {newSnap->MessageNum}, newSnap->DeltaNum {newSnap->DeltaNum}, debugAddress {debugAddress}, debugAddress2 {debugAddress2}, debugAddress3 {debugAddress3}",null);
+                        }
 						fixed (EntityState *bl = &this.entityBaselines[newnum]) {
 							msg.ReadDeltaEntity(bl, newstate, newnum, this.ClientHandler, this.serverFrameTime, ref fakeNonDelta, showNetString);
 						}
@@ -785,17 +799,18 @@ namespace JKClient {
 							newnum = (ushort)(newnum - 1) % Common.MaxGEntities;
 						}
 					}
-					if (newstate->Number == Common.MaxGEntities-1)
-						continue;
 
 					if (msg.ReadCount > msg.CurSize)
 					{
-						msg.CreateErrorMessage("ParsePacketEntities: end of message");
-						throw new JKClientException("ParsePacketEntities: end of message");
+						msg.CreateErrorMessage($"ParsePacketEntities: end of message; oldindex {oldindex}, oldnum {oldnum}, newnum {newnum}, newState->number {newstate->Number}");
+						throw new JKClientException($"ParsePacketEntities: end of message; oldindex {oldindex}, oldnum {oldnum}, newnum {newnum}, newState->number {newstate->Number}");
 					}
 
+					if (newstate->Number == Common.MaxGEntities-1)
+						continue;
+
 					this.parseEntitiesNum++;
-					this.parseEntitiesNum &= (JKClient.MaxParseEntities-1);
+					//this.parseEntitiesNum &= (JKClient.MaxParseEntities-1);
 					newSnap->NumEntities++;
 				}
 			}

@@ -1496,7 +1496,7 @@ namespace JKClient {
 
 						int bits = fields[i].Bits;
 						if (bits == 0) {
-							if (this.ReadBits(1, callingMethod) == 0) {
+							if (this.ReadBits(1, callingMethod, fields[i].Name) == 0) {
 								trunc = this.ReadBits(Message.FloatIntBits, callingMethod);
 								trunc -= Message.FloatIntBias;
 								*(float*)toF = trunc;
@@ -1512,7 +1512,7 @@ namespace JKClient {
 								}
 							}
 						} else {
-							*toF = this.ReadBits(bits, callingMethod); 
+							*toF = this.ReadBits(bits, callingMethod, fields[i].Name); 
 							if (print)
 							{
 								debugString.Append($"{fields[i].Name}:{*toF} ");

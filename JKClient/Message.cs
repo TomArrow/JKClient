@@ -834,7 +834,7 @@ namespace JKClient {
 			}
 #if STRONGREADDEBUG
 			string overflow = this.ReadCount > this.CurSize ? $" / overflowed:{this.ReadCount}>{this.CurSize}" : "";
-			string noteString = note != null ? " (note: {note})" : "";
+			string noteString = note != null ? $" (note: {note})" : "";
 			if (earlierCallingMethod != null)
 			{
 				doDebugLog($"{earlierCallingMethod}=>{callingMethod}=>ReadBits({obits}):{value}{noteString}{overflow}");
@@ -1228,6 +1228,12 @@ namespace JKClient {
 				debugString.Append($"{this.ReadCount}: #{number} ");
 			}
 
+
+			if (lc < 0 || lc > fields.Count)
+			{
+				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}, msgCursize {this.CurSize}, msgReadCount {this.ReadCount}, msgBit {this.Bit}");
+			}
+
 			to->Number = number;
 			int* fromF, toF;
 			int trunc;
@@ -1374,10 +1380,6 @@ namespace JKClient {
 				}
 			}
 
-			if(lc < 0 || lc > fields.Count)
-            {
-				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}, msgCursize {this.CurSize}, msgReadCount {this.ReadCount}, msgBit {this.Bit}");
-			}
 
 			for (int i = lc; i < fields.Count; i++) {
 				fromF = (int*)((byte*)from + fields[i].Offset);

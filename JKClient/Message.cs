@@ -364,10 +364,21 @@ namespace JKClient {
 		public DateTime time;
 		public bool containsFullSnapshot;
 		public int? serverTime = null;
+    }
+
+    public class MessageCopy {
+		public bool Overflowed { get; init; }
+		public bool OOB { get; init; }
+		public byte[] Data { get; init; }
+		public int MaxSize { get; init; }
+		public int CurSize { get; init; } = 0;
+		public int ReadCount { get; init; } = 0;
+		public int Bit { get; init; } = 0;
+		public string debugMessage = null;
 	}
 
-
-	internal  sealed partial class Message {
+    
+	internal sealed partial class Message {
 		
 		public const int FloatIntBits = 13;
 		private const int FloatIntBias = (1<<(Message.FloatIntBits-1));
@@ -414,13 +425,28 @@ namespace JKClient {
 			//retVal.Data = (byte[])this.Data.Clone();
 			return retVal;
         }
+		public MessageCopy MakePublicCopy()
+		{
+			MessageCopy retVal = new MessageCopy()
+			{
+				MaxSize = this.MaxSize,
+				Data = (byte[])this.Data.Clone(),
+				Overflowed = this.Overflowed,
+				OOB = this.OOB,
+				CurSize = this.CurSize,
+				ReadCount = this.ReadCount,
+				Bit = this.Bit,
+				debugMessage = msgDebugLog.ToString()
+			};
+			return retVal;
+        }
 
 		private StringBuilder msgDebugLog = new StringBuilder();
 
-		internal event Action<string,string> ErrorMessageCreated;
+		internal event EventHandler<Tuple<string, string>> ErrorMessageCreated;
 		private void OnErrorMessageCreated(string errorMessage)
         {
-			ErrorMessageCreated?.Invoke(errorMessage, msgDebugLog.ToString());
+			ErrorMessageCreated?.Invoke(this,new Tuple<string,string>(errorMessage, msgDebugLog.ToString()));
         }
 
 		private void doDebugLog(string details)

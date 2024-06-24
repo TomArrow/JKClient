@@ -8,10 +8,12 @@ namespace JKClient
 	{
 		public string errorMessage;
 		public string errorMessageDetail;
-		internal ErrorMessageEventArgs(string errorMessageA, string errorMessageDetailA)
+		public MessageCopy possibleRelatedMessage;
+		internal ErrorMessageEventArgs(string errorMessageA, string errorMessageDetailA, MessageCopy possibleRelatedMessageA)
 		{
 			errorMessage = errorMessageA;
 			errorMessageDetail = errorMessageDetailA;
+			possibleRelatedMessage = possibleRelatedMessageA;
 		}
 	}
 }

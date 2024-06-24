@@ -79,6 +79,7 @@ namespace JKClient {
 		private ClientGame clientGame;
 		private TaskCompletionSource<bool> connectTCS;
 
+
 		private Dictionary<string, string> extraDemoMeta = new Dictionary<string, string>();
 		public Statistics Stats { get; init; } = new Statistics();
         public ClientEntity[] Entities => clientGame != null? clientGame.Entities : null;
@@ -172,6 +173,16 @@ namespace JKClient {
 
 		public ClientVersion Version => this.ClientHandler.Version;
 
+
+
+
+		public event EventHandler<InternalCommandCreatedEventArgs> InternalCommandCreated;
+		protected bool OnInternalCommandCreated(string command, Encoding encoding = null)
+		{
+			InternalCommandCreatedEventArgs args = new InternalCommandCreatedEventArgs(command, encoding);
+			InternalCommandCreated?.Invoke(this, args);
+			return !args.handledExternally;
+		}
 
 		public event EventHandler<SnapshotParsedEventArgs> SnapshotParsed;
 		internal void OnSnapshotParsed(SnapshotParsedEventArgs eventArgs)
@@ -408,7 +419,7 @@ namespace JKClient {
 				Interlocked.Decrement(ref skipUserInfoChangeCount);
 			} else
             {
-				this.ExecuteCommand($"userinfo \"{userInfo}\"");
+				this.ExecuteCommandInternal($"userinfo \"{userInfo}\"");
 			}
 		}
 
@@ -596,6 +607,9 @@ namespace JKClient {
 					}
 				}
 			}
+#if STRONGREADDEBUG
+			msg.doDebugLogExt($"Decode()");
+#endif
 		}
 
 
@@ -988,6 +1002,9 @@ namespace JKClient {
 				int sequenceNumber =0;
 				bool validButOutOfOrder=false;
 				bool process = this.netChannel.Process(msg,isMOH, ref sequenceNumber, ref validButOutOfOrder);
+#if STRONGREADDEBUG
+				msg.doDebugLogExt($"PacketEvent: process {process}, sequenceNumber {sequenceNumber}, validButOutOfOrder {validButOutOfOrder}");
+#endif
 				bool detectSuperSkippable = true;
 
 				// Save to demo queue
@@ -1155,6 +1172,7 @@ namespace JKClient {
 					this.Stats.messagesDropped += this.netChannel.dropped;
 				}
 
+				lastActiveMessage = msg;
 
 				// the header is different lengths for reliable and unreliable messages
 				headerBytes = msg.ReadCount;
@@ -1359,9 +1377,9 @@ namespace JKClient {
 			}
 		}
 
-        private void NetChannel_ErrorMessageCreated(string arg1, string arg2)
+        private void NetChannel_ErrorMessageCreated(string arg1, MessageCopy arg2)
         {
-			OnErrorMessageCreated(arg1, arg2);
+			OnErrorMessageCreated(arg1, null, arg2);
         }
 
         private void CreateNewCommand()
@@ -1588,6 +1606,13 @@ namespace JKClient {
 
 		}
 
+		protected void ExecuteCommandInternal(string cmd, Encoding encoding = null) {
+
+            if (OnInternalCommandCreated(cmd, encoding)) // Returns true if we have to send it ourselves (event handlers can decide to handle it on their own, e.g. to integrate it with some command flood protection system)
+			{
+				ExecuteCommand(cmd, encoding);
+			}
+		}
 		public void ExecuteCommand(string cmd, Encoding encoding = null) {
 			void executeCommand() {
 				if (cmd.StartsWith("rcon ", StringComparison.OrdinalIgnoreCase)) {

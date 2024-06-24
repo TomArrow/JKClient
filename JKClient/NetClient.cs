@@ -18,6 +18,7 @@ namespace JKClient {
 
 
 
+		internal Message lastActiveMessage = null;
 		private protected readonly NetSystem net;
 		private readonly byte []packetReceived;
 		private CancellationTokenSource cts;
@@ -40,16 +41,15 @@ namespace JKClient {
 			InternalTaskStarted?.Invoke(this, task, description);
         }
 
-
 		public event EventHandler<ErrorMessageEventArgs> ErrorMessageCreated;
-		protected void OnErrorMessageCreated(string errorMessage, string errorMessageDetails)
+		protected void OnErrorMessageCreated(string errorMessage, string errorMessageDetails, MessageCopy possiblyRelatedMessage)
 		{
-			ErrorMessageCreated?.Invoke(this, new ErrorMessageEventArgs(errorMessage, errorMessageDetails));
+			ErrorMessageCreated?.Invoke(this, new ErrorMessageEventArgs(errorMessage, errorMessageDetails, possiblyRelatedMessage));
 		}
 
-		protected void Msg_ErrorMessageCreated(string msg, string msgDetails)
+		protected void Msg_ErrorMessageCreated(object message, Tuple<string,string> msgAndDetails)
 		{
-			OnErrorMessageCreated(msg, msgDetails);
+			OnErrorMessageCreated(msgAndDetails.Item1, msgAndDetails.Item2, (message as Message)?.MakePublicCopy());
 		}
 
 		public void Start(Func<JKClientException, Task> exceptionCallback) {
@@ -64,11 +64,22 @@ namespace JKClient {
 			Task backgroundTask = Task.Factory.StartNew(this.Run, this.cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap().ContinueWith((t) => {
 
 					this.Stop(true);
+					ErrorMessageIfInternal(t.Exception);
 					exceptionCallback?.Invoke(new JKClientException(t.Exception));
 			}, TaskContinuationOptions.OnlyOnFaulted); // Don't use OnlyOnFaulted. It's buggy and won't catch exceptions thrown inside event handlers.
 
 			this.OnInternalTaskStarted(backgroundTask,$"{this.GetType().ToString()} Loop");
 		}
+
+		public void ErrorMessageIfInternal(Exception e)
+        {
+			if(e.TargetSite != null && e.TargetSite.DeclaringType.Namespace == "JKClient")
+			// Only throw error if it was generated inside JKClient and not (for example) in an event handler registered to JKClient
+			{
+				OnErrorMessageCreated($"JKClient crashed WITH DETAILS", e.ToString(), lastActiveMessage.MakePublicCopy());
+			}
+        }
+
 		public void Stop(bool afterFailure = false) {
 			if (!this.Started) {
 				return;
@@ -87,6 +98,7 @@ namespace JKClient {
 			NetAddress address = null;
 			while (this.net.GetPacket(ref address, netmsg)) {
 				if ((uint)netmsg.CurSize <= netmsg.MaxSize) {
+					lastActiveMessage = netmsg;
 					this.PacketEvent(address, netmsg);
 				}
 				Common.MemSet(netmsg.Data, 0, sizeof(byte)*netmsg.MaxSize);

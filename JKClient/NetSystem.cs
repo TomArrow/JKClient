@@ -297,7 +297,13 @@ namespace JKClient {
 					return false;
                 }
 				int ret = this.ipSocket.ReceiveFrom(msg.Data, msg.MaxSize, SocketFlags.None, ref endPoint);
+#if STRONGREADDEBUG
+				msg.doDebugLogExt($"GetPacket: received {ret} bytes");
+#endif
 				if (ret == msg.MaxSize) {
+#if STRONGREADDEBUG
+					msg.doDebugLogExt("GetPacket: ret == msg.MaxSize");
+#endif
 					return false;
 				}
 				var ipEndPoint = endPoint as IPEndPoint;
@@ -315,6 +321,9 @@ namespace JKClient {
 					byte[] dataCopy = (byte[])msg.Data.Clone();
 					ret -= 10;
 					Array.Copy(dataCopy, 10, msg.Data, 0, ret);
+#if STRONGREADDEBUG
+					msg.doDebugLogExt("GetPacket: copied from proxy message");
+#endif
 				}
 				msg.CurSize = ret;
 				return true;

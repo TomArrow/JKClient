@@ -113,7 +113,7 @@ namespace JKClient
             }
             if(pureCheckSumCommand != null)
             {
-                this.ExecuteCommand(pureCheckSumCommand);
+                this.ExecuteCommandInternal(pureCheckSumCommand);
             }
         }
     }

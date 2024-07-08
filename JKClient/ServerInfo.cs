@@ -66,6 +66,7 @@ namespace JKClient
 		public string Location { get; internal set; }
 		public bool NWH { get; internal set; } // NWH mod detection
 		public int FloodProtect { get; internal set; } = -1; // -1 if not yet set, -2 if server does not send it at all
+		public int CaptureLimit { get; internal set; } = -1;
 		public bool Pure { get; internal set; }
 		public string MOHScoreboardPICover { get; internal set; }
 		internal bool InfoSet;
@@ -109,6 +110,7 @@ namespace JKClient
 			this.MinPing = info["sv_minping"].Atoi();
 			this.MaxPing = info["sv_maxping"].Atoi();
 			this.FPS = info["sv_fps"].Atoi();
+			this.CaptureLimit = info["capturelimit"].Atoi();
 			this.InfoSet = true;
 		}
 		internal void SetSystemConfigstringInfo(in InfoString info)
@@ -131,6 +133,7 @@ namespace JKClient
 			this.MinPing = info["sv_minPing"].Atoi();
 			this.MaxPing = info["sv_maxPing"].Atoi();
 			this.FPS = info["sv_fps"].Atoi();
+			this.CaptureLimit = info["capturelimit"].Atoi();
 			this.GameName = info["gamename"];
 			this.ServerGameVersionString = info["version"];
 			this.Location = info["Location"];

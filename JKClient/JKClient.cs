@@ -1506,13 +1506,14 @@ namespace JKClient {
                 msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 				msg.Bitstream();
 				msg.WriteLong(this.serverId);
-				if (PingAdjust == 0)
+				int pingAdjust = PingAdjust;
+				if (pingAdjust == 0)
 				{
 					msg.WriteLong(this.serverMessageSequence);
 				}
                 else
                 {
-					msg.WriteLong(Math.Max(this.serverMessageSequence - (PingAdjust/this.messageIntervalAverage),0));
+					msg.WriteLong(Math.Max(this.serverMessageSequence - (pingAdjust / this.messageIntervalAverage),0));
 				}
 				msg.WriteLong(this.serverCommandSequence);
 				int reliableCount = 0;
@@ -1535,7 +1536,7 @@ namespace JKClient {
 					count = JKClient.MaxPacketUserCmds;
 				}
 				if (count >= 1) {
-					if (!this.snap.Valid || this.serverMessageSequence != this.snap.MessageNum || Demowaiting == 2) {
+					if (!this.snap.Valid || this.serverMessageSequence != this.snap.MessageNum || Demowaiting == 2 || pingAdjust != 0) {
 						msg.WriteByte((int)ClientCommandOperations.MoveNoDelta);
 					} else {
 						msg.WriteByte((int)ClientCommandOperations.Move);

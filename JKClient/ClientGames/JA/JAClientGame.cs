@@ -6,6 +6,10 @@ namespace JKClient {
 			: base(client, serverMessageNum, serverCommandSequence, clientNum) {}
 		internal override int GetConfigstringIndex(Configstring index) {
 			switch (index) {
+			case Configstring.Scores1:
+				return (int)ConfigstringJA.Scores1;
+			case Configstring.Scores2:
+				return (int)ConfigstringJA.Scores2;
 			case Configstring.Sounds:
 				return (int)ConfigstringJA.Sounds;
 			case Configstring.Players:
@@ -14,6 +18,8 @@ namespace JKClient {
 				return (int)ConfigstringJA.LevelStartTime;
 			case Configstring.FlagStatus:
 				return (int)ConfigstringJA.FlagStatus;
+			case Configstring.Intermission:
+				return (int)ConfigstringJA.Intermission;
 			}
 			return 0;
 		}
@@ -76,6 +82,7 @@ namespace JKClient {
 			Scores1 = 6,
 			Scores2 = 7,
 			LevelStartTime = 21,
+			Intermission = 22,
 			FlagStatus = 23,
 			Sounds = 811,
 			Players = 1131

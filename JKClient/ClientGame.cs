@@ -359,7 +359,8 @@ namespace JKClient {
 			Sounds,
 			Players,
 			LevelStartTime,
-			FlagStatus
+			FlagStatus,
+			Intermission
 		}
 		public enum EntityFlag : int {
 			TeleportBit,

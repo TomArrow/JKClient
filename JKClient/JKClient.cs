@@ -184,6 +184,12 @@ namespace JKClient {
 			return !args.handledExternally;
 		}
 
+		public event EventHandler MapChangeServerCommandReceived;
+		internal void OnMapChangeServerCommandReceived()
+        {
+			this.MapChangeServerCommandReceived?.Invoke(this, new EventArgs());
+		}
+
 		public event EventHandler<SnapshotParsedEventArgs> SnapshotParsed;
 		internal void OnSnapshotParsed(SnapshotParsedEventArgs eventArgs)
         {

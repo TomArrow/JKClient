@@ -191,6 +191,7 @@ namespace JKClient {
 					eof = true;
 					break;
 				case ServerCommandOperations.MapChange:
+					OnMapChangeServerCommandReceived();
 					break;
 				}
 				oldCmd = cmd;

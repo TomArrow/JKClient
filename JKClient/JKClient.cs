@@ -292,6 +292,7 @@ namespace JKClient {
 		public string CDKey { get; set; } = string.Empty;
 		public ClientInfo []ClientInfo => this.clientGame?.ClientInfo;
 		internal bool[] ClientIsConfirmedBot = new bool[128]; // clientgame will set this for us, hehe. putting 128 as the limit in case we ever support a 128 player game
+		internal bool[] ClientIsConfirmedBotExternallySet = new bool[128]; // in case someone is a bot in ways we can't easily auto-detect in jkclient
 		internal bool SaberModDetected = false;
 
 
@@ -332,6 +333,12 @@ namespace JKClient {
 				this.reliableCommands[i] = new sbyte[Common.MaxStringCharsMOH];
 			}
 		}
+
+		public void SetClientAsBot(int clientNum, bool isBot)
+        {
+			if (clientNum < 0 || clientNum >= this.ClientIsConfirmedBotExternallySet.Length) return;
+			this.ClientIsConfirmedBotExternallySet[clientNum] = isBot;
+        }
 		private protected override void OnStart() {
 			//don't start with any pending actions
 			this.DequeueActions(false);
@@ -730,7 +737,7 @@ namespace JKClient {
 				}
                 if (!psSuperSkippable)
                 {
-                    if (psClientNum >=0 && psClientNum < maxClients && this.ClientIsConfirmedBot[psClientNum])
+                    if (psClientNum >=0 && psClientNum < maxClients && (this.ClientIsConfirmedBot[psClientNum] || this.ClientIsConfirmedBotExternallySet[psClientNum]))
                     {
 						superSkippableButBotMovement = true;
 					} else
@@ -781,7 +788,7 @@ namespace JKClient {
 				oldSnapHandle.Free();
 				if (!vehicleSuperSkippable)
 				{
-					if (psClientNum >= 0 && psClientNum < maxClients && this.ClientIsConfirmedBot[psClientNum])
+					if (psClientNum >= 0 && psClientNum < maxClients && (this.ClientIsConfirmedBot[psClientNum] || this.ClientIsConfirmedBotExternallySet[psClientNum]))
 					{
 						superSkippableButBotMovement = true;
 					}
@@ -815,7 +822,7 @@ namespace JKClient {
 						{
 							if (eFields[i].Offset != entityStateCommandTimeOffset)
 							{
-								if (newnum >= 0 && newnum < maxClients && this.ClientIsConfirmedBot[newnum])
+								if (newnum >= 0 && newnum < maxClients && (this.ClientIsConfirmedBot[newnum] || this.ClientIsConfirmedBotExternallySet[newnum]))
 								{
 									superSkippableButBotMovement = true;
 								}

@@ -22,7 +22,8 @@ namespace JKClient {
 		internal void ExecuteServerCommand(CommandEventArgs eventArgs);
 		internal void NotifyClientInfoChanged();
 		internal void TellBotSkill(int clientNum, float value);
-	}
+		internal void ResetExternalBotConfirmation(int clientNum);
+    }
 	public abstract class ClientGame {
 		protected readonly bool Initialized = false;
 		protected readonly int ClientNum;
@@ -248,6 +249,7 @@ namespace JKClient {
 			if (string.IsNullOrEmpty(configstring) || configstring[0] == '\0'
 				|| !configstring.Contains(isMOH ? "name" : "n")) {
 				this.ClientInfo[clientNum].Clear();
+				this.Client.ResetExternalBotConfirmation(clientNum); // make sure to reset this when players connect/disconnect to be safe
 			} else {
 				var info = new InfoString(configstring);
 				this.ClientInfo[clientNum].ClientNum = clientNum;
@@ -298,6 +300,10 @@ namespace JKClient {
 				this.ClientInfo[clientNum].Color2 = info["c2"];
 				this.ClientInfo[clientNum].GRedTeam = info["g_redteam"];
 				this.ClientInfo[clientNum].GBlueTeam = info["g_blueteam"];
+                if (!this.ClientInfo[clientNum].InfoValid)
+				{
+					this.Client.ResetExternalBotConfirmation(clientNum); // make sure to reset this when players connect/disconnect to be safe
+				}
 				this.ClientInfo[clientNum].InfoValid = true;
 				this.Client.TellBotSkill(clientNum,this.ClientInfo[clientNum].BotSkill);
 			}

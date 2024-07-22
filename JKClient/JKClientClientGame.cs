@@ -32,6 +32,10 @@ namespace JKClient {
 			// we may end up in a situation where one player is afking, but a bot is running around
 			ClientIsConfirmedBot[clientNum] = value > (this.SaberModDetected ? 0.1f : -0.5f);
 		}
+		void IJKClientImport.ResetExternalBotConfirmation(int clientNum)
+		{
+			ClientIsConfirmedBotExternallySet[clientNum] = false;
+		}
 		private void FirstSnapshot()
         {
 			this.clServerTimeDelta = this.snap.ServerTime - this.realTime;

@@ -7,5 +7,6 @@ namespace JKClient {
 		public int ServerTime;
 		public int RealTime;
 		public int ReliableSequence;
+		public int ServerCommandSequence;
 	}
 }

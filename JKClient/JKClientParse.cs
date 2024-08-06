@@ -342,6 +342,14 @@ namespace JKClient {
 				return Common.ToString(cs, Common.StrLen(cs));
 			}
 		}
+		public int? GetMappedConfigstringNumber(ClientGame.Configstring indexA) {
+			if (this.clientGame == null) return null;
+			int index = (int)indexA < 2 ? (int)indexA : this.clientGame.GetConfigstringIndex(indexA); // Values under 2 (ServerInfo, SystemInfo) don't need mapping.
+			if (index < 0 || index >= this.MaxConfigstrings) {
+				throw new JKClientException($"Configstring: bad index: {index}");
+			}
+			return index;
+		}
 		private unsafe void ClearState()
 		{
 			

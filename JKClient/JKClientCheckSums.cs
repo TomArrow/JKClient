@@ -53,25 +53,28 @@ namespace JKClient
                 byte[] allBytes = new byte[keyBytes.Length + file.headerLongData.Length];
                 Array.Copy(keyBytes, allBytes, keyBytes.Length);
                 Array.Copy(file.headerLongData,0, allBytes,keyBytes.Length, file.headerLongData.Length);
-                acryptohashnet.MD4 hashAlgo = new acryptohashnet.MD4();
-                byte[] md4Hash = hashAlgo.ComputeHash(allBytes);
-                int[] digest = new int[4];
-                for (int i = 0; i < 4; i++)
+                using (acryptohashnet.MD4 hashAlgo = new acryptohashnet.MD4())
                 {
-                    digest[i] = BitConverter.ToInt32(md4Hash, i * 4);
+                    byte[] md4Hash = hashAlgo.ComputeHash(allBytes);
+                    int[] digest = new int[4];
+                    for (int i = 0; i < 4; i++)
+                    {
+                        digest[i] = BitConverter.ToInt32(md4Hash, i * 4);
+                    }
+                    int val = digest[0] ^ digest[1] ^ digest[2] ^ digest[3];
+                    file.pureChecksum = val;
+                    if (file.hasCgame)
+                    {
+                        cgameFile = file;
+                    }
+                    if (file.hasUI)
+                    {
+                        uiFile = file;
+                    }
+                    checksum ^= file.pureChecksum;
+                    numPaks++;
                 }
-                int val = digest[0] ^ digest[1] ^ digest[2] ^ digest[3];
-                file.pureChecksum = val;
-                if (file.hasCgame)
-                {
-                    cgameFile = file;
-                }
-                if (file.hasUI)
-                {
-                    uiFile = file;
-                }
-                checksum ^= file.pureChecksum;
-                numPaks++;
+                   
             }
             lastCheckSumFeedCalculated = this.checksumFeed;
 

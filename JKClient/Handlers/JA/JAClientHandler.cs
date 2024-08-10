@@ -64,7 +64,7 @@ namespace JKClient {
 			default:
 				return JAClientHandler.entityStateFields26;
 			case GameMod.MBII:
-				return JAClientHandler.entityStateFieldsMBII;
+				return JAClientHandler.entityStateFieldsMBIIR20;
 			case GameMod.OJP:
 				return JAClientHandler.entityStateFieldsOJP;
 			}
@@ -80,7 +80,7 @@ namespace JKClient {
 					default:
 						return JAClientHandler.playerStateFields26;
 					case GameMod.MBII:
-						return JAClientHandler.playerStateFieldsMBII;
+						return JAClientHandler.playerStateFieldsMBIIR20;
 					case GameMod.OJP:
 						return JAClientHandler.playerStateFieldsOJP;
 					}
@@ -310,7 +310,7 @@ namespace JKClient {
 			{ nameof(EntityState.userVec2),  sizeof(float)*2, 1  }, // Replace sizeof type. 
 		//#endif // Not detected
 		};
-		private static readonly NetFieldsArray entityStateFieldsMBII = new NetFieldsArray(JAClientHandler.entityStateFields26)
+		private static readonly NetFieldsArray entityStateFieldsMBIIPreR20 = new NetFieldsArray(JAClientHandler.entityStateFields26)
 			.Override(29, 32) // customrgba[3]
 			.Override(30, 32)// customrgba[0]
 			.Override(35, 32)// customrgba[1]
@@ -331,6 +331,33 @@ namespace JKClient {
 			.Override(129, 0)// userVec2[0]
 			.Override(130, 0)// userVec2[1]
 			.Override(131, 0);// userVec2[2]
+		private static readonly NetFieldsArray entityStateFieldsMBIIR20 = new NetFieldsArray(JAClientHandler.entityStateFields26)
+			.Override(42, Common.GEntitynumBits) //eventParm
+			.Override(77, 32) //powerups
+			.Override(97, 32) //isJediMaster
+			.Override(30, 32) //customRGBA[0]
+			.Override(35, 32) //customRGBA[1]
+			.Override(36, 32) //customRGBA[2]
+			.Override(29, 32) //customRGBA[3]
+			.Override(72, 32) //npcSaber1
+			.Override(102, 0) //npcSaber2
+			.Override(80, 32) //csSounds_Std
+			.Override(103, 32) //csSounds_Combat
+			.Override(104, 32) //csSounds_Extra
+			.Override(105, 32) //csSounds_Jedi
+			.Override(96, 32) //eFlags2
+			.Override(120, 32) //userInt1
+			.Override(121, 32) //userInt2
+			.Override(122, 32) //userInt3
+			.Override(123, 0) //userFloat1
+			.Override(124, 0) //userFloat2
+			.Override(125, 0) //userFloat3
+			.Override(126, 0) //userVec1[0]
+			.Override(127, 0) //userVec1[1]
+			.Override(128, 0) //userVec1[2]
+			.Override(129, 0) //userVec2[0]
+			.Override(130, 0) //userVec2[1]
+			.Override(131, 0); //userVec2[2];
 		private static readonly NetFieldsArray entityStateFieldsOJP = new NetFieldsArray(JAClientHandler.entityStateFields26)
 			.Override(120, 32)
 			.Override(122, 32);
@@ -476,7 +503,7 @@ namespace JKClient {
 			{ nameof(PlayerState.userVec2),  sizeof(float)*2, 1  }, // Replace sizeof type. 
 		//#endif // Not detected
 		};
-		private static readonly NetFieldsArray playerStateFieldsMBII = new NetFieldsArray(JAClientHandler.playerStateFields26)
+		private static readonly NetFieldsArray playerStateFieldsMBIIPreR20 = new NetFieldsArray(JAClientHandler.playerStateFields26)
 			.Override(18,9) // fd.forcePower
 			.Override(29,32) // customRGBA[0]
 			.Override(32,32) // customRGBA[3]
@@ -499,6 +526,37 @@ namespace JKClient {
 			.Override(134,0) // userVec2[0]
 			.Override(135,0) // userVec2[1]
 			.Override(136,0) // userVec2[2]
+			;
+		private static readonly NetFieldsArray playerStateFieldsMBIIR20 = new NetFieldsArray(JAClientHandler.playerStateFields26)
+			.Override(64, Common.GEntitynumBits) //externalEventParm
+			.Override(65, Common.GEntitynumBits) //eventParms[0]
+			.Override(60, Common.GEntitynumBits) //eventParms[1]
+			.Override(90, 3) //zoomMode
+			.Override(18, 9) //fd.forcePower
+			.Override(106, 16) //fd.sentryDeployed
+			.Override(87, 8) //hasDetPackPlanted
+			.Override(114, 32) //isJediMaster
+			.Override(115, 32) //forceRestricted
+			.Override(116, 0) //trueJedi
+			.Override(117, 0) //trueNonJedi
+			.Override(59, 8) //inAirAnim
+			.Override(29, 32) //customRGBA[0]
+			.Override(42, 32) //customRGBA[1]
+			.Override(45, 32) //customRGBA[2]
+			.Override(32, 32) //customRGBA[3]
+			.Override(103, 32) //eFlags2
+			.Override(125, 32) //userInt1
+			.Override(126, 32) //userInt2
+			.Override(127, 32) //userInt3
+			.Override(128, 0) //userFloat1
+			.Override(129, 0) //userFloat2
+			.Override(130, 0) //userFloat3
+			.Override(131, 0) //userVec1[0]
+			.Override(132, 0) //userVec1[1]
+			.Override(133, 0) //userVec1[2]
+			.Override(134, 0) //userVec2[0]
+			.Override(135, 0) //userVec2[1]
+			.Override(136, 0) //userVec2[2]
 			;
 		private static readonly NetFieldsArray playerStateFieldsOJP = new NetFieldsArray(JAClientHandler.playerStateFields26)
 			.Override(125, 10)

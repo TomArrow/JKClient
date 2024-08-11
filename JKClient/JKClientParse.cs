@@ -282,7 +282,8 @@ namespace JKClient {
 			this.SendPureChecksums();
 
 			this.clientGame = this.InitClientGame();
-			this.ServerInfoChanged?.Invoke(this.ServerInfo,true);
+			this.ServerInfoChanged?.Invoke(this.ServerInfo,true,!this.firstGameStateReceived);
+			this.firstGameStateReceived = true;
 		}
 		private void ParseRMG(in Message msg) {
 			ushort rmgHeightMapSize = (ushort)msg.ReadShort();
@@ -446,6 +447,7 @@ namespace JKClient {
 				this.demoFirstPacketRecordedPromise.TrySetResult(false);
 				this.demoFirstPacketRecordedPromise = null;
 			}
+			this.firstGameStateReceived = false;
 		}
 		private void ParseCommandString(in Message msg) {
 			int seq = msg.ReadLong();

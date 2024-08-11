@@ -205,7 +205,7 @@ namespace JKClient {
 			if (index == GameState.SystemInfo) {
 				this.SystemInfoChanged();
 			} else if (index == GameState.ServerInfo) {
-				this.ServerInfoChanged?.Invoke(this.ServerInfo,false);
+				this.ServerInfoChanged?.Invoke(this.ServerInfo,false,false);
 			}
 #if DEBUG
 			if(this.DebugConfigStrings && this.DebugEventHappened?.GetInvocationList().Length > 0)
@@ -239,7 +239,7 @@ namespace JKClient {
 			this.ServerCommandExecuted?.Invoke(eventArgs);
 		}
 		void IJKClientImport.NotifyClientInfoChanged() {
-			this.ServerInfoChanged?.Invoke(this.ServerInfo,false);
+			this.ServerInfoChanged?.Invoke(this.ServerInfo,false,false);
 		}
 		void IJKClientImport.GetCurrentSnapshotNumber(out int snapshotNumber, out int serverTime) {
 			snapshotNumber = this.snap.MessageNum;

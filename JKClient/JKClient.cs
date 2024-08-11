@@ -116,6 +116,7 @@ namespace JKClient {
 		private sbyte [][]serverCommands;
 		private int[] serverCommandMessagenums;
 		private NetChannel netChannel;
+		private bool firstGameStateReceived = false;
 		#endregion
 		#region DemoWriting
 		// demo information
@@ -317,7 +318,7 @@ namespace JKClient {
 		}
 		
 		
-		public event Action<ServerInfo,bool> ServerInfoChanged; // bool says whether the change included a new gamestate
+		public event Action<ServerInfo,bool, bool> ServerInfoChanged; // bool says whether the change included a new gamestate, and whether it's the first gamestate of this connection
 		public JKClient(IClientHandler clientHandler, SocksProxy? proxy = null) : base(clientHandler, proxy) {
 			if(clientHandler is MOHClientHandler)
             {

@@ -350,6 +350,7 @@ namespace JKClient {
 			this.connectTCS?.TrySetCanceled();
 			this.connectTCS = null;
 			this.Status = ConnectionStatus.Disconnected;
+			this.firstGameStateReceived = false;
 			if (afterFailure) {
 				this.DequeueActions();
 				this.ClearState();
@@ -1301,6 +1302,7 @@ namespace JKClient {
 				this.connectTime = isMOH ? (this.realTime-JKClient.RetransmitTimeOut+this.mohConnectTimeExtraDelay) : -99999; // MOH is weird. If you send two connectionless commands very shortly after each other, for some reason the server will not properly process/receive the second one. 
 				this.serverAddress = address;
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
+				this.firstGameStateReceived = false;
 			} else if (string.Compare(c, "connectResponse", StringComparison.OrdinalIgnoreCase) == 0) {
                 if (!this.GhostPeer) {  // Stay in perpetual challenging mode
 					if (this.Status != ConnectionStatus.Challenging) {
@@ -1313,6 +1315,7 @@ namespace JKClient {
                     this.netChannel.ErrorMessageCreated += NetChannel_ErrorMessageCreated;
 					this.Status = ConnectionStatus.Connected;
 					this.lastPacketSentTime = -9999;
+					this.firstGameStateReceived = false;
 				}
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(command, -1));
 			} else if (string.Compare(c, "disconnect", StringComparison.OrdinalIgnoreCase) == 0) {
@@ -1667,6 +1670,7 @@ namespace JKClient {
 				this.infoRequestTime = -9999;
 				this.connectPacketCount = 0;
 				this.Status = ConnectionStatus.Connecting;
+				this.firstGameStateReceived = false;
 			}
 			this.actionsQueue.Enqueue(connect);
 			await this.connectTCS.Task;
@@ -1674,6 +1678,7 @@ namespace JKClient {
 		public void Disconnect() {
 			var status = this.Status;
 			this.Status = ConnectionStatus.Disconnected;
+			this.firstGameStateReceived = false;
 			void disconnect() {
 				this.StopRecord_f();
 				this.connectTCS?.TrySetCanceled();

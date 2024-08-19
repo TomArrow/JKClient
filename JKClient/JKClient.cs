@@ -335,6 +335,11 @@ namespace JKClient {
 			}
 		}
 
+		public void RemoveEngineIdentification()
+        {
+			this.userInfo.TryRemove("engine", out _);
+		}
+
 		public void SetClientAsBot(int clientNum, bool isBot)
         {
 			if (clientNum < 0 || clientNum >= this.ClientIsConfirmedBotExternallySet.Length) return;

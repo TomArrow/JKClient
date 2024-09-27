@@ -51,6 +51,7 @@ namespace JKClient {
 		private int messageIntervalMeasurementIndex = 0;
 		private int[] messageIntervals = new int[messageIntervalsMeasureCount];
 		private int messageIntervalAverage = 1000;
+		private int messageIntervalLastMessage = 0;
 
 		public int PingAdjust = 0; // Adjust our visible ping (can lead to instabilities)
 
@@ -1028,7 +1029,7 @@ namespace JKClient {
 				bool detectSuperSkippable = true;
 
 				// Save to demo queue
-				if(process || validButOutOfOrder)
+				if (process || validButOutOfOrder)
                 {
 					bool LastMessageWasDemoAFKDropRemember = LastMessageWasDemoAFKDrop;
 					LastMessageWasDemoAFKDrop = false;
@@ -1040,6 +1041,12 @@ namespace JKClient {
                     }
 
 					this.Decode(msg);
+
+                    if (process)
+					{
+						AddServerFpsMeasurementSample(*(int*)b - this.messageIntervalLastMessage);
+						this.messageIntervalLastMessage = *(int*)b;
+					}
 
 					Stats.totalMessages++;
                     if (validButOutOfOrder)
@@ -1196,8 +1203,6 @@ namespace JKClient {
 
 				// the header is different lengths for reliable and unreliable messages
 				headerBytes = msg.ReadCount;
-
-				AddServerFpsMeasurementSample(*(int*)b - this.serverMessageSequence);
 
 				this.serverMessageSequence = *(int*)b;
 				this.maxSequenceNum = Math.Max(this.serverMessageSequence,this.maxSequenceNum);

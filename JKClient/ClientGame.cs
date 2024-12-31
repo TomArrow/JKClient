@@ -21,7 +21,7 @@ namespace JKClient {
 		internal string GetConfigstring(in int index);
 		internal void ExecuteServerCommand(CommandEventArgs eventArgs);
 		internal void NotifyClientInfoChanged();
-		internal void TellBotSkill(int clientNum, float value);
+		internal bool TellBotSkill(int clientNum, string value);
 		internal void ResetExternalBotConfirmation(int clientNum);
     }
 	public abstract class ClientGame {
@@ -287,12 +287,13 @@ namespace JKClient {
 					this.ClientInfo[clientNum].Team = (Team)info["t"].Atoi();
 				}
 				if (info.ContainsKey("skill"))
-                {
+				{
+					this.ClientInfo[clientNum].IsBotBySkill = this.Client.TellBotSkill(clientNum, info["skill"]);
 					this.ClientInfo[clientNum].BotSkill = info["skill"].Atof(); // Only bots have this set
 				} else
-                {
+				{
+					this.ClientInfo[clientNum].IsBotBySkill = this.Client.TellBotSkill(clientNum, "");
 					this.ClientInfo[clientNum].BotSkill = -1.0f;
-
 				}
 				this.ClientInfo[clientNum].Name = info[isMOH ? "name":"n"];
 				this.ClientInfo[clientNum].Model = info["model"];
@@ -305,7 +306,6 @@ namespace JKClient {
 					this.Client.ResetExternalBotConfirmation(clientNum); // make sure to reset this when players connect/disconnect to be safe
 				}
 				this.ClientInfo[clientNum].InfoValid = true;
-				this.Client.TellBotSkill(clientNum,this.ClientInfo[clientNum].BotSkill);
 			}
 			if (this.Initialized) {
 				this.Client.NotifyClientInfoChanged();

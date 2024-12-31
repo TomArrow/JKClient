@@ -11,6 +11,7 @@
 		public string GBlueTeam { get; internal set; }
 		public Team Team { get; internal set; }
 		public float BotSkill { get; internal set; }
+		public bool IsBotBySkill { get; internal set; }
 		internal void Clear() {
 			this.ClientNum = 0;
 			this.InfoValid = false;

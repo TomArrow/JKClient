@@ -281,10 +281,12 @@ namespace JKClient {
 
 			this.SendPureChecksums();
 
+			gameName = this.ServerInfo.GameName;// DONT REMOVE THIS. this is really just to force the getter on this.ServerInfo which will set this.saberModDetected for us before ClientGame is invoked which does clientinfo generation. (really bad, i know). i hope this doesnt get optimized away somewhere on some systems
 			this.clientGame = this.InitClientGame();
 			this.ServerInfoChanged?.Invoke(this.ServerInfo,true,!this.firstGameStateReceived);
 			this.firstGameStateReceived = true;
 		}
+		string gameName;
 		private void ParseRMG(in Message msg) {
 			ushort rmgHeightMapSize = (ushort)msg.ReadShort();
 			if (rmgHeightMapSize == 0) {

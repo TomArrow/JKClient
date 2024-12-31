@@ -296,6 +296,7 @@ namespace JKClient {
 		internal bool[] ClientIsConfirmedBot = new bool[128]; // clientgame will set this for us, hehe. putting 128 as the limit in case we ever support a 128 player game
 		internal bool[] ClientIsConfirmedBotExternallySet = new bool[128]; // in case someone is a bot in ways we can't easily auto-detect in jkclient
 		internal bool SaberModDetected = false;
+		internal bool SaberModBotSkillStyle = false;
 
 
 		private readonly ServerInfo serverInfo = new ServerInfo();
@@ -312,6 +313,10 @@ namespace JKClient {
 				this.ClientHandler.SetExtraConfigstringInfo(this.serverInfo, info);
 				if (this.serverInfo.GameName.ToLowerInvariant().Contains("sabermod"))
 				{
+                    if (!this.SaberModDetected)
+                    {
+						this.SaberModBotSkillStyle = true;
+                    }
 					this.SaberModDetected = true;
 				}
 				return this.serverInfo;

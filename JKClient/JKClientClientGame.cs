@@ -26,11 +26,32 @@ namespace JKClient {
 		private readonly StringBuilder bigInfoString = new StringBuilder(Common.BigInfoString, Common.BigInfoString);
 
 
-		void IJKClientImport.TellBotSkill(int clientNum, float value)
+		bool IJKClientImport.TellBotSkill(int clientNum, string value)
 		{
+			bool isBot = false;
 			// gross to track this in "engine" but for our afk snap skipping we need this because
 			// we may end up in a situation where one player is afking, but a bot is running around
-			ClientIsConfirmedBot[clientNum] = value > (this.SaberModDetected ? 0.1f : -0.5f);
+			float number = value.Length == 0 ? -1.0f: value.Atof();
+			if (this.SaberModBotSkillStyle)
+			{
+				// ok so, not every sabermod version actually uses this new way of communicating "skill".
+				// old versions use the normal way (bot gets skill value, player doesnt)
+				// we can luckily distinguish them. the old style uses the traditional %5.2f formatting, where
+				// the new version uses %i. So if we detect leading zeros or empty spaces, or post-comma stuff,
+				// we know it's the old version
+				// note: i think %5.2f might lead with zeros depending on compiler? not sure. qvm has spaces. might be confusing sth tho.
+				if(value.Length == 0 || value.Length > 2 && value[value.Length-3] == '.' || value[0] == ' ' || value.StartsWith("00"))
+                {
+					this.SaberModBotSkillStyle = false;
+				}
+				isBot = number > (this.SaberModBotSkillStyle ? 0.1f : -0.5f);
+			}
+            else
+            {
+				isBot = number > -0.5f;
+			}
+			ClientIsConfirmedBot[clientNum] = isBot;
+			return isBot;
 		}
 		void IJKClientImport.ResetExternalBotConfirmation(int clientNum)
 		{

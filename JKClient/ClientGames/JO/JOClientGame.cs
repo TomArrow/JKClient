@@ -34,6 +34,8 @@ namespace JKClient {
 						return EntityEvent.ForceDrained;
 					case EntityEventJO.Jump:
 						return EntityEvent.Jump;
+					case EntityEventJO.ItemPickup:
+						return EntityEvent.ItemPickup;
 					default:
 						break;
 				}

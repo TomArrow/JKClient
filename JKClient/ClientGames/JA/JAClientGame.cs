@@ -32,6 +32,8 @@ namespace JKClient {
 						return EntityEvent.Obituary;
 					case EntityEventJA.CTFMESSAGE:
 						return EntityEvent.CtfMessage;
+					case EntityEventJA.ITEM_PICKUP:
+						return EntityEvent.ItemPickup;
 					default:break;
 				}
 			}

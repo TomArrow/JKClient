@@ -379,6 +379,7 @@ namespace JKClient {
 			ForceDrained,
 			CtfMessage,
 			Jump,
+			ItemPickup,
 			Bits = 0x300
 		}
 		public enum EntityType : int

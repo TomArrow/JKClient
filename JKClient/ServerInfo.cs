@@ -102,6 +102,11 @@ namespace JKClient
 			this.ServerGameVersionString = info["version"];
 			this.Location = info["Location"];
 
+			if(info.ContainsKey("nwh") && info["nwh"].Atoi() > 0) // it's not actually in configstrings i think. weird. oh well! it is in status info tho.
+            {
+				this.NWH = true;
+            }
+
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
 			this.MaxClients = info["sv_maxclients"].Atoi();
@@ -138,6 +143,11 @@ namespace JKClient
 			this.ServerGameVersionString = info["version"];
 			this.Location = info["Location"];
 			this.FloodProtect = info["sv_floodProtect"] == String.Empty ? -2 : info["sv_floodProtect"].Atoi();
+
+			if (info.ContainsKey("nwh") && info["nwh"].Atoi() > 0)
+			{
+				this.NWH = true;
+			}
 		}
 		public static bool operator ==(in ServerInfo serverInfo1, in ServerInfo serverInfo2) {
 			return serverInfo1?.Address == serverInfo2?.Address;

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Runtime.CompilerServices;
 
 namespace JKClient
@@ -102,8 +103,8 @@ namespace JKClient
 			this.ServerGameVersionString = info["version"];
 			this.Location = info["Location"];
 
-			if(info.ContainsKey("nwh") && info["nwh"].Atoi() > 0) // it's not actually in configstrings i think. weird. oh well! it is in status info tho.
-            {
+			if(info.ContainsKey("nwh") && info["nwh"].Atoi() > 0 || this.GameName.ToLowerInvariant().Contains("nwh"/*, StringComparison.OrdinalIgnoreCase*/) && this.ServerGameVersionString.ToLowerInvariant().Contains("nwh"/*, StringComparison.OrdinalIgnoreCase*/)) // it's not actually in configstrings i think. weird. oh well! it is in status info tho. so here we do the gamename check. .net standard 2.0 doesnt have the StringComparison.OrdinalIgnoreCase yet so use tolower, meh
+			{
 				this.NWH = true;
             }
 

@@ -183,7 +183,7 @@ namespace JKClient {
 					eof = true;
 					break;
 				case ServerCommandOperations.SetGame:
-//					this.ParseSetGame(in msg);
+					this.ParseSetGame(in msg);
 					eof = true;
 					break;
 				case ServerCommandOperations.Download:
@@ -831,15 +831,22 @@ namespace JKClient {
 		}
 		private void ParseSetGame(in Message msg) {
 			int i = 0;
+			sbyte[] game = new sbyte[64];
 			while (i < 64) {
 				int next = msg.ReadByte();
 				if (next != 0) {
-
+					game[i] = (sbyte)next;
 				} else {
 					break;
 				}
 				i++;
 			}
+			game[i] = 0;
+			string gamename = Common.ToString(game);
+            if (this.ClientHandler is JAClientHandler)
+            {
+				(this.ClientHandler as JAClientHandler).SetGame(gamename);
+            }
 		}
 		private unsafe void ParseDownload(in Message msg) {
 			ushort block = (ushort)msg.ReadShort();

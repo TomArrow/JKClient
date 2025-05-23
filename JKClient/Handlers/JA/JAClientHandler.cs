@@ -20,6 +20,28 @@ namespace JKClient {
 		}
 		public void RequestAuthorization(string CDKey, Action<NetAddress, string> authorize) {}
 		public virtual void AdjustServerCommandOperations(ref ServerCommandOperations cmd) {}
+
+		public void SetGame(string gamename)
+        {
+			// this is just a preliminary thing to make sure we can properly connect and parse the first pre-gamestate snapshot (even tho its technically completely useless)
+			if (gamename.Contains("rpe")
+					|| gamename.Contains("ojpenhanced")
+					|| gamename.Contains("ojpbasic")
+					//|| gamename.Contains("ojrp")
+					) // not sure about "ojrp" correct string. it probably just uses ojpenhanced
+			{
+				this.gameMod = GameMod.OJP;
+				this.MaxConfigstrings = JAClientHandler.MaxConfigstringsOJP;
+			}
+			else if (gamename.Contains("MBII"))
+			{
+				this.gameMod = GameMod.MBII;
+			}
+			else
+			{
+				this.gameMod = GameMod.Base;
+			}
+		}
 		public virtual void AdjustGameStateConfigstring(int i, string csStr) {
 			if (i == GameState.ServerInfo) {
 				var info = new InfoString(csStr);

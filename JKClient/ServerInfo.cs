@@ -6,6 +6,15 @@ using System.Runtime.CompilerServices;
 
 namespace JKClient
 {
+
+	[Flags]
+    public enum TommyTernalFlags {
+		TTFLAGSSERVERINFO_HASANTILOOPSTATS		=(1<<0) ,
+		TTFLAGSSERVERINFO_HASFORCESPEEDSMASH	=(1<<1) ,
+		TTFLAGSSERVERINFO_HASFORCEJUMPCHARGE	=(1<<2) ,
+		TTFLAGSSERVERINFO_HASCROSSSERVERCHAT	=(1<<3) 
+	}
+
 	public struct Player
     {
 		public int score { get; internal set; }
@@ -72,6 +81,7 @@ namespace JKClient
 		public string MOHScoreboardPICover { get; internal set; }
 		internal bool InfoSet;
 		internal long Start;
+		public TommyTernalFlags ttFlags { get; internal set; } = 0;
 		internal void SetInfo(in InfoString info, bool isMasterInfo = false) {
 			InfoStringValues = info.ToArray();
 			if (info.Count <= 0) {
@@ -100,6 +110,14 @@ namespace JKClient
 			
 			this.FloodProtect = info["sv_floodProtect"] == String.Empty ? -2 : info["sv_floodProtect"].Atoi();
 			this.GameName = info["gamename"];
+			if (info["gamename"].StartsWith("tommyternal", StringComparison.InvariantCultureIgnoreCase))
+			{
+				this.ttFlags = (TommyTernalFlags)info["ttFlags"].Atoi();
+            }
+            else
+            {
+				this.ttFlags = 0;
+			}
 			this.ServerGameVersionString = info["version"];
 			this.Location = info["Location"];
 
@@ -141,6 +159,14 @@ namespace JKClient
 			this.FPS = info["sv_fps"].Atoi();
 			this.CaptureLimit = info["capturelimit"].Atoi();
 			this.GameName = info["gamename"];
+            if (info["gamename"].StartsWith("tommyternal", StringComparison.InvariantCultureIgnoreCase))
+            {
+				this.ttFlags = (TommyTernalFlags)info["ttFlags"].Atoi();
+			}
+			else
+			{
+				this.ttFlags = 0;
+			}
 			this.ServerGameVersionString = info["version"];
 			this.Location = info["Location"];
 			this.FloodProtect = info["sv_floodProtect"] == String.Empty ? -2 : info["sv_floodProtect"].Atoi();

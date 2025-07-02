@@ -247,8 +247,59 @@ namespace JKClient {
 			} while (c1 != 0);
 			return 0;
 		}
+		private static int AtoiReal(string str) // sorta same as in qvm bg_lib.c
+        {
+			int		sign;
+			int		value;
+			int		c;
+			int		index = 0;
+
+			// skip whitespace
+			while (index >= str.Length || str[index] <= ' ' ) {
+				if ( index >= str.Length) {
+					return 0;
+				}
+				index++;
+			}
+
+			// check sign
+			switch (str[index]) {
+			case '+':
+					index++;
+				sign = 1;
+				break;
+			case '-':
+					index++;
+				sign = -1;
+				break;
+			default:
+				sign = 1;
+				break;
+			}
+
+			// read digits
+			value = 0;
+			do {
+				if(index >= str.Length)
+                {
+					break;
+                }
+				c = str[index];
+				index++;
+				if ( c < '0' || c > '9' ) {
+					break;
+				}
+				c -= '0';
+				value = value * 10 + c;
+			} while ( true );
+
+			// not handling 10e10 notation...
+
+			return value * sign;
+        }
 		public static int Atoi(this string str) {
-			return int.TryParse(str, out int integer) ? integer : 0;
+			return AtoiReal(str);
+			//return int.TryParse(str, out int integer) ? integer : 0;
 		}
 		public static float Atof(this string str) {
 			return float.TryParse(str, out float number) ? number : 0;

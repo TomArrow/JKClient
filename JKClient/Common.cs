@@ -254,6 +254,11 @@ namespace JKClient {
 			int		c;
 			int		index = 0;
 
+			if(str == null)
+            {
+				return 0;
+            }
+
 			// skip whitespace
 			while (index >= str.Length || str[index] <= ' ' ) {
 				if ( index >= str.Length) {

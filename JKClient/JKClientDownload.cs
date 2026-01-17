@@ -42,7 +42,8 @@ namespace JKClient
 		string downloadName = null;
 		int downloadBlock=0;  // block we are waiting for
 		int downloadBlockConfirmed=0;  // block we have
-		int downloadBlockLastConfirmed = 0;
+		int downloadBlockLastAcked = 0;
+		int downloadBlockLastSuccessful = 0;
 		int downloadCount=0;  // how many bytes we got
 		int downloadSize=0;   // how many bytes we got
 		Queue<queuedDownload> queuedDownloads = new Queue<queuedDownload>();
@@ -63,7 +64,8 @@ namespace JKClient
 				downloadTempName = $"{currentDownload.localName}.tmp";
 				downloadBlock = 0;
 				downloadBlockConfirmed = 0;
-				downloadBlockLastConfirmed = 0;
+				downloadBlockLastAcked = 0;
+				downloadBlockLastSuccessful = 0;
 				downloadCount = 0;
 				//ExecuteCommandInternal($"download {currentDownload.remoteName}");
 				AddReliableCommand($"download {currentDownload.remoteName}");
@@ -107,7 +109,8 @@ namespace JKClient
 			//downloadNumber = 0;
 			downloadBlock = 0;  // block we are waiting for
 			downloadBlockConfirmed = 0;  // block we are waiting for
-			downloadBlockLastConfirmed = 0;  // block we are waiting for
+			downloadBlockLastAcked = 0; 
+			downloadBlockLastSuccessful = 0; 
 			downloadCount = 0;  // how many bytes we got
 			downloadSize = 0;   // how many bytes we got
 			currentDownload = null;
@@ -175,16 +178,32 @@ namespace JKClient
 				}
                 else*/
 				{
-					if(this.realTime - this.downloadBlockLastConfirmed > 1000)
+					bool dontPrint = downloadBlockLastSuccessful > 0 && this.realTime > downloadBlockLastSuccessful && (this.realTime - downloadBlockLastSuccessful) > 10000;
+					bool giveUp = downloadBlockLastSuccessful > 0 && this.realTime > downloadBlockLastSuccessful && (this.realTime - downloadBlockLastSuccessful) > 60000;
+                    if (giveUp)
 					{
-						var cmd = new Command(new string[] { "print", $"CL_ParseDownload: Expected block {downloadBlock}, got {block}. FORCING REACK.\n" });
+						var cmd = new Command(new string[] { "print", $"^1ParseDownload: Havent gotten the requested block {downloadBlock} for over 1 minute. Giving up on this download.\n" });
 						this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+						KillCurrentDownload();
+						AddReliableCommand("stopdl");
+						return true;
+					} 
+					else if (this.realTime - this.downloadBlockLastAcked > 1000)
+					{
+                        if (!dontPrint)
+						{
+							var cmd = new Command(new string[] { "print", $"CL_ParseDownload: Expected block {downloadBlock}, got {block}. FORCING REACK.\n" });
+							this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+						}
 						AddReliableCommand($"nextdl {downloadBlockConfirmed}");
-						this.downloadBlockLastConfirmed = this.realTime;
+						this.downloadBlockLastAcked = this.realTime;
 					} else
-                    {
-						var cmd = new Command(new string[] { "print", $"CL_ParseDownload: Expected block {downloadBlock}, got {block}\n" });
-						this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+					{
+						if (!dontPrint)
+						{
+							var cmd = new Command(new string[] { "print", $"CL_ParseDownload: Expected block {downloadBlock}, got {block}\n" });
+							this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+						}
 					}
 				}
 				return true;
@@ -200,7 +219,8 @@ namespace JKClient
             }
 			downloadBlockConfirmed = downloadBlock;
 			AddReliableCommand($"nextdl {downloadBlockConfirmed}");
-			downloadBlockLastConfirmed = this.realTime;
+			downloadBlockLastAcked = this.realTime;
+			downloadBlockLastSuccessful = this.realTime;
 			downloadBlock++;
 			downloadCount += size;
 

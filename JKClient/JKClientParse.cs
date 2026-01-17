@@ -145,7 +145,8 @@ namespace JKClient {
 			ServerCommandOperations cmd;
 			ServerCommandOperations oldCmd;
 			while (true) {
-				if (msg.ReadCount > msg.CurSize) {
+				if (msg.ReadCount > msg.CurSize) { 
+					OnErrorMessageCreated($"ParseServerMessage: read past end of server message WITH DETAILS", "", msg.MakePublicCopy());
 					throw new JKClientException("ParseServerMessage: read past end of server message");
 				}
 				cmd = (ServerCommandOperations)msg.ReadByte();
@@ -175,22 +176,29 @@ namespace JKClient {
 					this.ParseCommandString(in msg);
 					break;
 				case ServerCommandOperations.Gamestate:
+					ResetDownloads(); // prolly safer no? in case we never got the svc_mapchange due to lag or sth.
 					this.ParseGamestate(in msg);
 					break;
 				case ServerCommandOperations.Snapshot:
 					this.ParseSnapshot(in msg);
 					this.UpdateDemoTime();
-					eof = true;
+					if(downloadName == null)
+					{
+						eof = true;
+					}
 					break;
 				case ServerCommandOperations.SetGame:
 					this.ParseSetGame(in msg);
 					eof = true;
 					break;
 				case ServerCommandOperations.Download:
-//					this.ParseDownload(in msg);
-					eof = true;
+					if (!this.ParseDownload(in msg))
+                    {
+						eof = true;
+                    }
 					break;
 				case ServerCommandOperations.MapChange:
+					ResetDownloads();
 					OnMapChangeServerCommandReceived();
 					break;
 				}
@@ -404,6 +412,7 @@ namespace JKClient {
 				this.serverCommandMessagenums[i] = 0;
 				Common.MemSet(this.reliableCommands[i], 0, sizeof(sbyte)*Common.MaxStringCharsMOH);
 			}
+			ResetDownloads();
 			this.clientNum = -1;
 			this.lastPacketSentTime = 0;
 			this.lastPacketTime = 0;
@@ -847,23 +856,6 @@ namespace JKClient {
             {
 				(this.ClientHandler as JAClientHandler).SetGame(gamename);
             }
-		}
-		private unsafe void ParseDownload(in Message msg) {
-			ushort block = (ushort)msg.ReadShort();
-			if (block == 0) {
-				int downloadSize = msg.ReadLong();
-				if (downloadSize < 0) {
-					fixed (sbyte* s = msg.ReadString((ProtocolVersion)this.Protocol)) {
-						byte* ss = (byte*)s;
-						throw new JKClientException($"{Common.ToString(ss, sizeof(sbyte)*Common.MaxStringCharsMOH)}");
-					}
-				}
-			}
-			int size = msg.ReadShort();
-			if (size < 0 || size > sizeof(byte)*this.ClientHandler.MaxMessageLength) {
-				throw new JKClientException($"ParseDownload: Invalid size {size} for download chunk");
-			}
-			msg.ReadData(null, size);
 		}
 
 

@@ -262,12 +262,24 @@ namespace JKClient {
 				this.UpdateUserInfo();
 			}
 		}
+
+		private bool desiredSnapsDownloadOverride = false;
+
 		public int DesiredSnaps {
 			get => this.desiredSnaps;
 			set {
-				if(this.desiredSnaps != value) { 
+				if(this.desiredSnaps != value || (this.downloadName != null) != desiredSnapsDownloadOverride) { 
 					this.desiredSnaps = value;
-					this.userInfo["snaps"] = value.ToString();
+                    if (this.downloadName != null)
+					{
+						this.userInfo["snaps"] = "1000"; // dont throttle during downloads
+						desiredSnapsDownloadOverride = true;
+					}
+                    else
+					{
+						this.userInfo["snaps"] = value.ToString();
+						desiredSnapsDownloadOverride = false;
+					}
 					this.UpdateUserInfo();
 				}
 			}
@@ -392,6 +404,7 @@ namespace JKClient {
 				lastTime = frameTime;
 				this.realTime += msec;
 				this.Stats.lastFrameDelta = msec;
+				this.CheckDownloads();
 				this.SendCommand();
 				this.CheckForResend();
 				this.SetTime();
@@ -445,7 +458,7 @@ namespace JKClient {
 				Interlocked.Decrement(ref skipUserInfoChangeCount);
 			} else
             {
-				this.ExecuteCommandInternal($"userinfo \"{userInfo}\"");
+				this.ExecuteCommandInternal($"userinfo \"{userInfo.ToStringDetailed(true)}\"");
 			}
 		}
 
@@ -938,6 +951,7 @@ namespace JKClient {
 			_ = msg.ReadLong(); // Reliable acknowledge, don't care.
 			if (msg.ReadCount > msg.CurSize)
 			{
+				OnErrorMessageCreated($"ParseServerMessage (pre): read past end of server message WITH DETAILS","", msg.MakePublicCopy());
 				throw new JKClientException("ParseServerMessage (pre): read past end of server message");
 			}
 			ServerCommandOperations cmd = (ServerCommandOperations)msg.ReadByte();
@@ -1060,7 +1074,7 @@ namespace JKClient {
 					}
 
 					// Clientside snaps limiting if requested
-					if (process && (clientForceSnaps || AfkDropSnaps))
+					if (process && (clientForceSnaps || AfkDropSnaps) && download == null)
 					{
 						int newSnapNum = *(int*)b;
 						int newServerTime = 0;

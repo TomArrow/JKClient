@@ -173,6 +173,7 @@ namespace JKClient {
 			//}
 			sbyte []b = new sbyte[blen+1];
 			Array.Copy(s, start, b, 0, b.Length-1);
+
 #if DEBUG
 			bool oldGsExists = false;
 			GameState oldGs;

@@ -58,13 +58,17 @@ namespace JKClient {
 				this[keyValuePairs[i]] = keyValuePairs[i+1];
 			}
 		}
-		public override string ToString() {
-			if (this.Count <= 0) {
+
+		public string ToStringDetailed(bool avoidTrailingSlash = false)
+        {
+
+			if (this.Count <= 0)
+			{
 				return string.Empty;
 			}
 			var builder = new StringBuilder();
-			if(parameterOrderList.Count == 0)
-            {
+			if (parameterOrderList.Count == 0)
+			{
 				foreach (var keyValuePair in this)
 				{
 					builder
@@ -73,21 +77,21 @@ namespace JKClient {
 						.Append(InfoString.Delimiter)
 						.Append(keyValuePair.Value);
 				}
-			} 
+			}
 			else
-            {
+			{
 				// Order the values according to list we have.
 				// TODO Optimize this a bit.
 				var valuesHere = this.ToArray();
 				HashSet<string> usedParameters = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 				lock (parameterOrderList)
 				{
-                    foreach (string parameter in parameterOrderList)
-                    {
-                        if (this.ContainsKey(parameter))
-                        {
-                            if (!usedParameters.Contains(parameter))
-                            {
+					foreach (string parameter in parameterOrderList)
+					{
+						if (this.ContainsKey(parameter))
+						{
+							if (!usedParameters.Contains(parameter))
+							{
 								usedParameters.Add(parameter);
 								builder
 								.Append(InfoString.Delimiter)
@@ -96,9 +100,9 @@ namespace JKClient {
 								.Append(this[parameter]);
 							}
 						}
-                    }
+					}
 				}
-				foreach (var keyValuePair in this) 
+				foreach (var keyValuePair in this)
 				{
 					if (!usedParameters.Contains(keyValuePair.Key))
 					{
@@ -111,7 +115,11 @@ namespace JKClient {
 					}
 				}
 			}
-			return builder.ToString();
+			string finalString = builder.ToString();
+			return (finalString.EndsWith("/") && avoidTrailingSlash) ? $"{finalString}/trl/_" : finalString;
+		}
+		public override string ToString() {
+			return ToStringDetailed();
 		}
 		public KeyValuePair<string,string>[] ToArray() {
 			if (this.Count <= 0) {

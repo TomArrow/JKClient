@@ -997,8 +997,19 @@ namespace JKClient {
 		}
 		//we don't really need any Data in assetsless client
 		public void ReadData(byte []data, int len, [CallerMemberName] string callingMethod = null) {
-			for (int i = 0; i < len; i++) {
-				/*data[i] = (byte)*/this.ReadByte();
+			if(data != null)
+			{
+				for (int i = 0; i < len && this.ReadCount <= this.CurSize; i++)
+				{
+					data[i] = (byte)this.ReadByte();
+				}
+			}
+            else
+			{
+				for (int i = 0; i < len && this.ReadCount <= this.CurSize; i++)
+				{
+					this.ReadByte();
+				}
 			}
 #if STRONGREADDEBUG
 			doDebugLog($"{callingMethod}=>ReadData() finished.");

@@ -49,6 +49,7 @@ namespace JKClient
 		public bool NoBots { get; internal set; } = false;
 		public string HostName { get; internal set; }
 		public string MapName { get; internal set; }
+		public bool UDPDownloads { get; internal set; } = false;
 		public string Game { get; internal set; }
 		public string GameName { get; internal set; }
 		public GameType GameType { get; internal set; }
@@ -128,6 +129,7 @@ namespace JKClient
 
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
+			this.UDPDownloads = info["sv_allowDownload"].Atoi() != 0;
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.PrivateClients = info["sv_privateClients"].Atoi();
 			this.SendsAllEntities = info["sv_specAllEnts"].Atoi() > 0;
@@ -150,6 +152,7 @@ namespace JKClient
 			this.Protocol = (ProtocolVersion)info["protocol"].Atoi();
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
+			this.UDPDownloads = info["sv_allowDownload"].Atoi() != 0;
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.PrivateClients = info["sv_privateClients"].Atoi();
 			this.SendsAllEntities = info["sv_specAllEnts"].Atoi() > 0;

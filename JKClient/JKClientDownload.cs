@@ -68,7 +68,7 @@ namespace JKClient
 				downloadBlockLastSuccessful = 0;
 				downloadCount = 0;
 				//ExecuteCommandInternal($"download {currentDownload.remoteName}");
-				AddReliableCommand($"download {currentDownload.remoteName}");
+				AddReliableCommand($"download {currentDownload.remoteName}"); // todo some kind of failsafe for when this cmd gets lost in transmission (since reliable commands... arent really reliable anymore *rage*)
 			}
 			if((this.downloadName != null) != desiredSnapsDownloadOverride)
             {
@@ -78,15 +78,21 @@ namespace JKClient
 
 		public void EnqueueDownload(string remoteName, string localName, int checksum)
         {
-			queuedDownload newDl = new queuedDownload() { checksum = checksum, localName = localName, remoteName = remoteName };
-			if(queuedDownloads.Count > 0)
-            {
-				//somehoow mayabe check for dupes?
-            }
-			queuedDownloads.Enqueue(newDl);
+
+			void enqueueDownload()
+			{
+				queuedDownload newDl = new queuedDownload() { checksum = checksum, localName = localName, remoteName = remoteName };
+				//if (queuedDownloads.Count > 0)
+				//{
+					//somehoow mayabe check for dupes?
+				//}
+				queuedDownloads.Enqueue(newDl);
+			}
+			this.actionsQueue.Enqueue(enqueueDownload);
+
         }
 
-		public void ResetDownloads()
+		private void ResetDownloads()
         {
 			if(downloadName != null)
             {
@@ -94,6 +100,16 @@ namespace JKClient
 			}
 			KillCurrentDownload();
 			queuedDownloads.Clear();
+		}
+
+		public void EndDownloads()
+        {
+			// public api
+			void resetDownloadsAction()
+			{
+				ResetDownloads();
+			}
+			this.actionsQueue.Enqueue(resetDownloadsAction);
 		}
 
 		private void KillCurrentDownload()
@@ -188,7 +204,7 @@ namespace JKClient
 						AddReliableCommand("stopdl");
 						return true;
 					} 
-					else if (this.realTime - this.downloadBlockLastAcked > 1000)
+					else if (this.downloadBlockLastAcked > 0 && downloadBlock > 0 && downloadBlock > block && this.realTime - this.downloadBlockLastAcked > 1000)
 					{
                         if (!dontPrint)
 						{
@@ -223,6 +239,11 @@ namespace JKClient
 			downloadBlockLastSuccessful = this.realTime;
 			downloadBlock++;
 			downloadCount += size;
+            if (downloadSize > 0 && 10 * downloadCount/downloadSize > 10 * (downloadCount-size) / downloadSize)
+			{
+				var cmd = new Command(new string[] { "print", $"^3CL_ParseDownload: File {downloadName} at {100 * downloadCount / downloadSize}%\n" });
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+			}
 
             if (size == 0)// A zero length block means EOF
 			{

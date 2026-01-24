@@ -1389,6 +1389,12 @@ namespace JKClient {
 						this.infoRequestTime = -9999;
 						this.connectPacketCount = 0;
 						this.Status = ConnectionStatus.Connecting;
+					} else if (this.Status == ConnectionStatus.Challenging && s.Contains("No or bad challenge for address."))
+					{
+						this.connectTime = -9999;
+						this.infoRequestTime = -9999;
+						this.connectPacketCount = 0;
+						this.Status = ConnectionStatus.Connecting;
 					}
 					var cmd = new Command(new string []{ "print", s });
 					this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));

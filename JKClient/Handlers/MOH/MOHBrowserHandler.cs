@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Json;
 
 namespace JKClient
 {
@@ -99,6 +100,29 @@ namespace JKClient
             serverInfo.Protocol = (ProtocolVersion)info["protocol"].Atoi();
             this.NeedStatus = false;
         }
+
+        public static Response333Networks parse333NetworksResponse(string data)
+        {
+            JsonSerializerOptions opts = new JsonSerializerOptions() {  NumberHandling= System.Text.Json.Serialization.JsonNumberHandling.AllowNamedFloatingPointLiterals | System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString };
+
+            //byte[] byteData = Encoding.UTF8.GetBytes(data);
+            //Utf8JsonReader jsonReader = new Utf8JsonReader(byteData, new JsonReaderOptions() { AllowTrailingCommas=true,CommentHandling= JsonCommentHandling.Skip, MaxDepth=10 });
+            //jsonReader.Read();
+            var stuff = JsonSerializer.Deserialize<JsonElement>(data);
+
+            if (stuff.GetArrayLength() < 2) return null;
+            ServerItem333Networks[] deserialized = JsonSerializer.Deserialize<ServerItem333Networks[]>(stuff[0], opts);
+            //jsonReader.Read();
+            OverviewItem333Networks overview = JsonSerializer.Deserialize<OverviewItem333Networks>(stuff[1], opts);
+            //jsonReader.Read();
+
+            if(overview != null && deserialized != null)
+            {
+                return new Response333Networks() { overview = overview, items = deserialized };
+            }
+
+            return null;
+        }
     }
 
 
@@ -121,5 +145,36 @@ namespace JKClient
         public string alive { get; set; }
         public string gamever { get; set; }
     }
+
+    public class Response333Networks {
+        public ServerItem333Networks[] items;
+        public OverviewItem333Networks overview;
+    }
+
+
+    public class OverviewItem333Networks
+    {
+        public int players { get; set; }
+        public int total { get; set; }
+    }
+
+    public class ServerItem333Networks
+    {
+        public string country { get; set; }
+        public int dt_added { get; set; }
+        public int dt_updated { get; set; }
+        public string gamename { get; set; }
+        public string gametype { get; set; }
+        public string hostname { get; set; }
+        public int hostport { get; set; }
+        public int id { get; set; }
+        public string ip { get; set; }
+        public string label { get; set; }
+        public string mapname { get; set; }
+        public object maptitle { get; set; }
+        public int maxplayers { get; set; }
+        public int numplayers { get; set; }
+    }
+
 
 }

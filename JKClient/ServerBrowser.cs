@@ -1,10 +1,12 @@
-﻿using System;
+﻿#define NEWMETHOD
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -138,6 +140,7 @@ namespace JKClient {
 				} 
             }
 		}
+
 		public async Task<IEnumerable<ServerInfo>> GetNewList() {
 			bool isMOH = this.BrowserHandler is MOHBrowserHandler;
 			this.getListTCS?.TrySetCanceled();
@@ -163,8 +166,166 @@ namespace JKClient {
 			if (isMOH)
 			{
 				bool expansions = this.BrowserHandler.AdditionalProtocols.Contains((int)ProtocolVersion.Protocol17);
-				
 
+
+
+#if NEWMETHOD
+				List<ServerItem333Networks> serverList = new List<ServerItem333Networks>();
+				List<string> serverListPlain = new List<string>();
+				Task listsQueryTask = Task.Run(() => {
+                    try
+                    {
+						HttpClient client = new HttpClient(new HttpClientHandler() { AutomaticDecompression=DecompressionMethods.Deflate| DecompressionMethods.GZip }); // .NET Standard doesn't have DecompressionMethods.All
+						for (int i = 0; i < 3; i++)
+						{
+
+							if (i > 0 && !expansions)
+							{
+								break;
+							}
+
+							string cmdString = "https://master.333networks.com/json/mohaa";
+							if (i == 1)
+							{
+								cmdString = "https://master.333networks.com/json/mohaas";
+							}
+							else if (i == 2)
+							{
+								cmdString = "https://master.333networks.com/json/mohaab";
+							}
+
+                            Task<HttpResponseMessage> request = client.GetAsync(cmdString);
+
+							bool success = request.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+							if (success)
+							{
+								HttpResponseMessage status = request.Result;
+								var stringRead = status.Content.ReadAsStringAsync();
+								if(stringRead.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds))))
+                                {
+									string response = stringRead.Result;
+
+									Debug.WriteLine(response);
+									Response333Networks responseData = MOHBrowserHandler.parse333NetworksResponse(response);
+									if (responseData != null && responseData.items != null)
+									{
+										serverList.AddRange(responseData.items);
+									}
+									else
+									{
+										Debug.WriteLine($"Failed to deserialize response to {cmdString}");
+									}
+								}
+							}
+							else
+							{
+								Debug.WriteLine($"Server browser MOH: Failed to receive response to {cmdString}");
+								break;
+							}
+
+						}
+					}
+					catch (Exception e)
+					{
+						Debug.WriteLine($"Error getting data from 333 Networks master server: {e.ToString()}");
+					}
+                    try
+                    {
+						HttpClient client = new HttpClient(new HttpClientHandler() { AutomaticDecompression=DecompressionMethods.Deflate| DecompressionMethods.GZip }); // .NET Standard doesn't have DecompressionMethods.All
+						string cmdString = "https://mohaaservers.ezpz.cc/servlist/servers_merged.txt";
+                        if (!expansions)
+                        {
+							cmdString = "https://mohaaservers.ezpz.cc/servlist/servers_aa.txt";
+						}
+
+                        Task<HttpResponseMessage> request = client.GetAsync(cmdString);
+
+						bool success = request.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+						if (success)
+						{
+							HttpResponseMessage status = request.Result;
+							var stringRead = status.Content.ReadAsStringAsync();
+							if(stringRead.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds))))
+                            {
+								string response = stringRead.Result;
+
+								Debug.WriteLine(response);
+								string[] servers = response.Split(new char[] {'\n','\r','\t',' '},StringSplitOptions.RemoveEmptyEntries);
+								if (servers != null && servers.Length > 0)
+								{
+									serverListPlain.AddRange(servers);
+								}
+								else
+								{
+									Debug.WriteLine($"Failed to parse ezpz response to {cmdString}");
+								}
+							}
+						}
+						else
+						{
+							Debug.WriteLine($"Server browser MOH: Failed to receive response to {cmdString}");
+						}
+
+					}
+					catch (Exception e)
+					{
+						Debug.WriteLine($"Error getting data from ezpz master server: {e.ToString()}");
+					}
+				});
+				OnInternalTaskStarted(listsQueryTask, "ServerBrowser MOH Server Lists Query Task");
+				await listsQueryTask;
+				if (serverList != null)
+				{
+					foreach (ServerItem333Networks server in serverList)
+					{
+						byte[] ip = IPAddress.TryParse(server.ip, out IPAddress ipAddress) ? ipAddress.GetAddressBytes() : null;
+						if (ip != null)
+						{
+							var serverInfo = new ServerInfo()
+							{
+								Address = new NetAddress(ip, (ushort)server.hostport),
+								Start = Common.Milliseconds
+							};
+							//if (server.status != null)
+							//{
+							//	InfoString statusFromMaster = new InfoString(server.status);
+							//	serverInfo.SetInfo(statusFromMaster, true);
+							//}
+							this.globalServers[serverInfo.Address] = serverInfo;
+							//this.OutOfBandPrint(serverInfo.Address, "getstatus");
+							this.OutOfBandPrint(serverInfo.Address, "getinfo xxx");
+						}
+					}
+				}
+				if (serverListPlain != null)
+				{
+					foreach (string server in serverListPlain)
+					{
+						string[] parts = server.Split(':');
+						if(parts.Length == 2)
+						{
+							byte[] ip = IPAddress.TryParse(parts[0], out IPAddress ipAddress) ? ipAddress.GetAddressBytes() : null;
+							if (ip != null)
+							{
+								var serverInfo = new ServerInfo()
+								{
+									Address = new NetAddress(ip, (ushort)parts[1].Atoi()),
+									Start = Common.Milliseconds
+								};
+								//if (server.status != null)
+								//{
+								//	InfoString statusFromMaster = new InfoString(server.status);
+								//	serverInfo.SetInfo(statusFromMaster, true);
+								//}
+								this.globalServers[serverInfo.Address] = serverInfo;
+								//this.OutOfBandPrint(serverInfo.Address, "getstatus");
+								this.OutOfBandPrint(serverInfo.Address, "getinfo xxx");
+							}
+						}
+					}
+				}
+
+#else
 				List<XNullServerData> serverList = new List<XNullServerData>();
 				Task XnullQueryTask = Task.Run(() => {
 					try
@@ -290,9 +451,13 @@ namespace JKClient {
 						}
 					}
 				}
-				
 
-			} else { 
+#endif
+
+
+
+			}
+			else { 
 
 				foreach (var masterServer in this.masterServers) {
 

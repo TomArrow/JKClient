@@ -310,6 +310,13 @@ namespace JKClient {
 		internal bool SaberModDetected = false;
 		internal bool SaberModBotSkillStyle = false;
 
+		public string[] ConfigStrings
+        {
+            get
+            {
+				return this.GetConfigStrings();
+            }
+        }
 
 		private readonly ServerInfo serverInfo = new ServerInfo();
 		public ServerInfo ServerInfo {

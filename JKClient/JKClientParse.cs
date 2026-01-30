@@ -342,6 +342,18 @@ namespace JKClient {
 				return Common.ToString(cs, Common.StrLen(cs));
 			}
 		}
+		internal unsafe string[] GetConfigStrings() {
+			string[] configstrings = new string[this.MaxConfigstrings];
+			for(int i = 0; i < this.MaxConfigstrings; i++)
+            {
+				fixed (sbyte* s = this.gameState.StringData)
+				{
+					sbyte* cs = s + this.gameState.StringOffsets[i];
+					configstrings[i] = Common.ToString(cs, Common.StrLen(cs));
+				}
+			}
+			return configstrings;
+		}
 		public unsafe string GetMappedConfigstring(ClientGame.Configstring indexA) {
 			if (this.clientGame == null) return "";
 			int index = (int)indexA < 2 ? (int)indexA : this.clientGame.GetConfigstringIndex(indexA); // Values under 2 (ServerInfo, SystemInfo) don't need mapping.

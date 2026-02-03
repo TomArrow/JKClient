@@ -82,6 +82,23 @@ namespace JKClient
 		public string MOHScoreboardPICover { get; internal set; }
 		internal bool InfoSet;
 		internal long Start;
+
+		// systeminfo
+		public Int64 GameStartUnixTime { get; internal set; }
+		public DateTime? GameStartUniversalTime
+        {
+            get
+            {
+				if(GameStartUnixTime == 0)
+                {
+					return null;
+                }
+                else
+                {
+					return DateTimeOffset.FromUnixTimeSeconds(GameStartUnixTime).ToUniversalTime().DateTime;
+                }
+            }
+		}
 		public TommyTernalFlags ttFlags { get; internal set; } = 0;
 		internal void SetInfo(in InfoString info, bool isMasterInfo = false) {
 			InfoStringValues = info.ToArray();
@@ -142,6 +159,14 @@ namespace JKClient
 		internal void SetSystemConfigstringInfo(in InfoString info)
 		{
 			SystemConfigStringInfoStringValues = info.ToArray();
+			if(Int64.TryParse(info["sv_gameStartUnixTime"],out Int64 value))
+			{
+				this.GameStartUnixTime = value;
+			}
+            else
+			{
+				this.GameStartUnixTime = 0;
+			}
 		}
 		internal void SetStatusInfo(in InfoString info) {
 			StatusInfoStringValues = info.ToArray();

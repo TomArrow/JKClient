@@ -211,6 +211,7 @@ namespace JKClient {
 		public bool DebugNet { get; set; } = false;
 		// set to true if you want this client to get stuck as "Connecting"
 		public bool GhostPeer { get; init; } = false;
+		public bool NoMove { get; set; } = false;
 		private StringBuilder showNetString = null;
 
 		public event EventHandler Disconnected;
@@ -1453,6 +1454,10 @@ namespace JKClient {
 			if (this.Status < ConnectionStatus.Primed) {
 				return;
 			}
+            if (NoMove)
+            {
+				return;
+            }
 			int userCmdDelta = this.clServerTime - this.cmds[this.cmdNumber & UserCommand.CommandMask].ServerTime;
 			/*if (userCmdDelta==0 && this.clServerTime > 0) // I commented this block out but originally it was userCmdDelta<1 and caused issues. ==0 should be ok but we don't really need this anyway.
             {
@@ -1602,6 +1607,10 @@ namespace JKClient {
 				if (count > JKClient.MaxPacketUserCmds) {
 					count = JKClient.MaxPacketUserCmds;
 				}
+                if (NoMove)
+                {
+					count = 0;
+                }
 				if (count >= 1) {
 					if (!this.snap.Valid || this.serverMessageSequence != this.snap.MessageNum || Demowaiting == 2 || pingAdjust != 0) {
 						msg.WriteByte((int)ClientCommandOperations.MoveNoDelta);

@@ -184,43 +184,77 @@ namespace JKClient {
 								break;
 							}
 
-							string cmdString = "https://master.333networks.com/json/mohaa";
+							string cmdString = "https://master.333networks.com/json/mohaa?r=1000";
 							if (i == 1)
 							{
-								cmdString = "https://master.333networks.com/json/mohaas";
+								cmdString = "https://master.333networks.com/json/mohaas?r=1000";
 							}
 							else if (i == 2)
 							{
-								cmdString = "https://master.333networks.com/json/mohaab";
+								cmdString = "https://master.333networks.com/json/mohaab?r=1000";
 							}
 
-                            Task<HttpResponseMessage> request = client.GetAsync(cmdString);
+							string response = null;
 
-							bool success = request.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
-							if (success)
+							response = MOHBrowserHandler.GetCachedResponse(cmdString);
+							bool wasCached = false;
+                            if (response != null)
+                            {
+								wasCached = true;
+								Debug.WriteLine($"Server browser MOH: Using cached response from {cmdString}");
+							}
+                            else
 							{
-								HttpResponseMessage status = request.Result;
-								var stringRead = status.Content.ReadAsStringAsync();
-								if(stringRead.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds))))
-                                {
-									string response = stringRead.Result;
+								Task<HttpResponseMessage> request = client.GetAsync(cmdString);
 
-									Debug.WriteLine(response);
-									Response333Networks responseData = MOHBrowserHandler.parse333NetworksResponse(response);
-									if (responseData != null && responseData.items != null)
+								bool success = request.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+								if (success)
+								{
+									HttpResponseMessage status = request.Result;
+									var stringRead = status.Content.ReadAsStringAsync();
+									if (stringRead.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds))))
 									{
-										serverList.AddRange(responseData.items);
-									}
-									else
-									{
-										Debug.WriteLine($"Failed to deserialize response to {cmdString}");
+										response = stringRead.Result;
 									}
 								}
+								else
+								{
+									Debug.WriteLine($"Server browser MOH: Failed to receive response to {cmdString}");
+									break;
+								}
 							}
-							else
+
+							if(response != null)
 							{
-								Debug.WriteLine($"Server browser MOH: Failed to receive response to {cmdString}");
-								break;
+								Debug.WriteLine(response);
+								Response333Networks responseData = MOHBrowserHandler.parse333NetworksResponse(response);
+								if (responseData != null && responseData.items != null)
+								{
+									if(responseData.items.Length > 0)
+									{
+										serverList.AddRange(responseData.items);
+										if (!wasCached)
+										{
+											MOHBrowserHandler.SetCachedResponse(cmdString,response);
+										}
+                                    }
+                                    else
+									{
+										Debug.WriteLine($"Response deserialized but 0 results from {cmdString}: {response}");
+										if (wasCached)
+                                        {
+											//MOHBrowserHandler.InvalidateCachedResponse(cmdString);
+										}
+                                    }
+								}
+								else
+								{
+									if (wasCached)
+									{
+										//MOHBrowserHandler.InvalidateCachedResponse(cmdString);
+									}
+									Debug.WriteLine($"Failed to deserialize response to {cmdString}: {response}");
+								}
 							}
 
 						}
@@ -238,32 +272,51 @@ namespace JKClient {
 							cmdString = "https://mohaaservers.ezpz.cc/servlist/servers_aa.txt";
 						}
 
-                        Task<HttpResponseMessage> request = client.GetAsync(cmdString);
+						string response = null;
+						response = MOHBrowserHandler.GetCachedResponse(cmdString);
+						bool wasCached = false;
+						if (response != null)
+                        {
+							wasCached = true;
+							Debug.WriteLine($"Server browser MOH: Using cached response from {cmdString}");
+						}
+                        else
+                        {
+							Task<HttpResponseMessage> request = client.GetAsync(cmdString);
 
-						bool success = request.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
-						if (success)
-						{
-							HttpResponseMessage status = request.Result;
-							var stringRead = status.Content.ReadAsStringAsync();
-							if(stringRead.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds))))
-                            {
-								string response = stringRead.Result;
+							bool success = request.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds)));
+							if (success)
+							{
+								HttpResponseMessage status = request.Result;
+								var stringRead = status.Content.ReadAsStringAsync();
+								if (stringRead.Wait((int)(Math.Max(0, this.serverRefreshTimeout - Common.Milliseconds))))
+								{
+									response = stringRead.Result;
 
-								Debug.WriteLine(response);
-								string[] servers = response.Split(new char[] {'\n','\r','\t',' '},StringSplitOptions.RemoveEmptyEntries);
-								if (servers != null && servers.Length > 0)
-								{
-									serverListPlain.AddRange(servers);
-								}
-								else
-								{
-									Debug.WriteLine($"Failed to parse ezpz response to {cmdString}");
 								}
 							}
+							else
+							{
+								Debug.WriteLine($"Server browser MOH: Failed to receive response to {cmdString}");
+							}
 						}
-						else
+
+						if(response != null)
 						{
-							Debug.WriteLine($"Server browser MOH: Failed to receive response to {cmdString}");
+							Debug.WriteLine(response);
+							string[] servers = response.Split(new char[] { '\n', '\r', '\t', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+							if (servers != null && servers.Length > 0)
+							{
+								serverListPlain.AddRange(servers);
+								if (!wasCached)
+								{
+									MOHBrowserHandler.SetCachedResponse(cmdString, response);
+								}
+							}
+							else
+							{
+								Debug.WriteLine($"Failed to parse ezpz response to {cmdString}");
+							}
 						}
 
 					}

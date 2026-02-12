@@ -15,11 +15,55 @@ namespace JKClient
         private const ushort PortMasterMOHSocketService = 8080;
         public virtual bool NeedStatus { get; private set; }
         public int[] AdditionalProtocols { get; private set; } = null;
+        static Dictionary<string, Tuple<long, string>> cachedResponses = new Dictionary<string, Tuple<long, string>>();
         public MOHBrowserHandler(ProtocolVersion protocol, bool allProtocols = false) : base(protocol)
         {
             if (allProtocols)
             {
                 AdditionalProtocols = new int[] { (int)ProtocolVersion.Protocol6, (int)ProtocolVersion.Protocol7,(int)ProtocolVersion.Protocol15, (int)ProtocolVersion.Protocol16, (int)ProtocolVersion.Protocol17 };
+            }
+        }
+        public static string GetCachedResponse(string url)
+        {
+            lock (cachedResponses)
+            {
+                if (cachedResponses.ContainsKey(url))
+                {
+                    if (Common.Milliseconds - 60000*10 < cachedResponses[url].Item1)
+                    {
+                        return cachedResponses[url].Item2;
+                    }
+                    else
+                    {
+                        cachedResponses.Remove(url);
+                        return null;
+                    }
+                }
+                else
+                {
+                    return null;
+                }
+            }
+        }
+        public static void SetCachedResponse(string url, string response)
+        {
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                return;
+            }
+            lock (cachedResponses)
+            {
+                cachedResponses[url] = new Tuple<long, string>(Common.Milliseconds,response);
+            }
+        }
+        public static void InvalidateCachedResponse(string url)
+        {
+            lock (cachedResponses)
+            {
+                if (cachedResponses.ContainsKey(url))
+                {
+                    cachedResponses.Remove(url);
+                }
             }
         }
         public virtual IEnumerable<ServerBrowser.ServerAddress> GetMasterServers()

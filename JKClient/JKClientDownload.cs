@@ -241,7 +241,7 @@ namespace JKClient
 			downloadCount += size;
             if (downloadSize > 0 && 10 * downloadCount/downloadSize > 10 * (downloadCount-size) / downloadSize)
 			{
-				var cmd = new Command(new string[] { "print", $"^3CL_ParseDownload: File {downloadName} at {100 * downloadCount / downloadSize}%\n" });
+				var cmd = new Command(new string[] { "print", $"^3CL_ParseDownload: File {downloadName} at {100UL * (UInt64)downloadCount / (UInt64)downloadSize}%\n" });
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 			}
 

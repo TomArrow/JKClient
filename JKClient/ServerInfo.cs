@@ -51,6 +51,7 @@ namespace JKClient
 		public string MapName { get; internal set; }
 		public bool UDPDownloads { get; internal set; } = false;
 		public bool OpenMOHAA { get; internal set; } = false;
+		public string pr_downloads { get; internal set; } = null; // mohaa
 		public string Game { get; internal set; }
 		public string GameName { get; internal set; }
 		public GameType GameType { get; internal set; }
@@ -150,6 +151,7 @@ namespace JKClient
 				this.OpenMOHAA = true;
             }
 
+			this.pr_downloads = info["pr_downloads"];
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
 			this.UDPDownloads = info["sv_allowDownload"].Atoi() != 0;
@@ -214,6 +216,7 @@ namespace JKClient
 			{
 				this.OpenMOHAA = true;
 			}
+			this.pr_downloads = info["pr_downloads"];
 		}
 		public static bool operator ==(in ServerInfo serverInfo1, in ServerInfo serverInfo2) {
 			return serverInfo1?.Address == serverInfo2?.Address;

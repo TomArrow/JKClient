@@ -68,7 +68,7 @@ namespace JKClient
 				downloadBlockLastSuccessful = 0;
 				downloadCount = 0;
 				//ExecuteCommandInternal($"download {currentDownload.remoteName}");
-				AddReliableCommand($"download {currentDownload.remoteName}"); // todo some kind of failsafe for when this cmd gets lost in transmission (since reliable commands... arent really reliable anymore *rage*)
+				AddReliableCommand($"download \"{currentDownload.remoteName}\""); // todo some kind of failsafe for when this cmd gets lost in transmission (since reliable commands... arent really reliable anymore *rage*)
 			}
 			if((this.downloadName != null) != desiredSnapsDownloadOverride)
             {

@@ -35,12 +35,14 @@ namespace JKClient
 			public string remoteName;
 			public string localName;
 			public int checksum;
+			public byte[] partialData;
 		}
 
 
         string downloadTempName = null;
 		string downloadName = null;
 		int downloadBlock=0;  // block we are waiting for
+		//int downloadBlockBase=0;  // when block index starts wrapping with small blocksizes like 1024
 		int downloadBlockConfirmed=0;  // block we have
 		int downloadBlockLastAcked = 0;
 		int downloadBlockLastSuccessful = 0;
@@ -63,6 +65,7 @@ namespace JKClient
 				downloadName = currentDownload.localName;
 				downloadTempName = $"{currentDownload.localName}.tmp";
 				downloadBlock = 0;
+				//downloadBlockBase = 0;
 				downloadBlockConfirmed = 0;
 				downloadBlockLastAcked = 0;
 				downloadBlockLastSuccessful = 0;
@@ -76,12 +79,12 @@ namespace JKClient
             }
         }
 
-		public void EnqueueDownload(string remoteName, string localName, int checksum)
+		public void EnqueueDownload(string remoteName, string localName, int checksum, byte[] existingPartialData = null)
         {
 
 			void enqueueDownload()
 			{
-				queuedDownload newDl = new queuedDownload() { checksum = checksum, localName = localName, remoteName = remoteName };
+				queuedDownload newDl = new queuedDownload() { checksum = checksum, localName = localName, remoteName = remoteName, partialData = existingPartialData };
 				//if (queuedDownloads.Count > 0)
 				//{
 					//somehoow mayabe check for dupes?
@@ -124,6 +127,7 @@ namespace JKClient
 			// downloadIndex = 0;
 			//downloadNumber = 0;
 			downloadBlock = 0;  // block we are waiting for
+			//downloadBlockBase = 0;  // block we are waiting for
 			downloadBlockConfirmed = 0;  // block we are waiting for
 			downloadBlockLastAcked = 0; 
 			downloadBlockLastSuccessful = 0; 
@@ -142,21 +146,43 @@ namespace JKClient
 				AddReliableCommand("stopdl");
 				return false;
 			}
-			ushort block = (ushort)msg.ReadShort();
+			int blockClosestUShortMultiple = ((downloadBlock + 32768) / 65536) * 65536; // not perfect math? idk close enough
+			int block = (ushort)msg.ReadShort();
+			if(Math.Abs(block - blockClosestUShortMultiple) > 32768) // we use our own downloadblock tracking to fix the possibly wrapped sent number. kinda cringe but what can ya do. otherwise e.g. with a MAX_DOWNLOAD_BLKSIZE of 1024 we will crap out at around or above 67107840 bytes (~64MB)
+			{
+				if(block < 32768)
+                {
+					block += blockClosestUShortMultiple;
+                }
+                else
+                {
+					block += blockClosestUShortMultiple- 65536;
+				}
+            }
 			if (block == 0)// && downloadBlock == 0)
 			{
-				downloadSize = msg.ReadLong();
-				if (downloadSize < 0)
+
+				if (downloadBlock > 1024 && Math.Abs(blockClosestUShortMultiple - downloadBlock) < 1024 ) // HACK. block index wrapped. 1024 chosen randomly. just to see if we're close
 				{
-					fixed (sbyte* s = msg.ReadString((ProtocolVersion)this.Protocol))
+					var cmd = new Command(new string[] { "print", $"Download block index wrap detected. Attempting fix." });
+					//downloadBlockBase = blockClosestUShortMultiple;
+                }
+                else { 
+					downloadSize = msg.ReadLong();
+					if (downloadSize < 0)
 					{
-						byte* ss = (byte*)s;
-						var cmd = new Command(new string[] { "print", Common.ToString(ss, sizeof(sbyte) * Common.MaxStringCharsMOH) });
-						this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
-						KillCurrentDownload();
-						AddReliableCommand("stopdl");
-						return true;
-						//throw new JKClientException($"{Common.ToString(ss, sizeof(sbyte)*Common.MaxStringCharsMOH)}");
+						fixed (sbyte* s = msg.ReadString((ProtocolVersion)this.Protocol))
+						{
+							byte* ss = (byte*)s;
+							var cmd = new Command(new string[] { "print", $"Download failure for some reason. Download size {downloadSize}. print attempt following." });
+							this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+							cmd = new Command(new string[] { "print", Common.ToString(ss, sizeof(sbyte) * Common.MaxStringCharsMOH) });
+							this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+							KillCurrentDownload();
+							AddReliableCommand("stopdl");
+							return true;
+							//throw new JKClientException($"{Common.ToString(ss, sizeof(sbyte)*Common.MaxStringCharsMOH)}");
+						}
 					}
 				}
 			} /*else if (downloadBlock > 1 && block == 0)
@@ -167,6 +193,9 @@ namespace JKClient
 				AddReliableCommand("stopdl");
 				return false;
 			}*/
+
+			//block += downloadBlockBase;
+
 			ushort size = (ushort)msg.ReadShort();
 			if (size < 0 || size > sizeof(byte) * this.ClientHandler.MaxMessageLength)
 			{
@@ -204,7 +233,7 @@ namespace JKClient
 						AddReliableCommand("stopdl");
 						return true;
 					} 
-					else if (this.downloadBlockLastAcked > 0 && downloadBlock > 0 && downloadBlock > block && this.realTime - this.downloadBlockLastAcked > 1000)
+					else if (this.downloadBlockLastAcked > 0 && downloadBlock > 0 && downloadBlock > block && this.realTime - this.downloadBlockLastAcked > 5000) // cant just keep reacking cuz server needs all nextdl to come in perfect order
 					{
                         if (!dontPrint)
 						{

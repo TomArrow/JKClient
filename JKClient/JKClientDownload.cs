@@ -13,12 +13,14 @@ namespace JKClient
 		public string remoteName;
 		public int checksum;
 		public byte[] data;
-		internal DownloadFinishedEventArgs(string localNameA, string remoteNameA, int checksumA, byte[] dataA)
+		public bool anyLeftInQueue;
+		internal DownloadFinishedEventArgs(string localNameA, string remoteNameA, int checksumA, byte[] dataA, bool anyLeftInQueueA)
 		{
 			localName = localNameA;
 			remoteName = remoteNameA;
 			data = dataA;
 			checksum = checksumA;
+			anyLeftInQueue = anyLeftInQueueA;
 		}
 	}
 
@@ -26,9 +28,9 @@ namespace JKClient
     {
 
 		public event EventHandler<DownloadFinishedEventArgs> DownloadFinished;
-		protected void OnDownloadFinished(string localName, string remoteName, int checksum, byte[] data)
+		protected void OnDownloadFinished(string localName, string remoteName, int checksum, byte[] data, bool anyLeftInQueue)
 		{
-			DownloadFinished?.Invoke(this, new DownloadFinishedEventArgs(localName, remoteName, checksum, data));
+			DownloadFinished?.Invoke(this, new DownloadFinishedEventArgs(localName, remoteName, checksum, data, anyLeftInQueue));
 		}
 
 		class queuedDownload {
@@ -284,7 +286,7 @@ namespace JKClient
 
 
 					// i should verify the .zip checksum here but.... im too lazy to port all that logic?
-					OnDownloadFinished(currentDownload.localName,currentDownload.remoteName,currentDownload.checksum, fileContents);
+					OnDownloadFinished(currentDownload.localName,currentDownload.remoteName,currentDownload.checksum, fileContents, queuedDownloads.Count > 0);
                 }
 				downloadTempName = downloadName = null;
 

@@ -50,6 +50,7 @@ namespace JKClient
 		public string HostName { get; internal set; }
 		public string MapName { get; internal set; }
 		public bool UDPDownloads { get; internal set; } = false;
+		public bool HTTPDownloads { get; internal set; } = false;
 		public bool OpenMOHAA { get; internal set; } = false;
 		public string pr_downloads { get; internal set; } = null; // mohaa
 		public string Game { get; internal set; }
@@ -155,6 +156,7 @@ namespace JKClient
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
 			this.UDPDownloads = info["sv_allowDownload"].Atoi() != 0;
+			this.HTTPDownloads = info["mv_httpdownloads"].Atoi() != 0;
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.PrivateClients = info["sv_privateClients"].Atoi();
 			this.SendsAllEntities = info["sv_specAllEnts"].Atoi() > 0;
@@ -186,6 +188,7 @@ namespace JKClient
 			this.HostName = info["sv_hostname"];
 			this.MapName = info["mapname"];
 			this.UDPDownloads = info["sv_allowDownload"].Atoi() != 0;
+			this.HTTPDownloads = info["mv_httpdownloads"].Atoi() != 0;
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.PrivateClients = info["sv_privateClients"].Atoi();
 			this.SendsAllEntities = info["sv_specAllEnts"].Atoi() > 0;

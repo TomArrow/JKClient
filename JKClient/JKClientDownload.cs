@@ -23,14 +23,33 @@ namespace JKClient
 			anyLeftInQueue = anyLeftInQueueA;
 		}
 	}
+	public sealed class DownloadErroredEventArgs
+	{
+		public string localName;
+		public string remoteName;
+		public int checksum;
+		public bool anyLeftInQueue;
+		internal DownloadErroredEventArgs(string localNameA, string remoteNameA, int checksumA, bool anyLeftInQueueA)
+		{
+			localName = localNameA;
+			remoteName = remoteNameA;
+			checksum = checksumA;
+			anyLeftInQueue = anyLeftInQueueA;
+		}
+	}
 
 	public sealed partial class JKClient
     {
 
 		public event EventHandler<DownloadFinishedEventArgs> DownloadFinished;
+		public event EventHandler<DownloadErroredEventArgs> DownloadErrored;
 		protected void OnDownloadFinished(string localName, string remoteName, int checksum, byte[] data, bool anyLeftInQueue)
 		{
 			DownloadFinished?.Invoke(this, new DownloadFinishedEventArgs(localName, remoteName, checksum, data, anyLeftInQueue));
+		}
+		protected void OnDownloadErrored(string localName, string remoteName, int checksum, bool anyLeftInQueue)
+		{
+			DownloadErrored?.Invoke(this, new DownloadErroredEventArgs(localName, remoteName, checksum, anyLeftInQueue));
 		}
 
 		class queuedDownload {
@@ -173,13 +192,14 @@ namespace JKClient
 					downloadSize = msg.ReadLong();
 					if (downloadSize < 0)
 					{
-						fixed (sbyte* s = msg.ReadString((ProtocolVersion)this.Protocol))
+						fixed (sbyte* s = msg.ReadString((ProtocolVersion)this.Protocol,true))
 						{
 							byte* ss = (byte*)s;
 							var cmd = new Command(new string[] { "print", $"Download failure for some reason. Download size {downloadSize}. print attempt following." });
 							this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
 							cmd = new Command(new string[] { "print", Common.ToString(ss, sizeof(sbyte) * Common.MaxStringCharsMOH) });
 							this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+							OnDownloadErrored(currentDownload.localName, currentDownload.remoteName, currentDownload.checksum, queuedDownloads.Count > 0);
 							KillCurrentDownload();
 							AddReliableCommand("stopdl");
 							return true;
@@ -203,6 +223,7 @@ namespace JKClient
 			{
 				var cmd = new Command(new string[] { "print", $"^1ParseDownload: Invalid size {size} for download chunk" });
 				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+				OnDownloadErrored(currentDownload.localName, currentDownload.remoteName, currentDownload.checksum, queuedDownloads.Count > 0);
 				KillCurrentDownload();
 				AddReliableCommand("stopdl");
 				return false;
@@ -231,6 +252,7 @@ namespace JKClient
 					{
 						var cmd = new Command(new string[] { "print", $"^1ParseDownload: Havent gotten the requested block {downloadBlock} for over 1 minute. Giving up on this download.\n" });
 						this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+						OnDownloadErrored(currentDownload.localName, currentDownload.remoteName, currentDownload.checksum, queuedDownloads.Count > 0);
 						KillCurrentDownload();
 						AddReliableCommand("stopdl");
 						return true;

@@ -43,6 +43,7 @@ namespace JKClient
         public Int64 demoCurrentTime { get; internal set; }
         public Int64 demoCurrentTimeWritten { get; internal set; }
         public Int64 messagesDropped { get; internal set; }
+        public int snapEntCount { get; internal set; }
 
         public Int64 lastFrameDelta { get; internal set; }
         [DependsOn("lastFrameDelta")]

@@ -19,7 +19,7 @@ namespace JKClient {
 	}
 
 	public class Snapshot {
-		public const int MaxEntities = 256;
+		public const int MaxEntities = 1024; //256. No need to keep this limit in jkclient. what for. we dont interact with any apis other than internally.
 		public int Flags;
 		public int ServerTime;
 		public PlayerState PlayerState;

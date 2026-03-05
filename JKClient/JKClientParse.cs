@@ -705,6 +705,7 @@ namespace JKClient {
 					msg.ReadDeltaPlayerstate(oldSnap != null ? &oldSnap->VehiclePlayerState : null, &newSnap.VehiclePlayerState, true, this.ClientHandler, ref isFakeNonDelta, showNetString);
 				}
 				this.ParsePacketEntities(in msg, in oldSnap, &newSnap, ref isFakeNonDelta);
+				this.Stats.snapEntCount = newSnap.NumEntities;
 
                 if (isMOH)
                 {

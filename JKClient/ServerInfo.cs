@@ -69,6 +69,7 @@ namespace JKClient
 		public int Ping { get; internal set; }
 		public bool Visibile { get; internal set; }
 		public bool SendsAllEntities { get; internal set; }
+		public bool SendsAllEntitiesToFreeFloatSpectators { get; internal set; }
 		public bool NeedPassword { get; internal set; }
 		public bool TrueJedi { get; internal set; }
 		public bool WeaponDisable { get; internal set; }
@@ -160,6 +161,7 @@ namespace JKClient
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.PrivateClients = info["sv_privateClients"].Atoi();
 			this.SendsAllEntities = info["sv_specAllEnts"].Atoi() > 0;
+			this.SendsAllEntitiesToFreeFloatSpectators = info["g_specAllEnts"].Atoi() > 0;
 			this.MinPing = info["sv_minping"].Atoi();
 			this.MaxPing = info["sv_maxping"].Atoi();
 			this.FPS = info["sv_fps"].Atoi();
@@ -192,6 +194,7 @@ namespace JKClient
 			this.MaxClients = info["sv_maxclients"].Atoi();
 			this.PrivateClients = info["sv_privateClients"].Atoi();
 			this.SendsAllEntities = info["sv_specAllEnts"].Atoi() > 0;
+			this.SendsAllEntitiesToFreeFloatSpectators = info["g_specAllEnts"].Atoi() > 0;
 			//this.Game = info["game"];
 			this.MinPing = info["sv_minPing"].Atoi();
 			this.MaxPing = info["sv_maxPing"].Atoi();

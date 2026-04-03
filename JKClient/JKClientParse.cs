@@ -7,10 +7,10 @@ namespace JKClient {
 
 	internal class DemoTimeTracker
     {
-		public int DemoCurrentTime = 0;
-		public int DemoBaseTime = 0;
-		public int DemoStartTime = 0;
-		public int LastKnownTime = 0;
+		public Int64 DemoCurrentTime = 0;
+		public Int64 DemoBaseTime = 0;
+		public Int64 DemoStartTime = 0;
+		public Int64 LastKnownTime = 0;
 	}
 
 	public sealed partial class JKClient {
@@ -26,8 +26,8 @@ namespace JKClient {
 		private int clOldServerTime = 0; // What we wanna send in commands
 		private int clServerTimeDelta = 0; // What we wanna send in commands
 		private bool clExtrapolatedSnapshot = false;
-		public int DemoCurrentTimeApproximate => this.demoTimeTrackerApproximate.DemoCurrentTime;
-		public int DemoCurrentTimeRealDelayed => this.demoTimeTrackerRealDelayed.DemoCurrentTime; // Due to delayed writing, this value might be a bit old.
+		public Int64 DemoCurrentTimeApproximate => this.demoTimeTrackerApproximate.DemoCurrentTime;
+		public Int64 DemoCurrentTimeRealDelayed => this.demoTimeTrackerRealDelayed.DemoCurrentTime; // Due to delayed writing, this value might be a bit old.
 
 		private int? currentDemoWrittenServerTime = null;
 		private int? currentDemoWrittenSequenceNumber = null;

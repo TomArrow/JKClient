@@ -301,6 +301,7 @@ namespace JKClient {
 				this.ClientInfo[clientNum].Color2 = info["c2"];
 				this.ClientInfo[clientNum].GRedTeam = info["g_redteam"];
 				this.ClientInfo[clientNum].GBlueTeam = info["g_blueteam"];
+				this.ClientInfo[clientNum].TASClient = info["tas"].Atoi();
                 if (!this.ClientInfo[clientNum].InfoValid)
 				{
 					this.Client.ResetExternalBotConfirmation(clientNum); // make sure to reset this when players connect/disconnect to be safe

@@ -12,6 +12,7 @@
 		public Team Team { get; internal set; }
 		public float BotSkill { get; internal set; }
 		public bool IsBotBySkill { get; internal set; }
+		public int TASClient { get; internal set; }
 		internal void Clear() {
 			this.ClientNum = 0;
 			this.InfoValid = false;

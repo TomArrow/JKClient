@@ -127,7 +127,7 @@ namespace JKClient {
 		public bool Demorecording { get; private set; }
 		private SortedDictionary<int, BufferedDemoMessageContainer> bufferedDemoMessages = new SortedDictionary<int, BufferedDemoMessageContainer>();
 		//bool Demoplaying;
-		int Demowaiting;   // don't record until a non-delta message is received. Changed to int. 0=not waiting. 1=waiting for delta message with correct deltanum. 2= waiting for full snapshot
+		public int Demowaiting { get; private set; }   // don't record until a non-delta message is received. Changed to int. 0=not waiting. 1=waiting for delta message with correct deltanum. 2= waiting for full snapshot
 		const double DemoRecordBufferedReorderTimeout = 10;
 		int DemoLastWrittenSequenceNumber = -1;
 

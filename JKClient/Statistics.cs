@@ -45,6 +45,10 @@ namespace JKClient
         public Int64 messagesDropped { get; internal set; }
         public int snapEntCount { get; internal set; }
 
+        public int? currentDemoWrittenServerTime { get; internal set; }
+        public int? currentDemoWrittenSequenceNumber { get; internal set; }
+        public int? currentDemoMaxSequenceNumber { get; internal set; }
+
         public Int64 lastFrameDelta { get; internal set; }
         [DependsOn("lastFrameDelta")]
         public int lastFrameDeltaFPS { get {

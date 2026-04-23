@@ -1809,12 +1809,13 @@ namespace JKClient {
 				Demofile.Write(msg.Data, headerBytes, len);
 
 
-				this.currentDemoWrittenSequenceNumber = sequenceNumber;
-				this.currentDemoMaxSequenceNumber = currentDemoMaxSequenceNumber.HasValue ? Math.Max(sequenceNumber, this.currentDemoMaxSequenceNumber.Value) : sequenceNumber;
+				this.Stats.currentDemoWrittenSequenceNumber = this.currentDemoWrittenSequenceNumber = sequenceNumber;
+				this.Stats.currentDemoMaxSequenceNumber = this.currentDemoMaxSequenceNumber = currentDemoMaxSequenceNumber.HasValue ? Math.Max(sequenceNumber, this.currentDemoMaxSequenceNumber.Value) : sequenceNumber;
 
 				if (serverTime.HasValue) // This messsage contains a snapshot. Update the server time of actually written messages (we write delayed for reordering)
                 {
 					currentDemoWrittenServerTime = serverTime.Value;
+					this.Stats.currentDemoWrittenServerTime = serverTime.Value;
 					this.UpdateDemoTime();
 				}
 

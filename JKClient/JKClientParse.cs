@@ -60,6 +60,7 @@ namespace JKClient {
 #region ClientActive
 		private ClientSnapshot snap = new ClientSnapshot();
 		private int serverTime = 0;
+		private int? serverTimeDemo = null; // for demo time tracking. we need to know if the servertime we are looking at currently isn't valid.
 
 		// Need this for proper command timing. Or server will discard commands we send because they have duplicated servertimes
 		private int clServerTime = 0; // What we wanna send in commands
@@ -111,22 +112,33 @@ namespace JKClient {
 				this.DemoTimeTrackerApproximate.DemoCurrentTime = 0;
 				this.DemoTimeTrackerApproximate.DemoBaseTime = 0;
 				this.DemoTimeTrackerApproximate.DemoStartTime = 0;
-				this.DemoTimeTrackerApproximate.LastKnownTime = this.snap.ServerTime;
 				this.DemoTimeTrackerRealDelayed.DemoCurrentTime = 0;
 				this.DemoTimeTrackerRealDelayed.DemoBaseTime = 0;
 				this.DemoTimeTrackerRealDelayed.DemoStartTime = 0;
-				this.DemoTimeTrackerRealDelayed.LastKnownTime = this.snap.ServerTime;
+                if (this.serverTimeDemo.HasValue)
+				{
+					this.DemoTimeTrackerApproximate.LastKnownTime = this.serverTimeDemo.Value;
+					this.DemoTimeTrackerRealDelayed.LastKnownTime = this.serverTimeDemo.Value;
+				}
 				this.Stats.demoCurrentTime = 0;
 				return;
             }
 
+            if (this.serverTimeDemo.HasValue)
+            {
+				// Be careful not to do this when the demo writing mechanism calls this function when we don't have a valid snap, because 
+				// it can be delayed. we may have gotten a fresh gamestate and the servertime has been cleared to 0 by ClearState()
+				// so we will "false detect" a server time reset, messing up our time tracking, even tho the next snapshot will resume servertime just fine.
 
-			// This is tracking the approximate time based on parsed snapshots, 
-			if (this.snap.ServerTime < this.DemoTimeTrackerApproximate.LastKnownTime && this.maxSequenceNum == this.serverMessageSequence /*&& this.snap.ServerTime < 10000*/)
-			{ // Assume a servertime reset (new serverTime is under 10 secs). 
-				this.DemoTimeTrackerApproximate.DemoBaseTime = this.DemoTimeTrackerApproximate.DemoCurrentTime; // Remember fixed offset into demo time.
-				this.DemoTimeTrackerApproximate.DemoStartTime = this.snap.ServerTime;
+				// This is tracking the approximate time based on parsed snapshots, 
+				if (this.serverTimeDemo.Value < this.DemoTimeTrackerApproximate.LastKnownTime && this.maxSequenceNum == this.serverMessageSequence /*&& this.serverTimeDemo.Value < 10000*/)
+				{ // Assume a servertime reset (new serverTime is under 10 secs). 
+					this.DemoTimeTrackerApproximate.DemoBaseTime = this.DemoTimeTrackerApproximate.DemoCurrentTime; // Remember fixed offset into demo time.
+					this.DemoTimeTrackerApproximate.DemoStartTime = this.serverTimeDemo.Value;
+				}
 			}
+
+
 
 			// This is tracking the real current demotime of messages in the demo, but it's delayed because we don't write messages to the demo immediately, in case we receive them out of order.
 			if (this.currentDemoWrittenServerTime.HasValue)
@@ -154,9 +166,12 @@ namespace JKClient {
 				this.DemoTimeTrackerRealDelayed.LastKnownTime = this.currentDemoWrittenServerTime.Value;
 			}
 
-			// This is tracking the approximate time based on parsed snapshots, 
-			this.DemoTimeTrackerApproximate.DemoCurrentTime = this.DemoTimeTrackerApproximate.DemoBaseTime + this.snap.ServerTime - this.DemoTimeTrackerApproximate.DemoStartTime;
-			this.DemoTimeTrackerApproximate.LastKnownTime = this.snap.ServerTime;
+            // This is tracking the approximate time based on parsed snapshots, 
+            if (this.serverTimeDemo.HasValue)
+			{
+				this.DemoTimeTrackerApproximate.DemoCurrentTime = this.DemoTimeTrackerApproximate.DemoBaseTime + this.serverTimeDemo.Value - this.DemoTimeTrackerApproximate.DemoStartTime;
+				this.DemoTimeTrackerApproximate.LastKnownTime = this.serverTimeDemo.Value;
+			}
 			this.Stats.demoCurrentTime = this.DemoTimeTrackerApproximate.DemoCurrentTime;
 			this.Stats.demoCurrentTimeWritten = this.DemoTimeTrackerRealDelayed.DemoCurrentTime;
 		}
@@ -418,6 +433,7 @@ namespace JKClient {
 			
 			this.snap = new ClientSnapshot();
 			this.serverTime = 0;
+			this.serverTimeDemo = null;
 			this.clServerTime = 0;
 			this.clOldServerTime = 0;
 			this.clServerTimeDelta = 0;
@@ -792,6 +808,7 @@ namespace JKClient {
 			}
 
 			this.snap = newSnap;
+			this.serverTimeDemo = newSnap.ServerTime;
 			this.snapshots[this.snap.MessageNum & JKClient.PacketMask] = this.snap;
 			this.newSnapshots = true;
 			this.lastServerTimeUpdateTime = Common.Milliseconds;

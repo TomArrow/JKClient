@@ -90,7 +90,7 @@ namespace JKClient {
 			}
 			serverInfo.ForceDisable = info["g_forcePowerDisable"].Atoi() != 0;
 		}
-		private static readonly NetFieldsArray entityStateFields15 = new NetFieldsArray(typeof(EntityState)) {
+		private static readonly unsafe NetFieldsArray entityStateFields15 = new NetFieldsArray(typeof(EntityState)) {
 			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Time)).ToInt32()    ,   32  },
 			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() ,  0   },
 			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() + sizeof(float)*1, 0   },
@@ -108,7 +108,15 @@ namespace JKClient {
 			{   nameof(EntityState.EventParm)   ,   8   },
 			{   nameof(EntityState.LegsAnimation)  ,    16  },
 			{   nameof(EntityState.GroundEntityNum) ,   Common.GEntitynumBits   },
-			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32() ,  8   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32() ,  8 , (value) => {
+				if (Enum.IsDefined(typeof(TrajectoryType), *value)) {
+					var trType = (TrajectoryType)(*value);
+					//JO doesn't have non-linear stop trajectory type, the rest types match
+					if (trType >= TrajectoryType.TR_NONLINEAR_STOP) {
+						(*value)++;
+					}
+				}
+			}  },
 			{   nameof(EntityState.EntityFlags) ,   32  },
 			{   nameof(EntityState.Bolt1) , 8   },
 			{   nameof(EntityState.Bolt2) , Common.GEntitynumBits   },
@@ -126,7 +134,15 @@ namespace JKClient {
 			{   nameof(EntityState.ClientNum)   ,   8   },
 			{   nameof(EntityState.Angles), sizeof(float)*1  ,  0   },
 			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Duration)).ToInt32()    ,   32  },
-			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32()    ,    8   },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32()    ,    8 , (value) => {
+				if (Enum.IsDefined(typeof(TrajectoryType), *value)) {
+					var trType = (TrajectoryType)(*value);
+					//JO doesn't have non-linear stop trajectory type, the rest types match
+					if (trType >= TrajectoryType.TR_NONLINEAR_STOP) {
+						(*value)++;
+					}
+				}
+			}  },
 			{   nameof(EntityState.Origin) ,    0   },
 			{   nameof(EntityState.Origin), sizeof(float)*1 ,   0   },
 			{   nameof(EntityState.Origin), sizeof(float)*2 ,   0   },
@@ -165,7 +181,7 @@ namespace JKClient {
 			{   nameof(EntityState.ForcePowersActive)   ,   32  },
 			{   nameof(EntityState.IsJediMaster)   ,    1   }
 		};
-		private static readonly NetFieldsArray entityStateFields16 = new NetFieldsArray(typeof(EntityState)) {
+		private static readonly unsafe NetFieldsArray entityStateFields16 = new NetFieldsArray(typeof(EntityState)) {
 			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Time)).ToInt32()    ,   32  },
 			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() ,  0   },
 			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Base)).ToInt32() + sizeof(float)*1, 0   },
@@ -183,7 +199,15 @@ namespace JKClient {
 			{   nameof(EntityState.EventParm)   ,   8   },
 			{   nameof(EntityState.LegsAnimation)  ,    16  },
 			{   nameof(EntityState.GroundEntityNum) ,   Common.GEntitynumBits   },
-			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32() ,  8   },
+			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32() ,  8,  (value) => {
+				if (Enum.IsDefined(typeof(TrajectoryType), *value)) {
+					var trType = (TrajectoryType)(*value);
+					//JO doesn't have non-linear stop trajectory type, the rest types match
+					if (trType >= TrajectoryType.TR_NONLINEAR_STOP) {
+						(*value)++;
+					}
+				}
+			}   },
 			{   nameof(EntityState.EntityFlags) ,   32  },
 			{   nameof(EntityState.Bolt1) , 8   },
 			{   nameof(EntityState.Bolt2) , Common.GEntitynumBits   },
@@ -201,7 +225,15 @@ namespace JKClient {
 			{   nameof(EntityState.ClientNum)   ,   8   },
 			{   nameof(EntityState.Angles), sizeof(float)*1  ,  0   },
 			{   nameof(EntityState.Position), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Duration)).ToInt32()    ,   32  },
-			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32()    ,    8   },
+			{   nameof(EntityState.AngularPosition), Marshal.OffsetOf(typeof(Trajectory),nameof(Trajectory.Type)).ToInt32()    ,    8,  (value) => {
+				if (Enum.IsDefined(typeof(TrajectoryType), *value)) {
+					var trType = (TrajectoryType)(*value);
+					//JO doesn't have non-linear stop trajectory type, the rest types match
+					if (trType >= TrajectoryType.TR_NONLINEAR_STOP) {
+						(*value)++;
+					}
+				}
+			}  },
 			{   nameof(EntityState.Origin) ,    0   },
 			{   nameof(EntityState.Origin), sizeof(float)*1 ,   0   },
 			{   nameof(EntityState.Origin), sizeof(float)*2 ,   0   },

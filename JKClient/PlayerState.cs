@@ -434,5 +434,9 @@ namespace JKClient {
 		// MOHAA expansions:
 		public int RadarInfo;
 		public QuakeBoolean Voted;
+
+		// Q3
+
+		public unsafe fixed float GrapplePoint[3];      // for fixed views
 	}
 }

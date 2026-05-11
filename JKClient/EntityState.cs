@@ -213,6 +213,7 @@ namespace JKClient {
 		TR_INTERPOLATE,             // non-parametric, but interpolate between snapshots
 		TR_LINEAR,
 		TR_LINEAR_STOP,
+		TR_NONLINEAR_STOP,
 		TR_SINE,                    // value = base + sin( time / duration ) * delta
 		TR_GRAVITY
 	}

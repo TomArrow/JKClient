@@ -2034,6 +2034,7 @@ namespace JKClient {
         {
 
 			bool isMOH = this.ClientHandler is MOHClientHandler;
+			bool isQ3 = this.ClientHandler is Q3ClientHandler;
 
 			if (Demorecording)
 			{
@@ -2157,6 +2158,10 @@ namespace JKClient {
                     if (isMOH)
                     {
 						eofOperation = 11;
+					}
+                    else if (isQ3)
+                    {
+						eofOperation = 8;
 					}
 					msg.WriteByte(eofOperation);
 

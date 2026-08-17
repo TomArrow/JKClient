@@ -381,6 +381,22 @@ namespace JKClient {
 			CtfMessage,
 			Jump,
 			ItemPickup,
+			UseItem0,
+			UseItem1,
+			UseItem2,
+			UseItem3,
+			UseItem4,
+			UseItem5,
+			UseItem6,
+			UseItem7,
+			UseItem8,
+			UseItem9,
+			UseItem10,
+			UseItem11,
+			UseItem12,
+			UseItem13,
+			UseItem14,
+			UseItem15,
 			Bits = 0x300
 		}
 		public enum EntityType : int

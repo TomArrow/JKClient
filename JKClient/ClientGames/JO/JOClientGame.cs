@@ -36,6 +36,39 @@ namespace JKClient {
 						return EntityEvent.Jump;
 					case EntityEventJO.ItemPickup:
 						return EntityEvent.ItemPickup;
+
+					case EntityEventJO.UseItem0:
+						return EntityEvent.UseItem0;
+					case EntityEventJO.UseItem1:
+						return EntityEvent.UseItem1;
+					case EntityEventJO.UseItem2:
+						return EntityEvent.UseItem2;
+					case EntityEventJO.UseItem3:
+						return EntityEvent.UseItem3;
+					case EntityEventJO.UseItem4:
+						return EntityEvent.UseItem4;
+					case EntityEventJO.UseItem5:
+						return EntityEvent.UseItem5;
+					case EntityEventJO.UseItem6:
+						return EntityEvent.UseItem6;
+					case EntityEventJO.UseItem7:
+						return EntityEvent.UseItem7;
+					case EntityEventJO.UseItem8:
+						return EntityEvent.UseItem8;
+					case EntityEventJO.UseItem9:
+						return EntityEvent.UseItem9;
+					case EntityEventJO.UseItem10:
+						return EntityEvent.UseItem10;
+					case EntityEventJO.UseItem11:
+						return EntityEvent.UseItem11;
+					case EntityEventJO.UseItem12:
+						return EntityEvent.UseItem12;
+					case EntityEventJO.UseItem13:
+						return EntityEvent.UseItem13;
+					case EntityEventJO.UseItem14:
+						return EntityEvent.UseItem14;
+					case EntityEventJO.UseItem15:
+						return EntityEvent.UseItem15;
 					default:
 						break;
 				}

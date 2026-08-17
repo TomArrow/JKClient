@@ -34,6 +34,38 @@ namespace JKClient {
 						return EntityEvent.CtfMessage;
 					case EntityEventJA.ITEM_PICKUP:
 						return EntityEvent.ItemPickup;
+					case EntityEventJA.USE_ITEM0:
+						return EntityEvent.UseItem0;
+					case EntityEventJA.USE_ITEM1:
+						return EntityEvent.UseItem1;
+					case EntityEventJA.USE_ITEM2:
+						return EntityEvent.UseItem2;
+					case EntityEventJA.USE_ITEM3:
+						return EntityEvent.UseItem3;
+					case EntityEventJA.USE_ITEM4:
+						return EntityEvent.UseItem4;
+					case EntityEventJA.USE_ITEM5:
+						return EntityEvent.UseItem5;
+					case EntityEventJA.USE_ITEM6:
+						return EntityEvent.UseItem6;
+					case EntityEventJA.USE_ITEM7:
+						return EntityEvent.UseItem7;
+					case EntityEventJA.USE_ITEM8:
+						return EntityEvent.UseItem8;
+					case EntityEventJA.USE_ITEM9:
+						return EntityEvent.UseItem9;
+					case EntityEventJA.USE_ITEM10:
+						return EntityEvent.UseItem10;
+					case EntityEventJA.USE_ITEM11:
+						return EntityEvent.UseItem11;
+					case EntityEventJA.USE_ITEM12:
+						return EntityEvent.UseItem12;
+					case EntityEventJA.USE_ITEM13:
+						return EntityEvent.UseItem13;
+					case EntityEventJA.USE_ITEM14:
+						return EntityEvent.UseItem14;
+					case EntityEventJA.USE_ITEM15:
+						return EntityEvent.UseItem15;
 					default:break;
 				}
 			}

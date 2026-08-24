@@ -9,4 +9,14 @@ namespace JKClient {
 		Blue,
 		Spectator
 	}
+	public enum TommyTernalPlayerMode // on TommyTernal
+	{
+		Invalid,
+		Normal,
+		Defrag,
+		Duel,
+		AllForce,
+		Ironman,
+		DuelQueue
+	}
 }

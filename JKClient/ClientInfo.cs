@@ -10,6 +10,7 @@
 		public string GRedTeam { get; internal set; }
 		public string GBlueTeam { get; internal set; }
 		public Team Team { get; internal set; }
+		public TommyTernalPlayerMode TTPlayerMode { get; internal set; } //TommyTernal player mode
 		public float BotSkill { get; internal set; }
 		public bool IsBotBySkill { get; internal set; }
 		public int TASClient { get; internal set; }
@@ -24,6 +25,7 @@
 			this.GRedTeam = null;
 			this.GBlueTeam = null;
 			this.Team = Team.Free;
+			this.TTPlayerMode = TommyTernalPlayerMode.Invalid;
 			this.BotSkill = -1.0f;
 		}
 	}

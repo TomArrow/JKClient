@@ -307,24 +307,27 @@ namespace JKClient {
 			if (this.disposed) {
 				return false;
 			}
-			if(getFromBuffer && msgQueue.Count > 0)
+			lock (socketLock)
             {
-                if (msgQueue.TryDequeue(out BufferdUDPMsg bufMsg))
-                {
-					address = bufMsg.from;
-					int copyAmount = Math.Min(bufMsg.message.CurSize, msg.MaxSize);
-					Array.Copy(bufMsg.message.Data, msg.Data, copyAmount);
-					msg.CurSize = copyAmount;
-                    if (getFromBuffer)
+				if (getFromBuffer)
+				{
+					if (msgQueue.Count > 0)
 					{
-						//Debug.WriteLine("GetPacket: Message from buffer");
+						if (msgQueue.TryDequeue(out BufferdUDPMsg bufMsg))
+						{
+							address = bufMsg.from;
+							int copyAmount = Math.Min(bufMsg.message.CurSize, msg.MaxSize);
+							Array.Copy(bufMsg.message.Data, msg.Data, copyAmount);
+							msg.CurSize = copyAmount;
+							if (getFromBuffer)
+							{
+								//Debug.WriteLine("GetPacket: Message from buffer");
+							}
+							return true;
+						}
+						return false;
 					}
-					return true;
 				}
-				return false;
-            }
-            lock (socketLock)
-            {
 
 				EndPoint endPoint = new IPEndPoint(0, 0);
 				try {
@@ -465,14 +468,17 @@ namespace JKClient {
 					return;
 				}
 				NetAddress address = null;
-				while (this.GetPacket(ref address, netmsg, false))
-				{
-					if ((uint)netmsg.CurSize <= netmsg.MaxSize)
+                lock (socketLock)
+                {
+					while (this.GetPacket(ref address, netmsg, false))
 					{
-						BufferdUDPMsg buffMsg = new BufferdUDPMsg() { message = netmsg.Clone(), from = new NetAddress(address) };
-						msgQueue.Enqueue(buffMsg);
+						if ((uint)netmsg.CurSize <= netmsg.MaxSize)
+						{
+							BufferdUDPMsg buffMsg = new BufferdUDPMsg() { message = netmsg.Clone(), from = new NetAddress(address) };
+							msgQueue.Enqueue(buffMsg);
+						}
+						Common.MemSet(netmsg.Data, 0, sizeof(byte) * netmsg.MaxSize);
 					}
-					Common.MemSet(netmsg.Data, 0, sizeof(byte) * netmsg.MaxSize);
 				}
 				Thread.Sleep(1);
 			}

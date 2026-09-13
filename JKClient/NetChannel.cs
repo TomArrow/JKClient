@@ -84,7 +84,7 @@ namespace JKClient {
 				//return false;
 				isOutOfOrder = true;// We still want to assemble fragmented messages, even if out of order
 			}
-			this.dropped = sequence - (this.incomingSequence+1);
+			this.dropped = Math.Max(sequence - (this.incomingSequence+1),0);
 			if (fragmented) {
 
 				// changes here by TA: Arbitrary order fragment assembly. And even possibility to assemble multiple fragment buffers at the same time, in case they all 

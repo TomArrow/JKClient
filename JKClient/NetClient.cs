@@ -27,16 +27,30 @@ namespace JKClient {
 		public int Protocol => this.NetHandler.Protocol;
 
 		public event InternalTaskStartedEventHandler InternalTaskStarted;
-		internal NetClient(INetHandler netHandler, SocksProxy? proxy = null) {
+		internal NetClient(INetHandler netHandler, SocksProxy? proxy = null, InternalTaskStartedEventHandler internalTaskHandler = null) {
 			if (netHandler == null) {
 				throw new JKClientException(new ArgumentNullException(nameof(netHandler)));
 			}
-			this.net = new NetSystem(netHandler.DefaultPort, proxy);
+			if (!(internalTaskHandler is null))
+			{
+				this.InternalTaskStarted += internalTaskHandler;
+			}
+			this.net = new NetSystem(netHandler.DefaultPort, proxy, Net_InternalTaskStarted, Net_ErrorMessageCreated);
 			this.NetHandler = netHandler;
 			this.packetReceived = new byte[this.NetHandler.MaxMessageLength];
 		}
 
-		protected void OnInternalTaskStarted(Task task, string description)
+        private void Net_ErrorMessageCreated(object sender, ErrorMessageEventArgs e)
+        {
+			OnErrorMessageCreated(e.errorMessage, e.errorMessageDetail, e.possibleRelatedMessage);
+        }
+
+        private void Net_InternalTaskStarted(object sender, in Task task, string description)
+        {
+			OnInternalTaskStarted(task, description);
+		}
+
+        protected void OnInternalTaskStarted(Task task, string description)
         {
 			InternalTaskStarted?.Invoke(this, task, description);
         }

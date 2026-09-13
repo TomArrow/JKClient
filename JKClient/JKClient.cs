@@ -345,7 +345,7 @@ namespace JKClient {
 		
 		
 		public event Action<ServerInfo,bool, bool> ServerInfoChanged; // bool says whether the change included a new gamestate, and whether it's the first gamestate of this connection
-		public JKClient(IClientHandler clientHandler, SocksProxy? proxy = null) : base(clientHandler, proxy) {
+		public JKClient(IClientHandler clientHandler, SocksProxy? proxy = null, InternalTaskStartedEventHandler internalTaskHandler = null) : base(clientHandler, proxy, internalTaskHandler) {
 			if(clientHandler is MOHClientHandler)
             {
 				userInfo = new InfoString(UserInfoMOH,mohCvars.Reverse());

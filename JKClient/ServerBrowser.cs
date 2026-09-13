@@ -41,8 +41,8 @@ namespace JKClient {
 		private readonly ConcurrentDictionary<NetAddress, ServerInfoInfoTask> serverInfoInfoTasks;
 		private readonly HashSet<NetAddress> serverInfoInfoTasksToRemove;
 		private IBrowserHandler BrowserHandler => this.NetHandler as IBrowserHandler;
-		public ServerBrowser(IBrowserHandler browserHandler, IEnumerable<ServerAddress> customMasterServers = null, bool customOnly = false)
-			: base(browserHandler) {
+		public ServerBrowser(IBrowserHandler browserHandler, IEnumerable<ServerAddress> customMasterServers = null, bool customOnly = false, InternalTaskStartedEventHandler internalTaskHandler = null)
+			: base(browserHandler,null,internalTaskHandler) {
 			if (customOnly && customMasterServers == null) {
 				throw new JKClientException(new ArgumentNullException(nameof(customMasterServers)));
 			}

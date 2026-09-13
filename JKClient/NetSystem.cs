@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace JKClient {
@@ -13,14 +15,25 @@ namespace JKClient {
 		private Socket ipSocket;
 		private Socket socksSocket;
 		private IPEndPoint endPoint;
+		private bool stopReceiveThread = false;
 		private bool disposed = false;
 
 		private SocksProxy? proxy = null;
 
-		public NetSystem(ushort portServerA, SocksProxy? proxyA = null) {
+
+		public NetSystem(ushort portServerA, SocksProxy? proxyA = null, InternalTaskStartedEventHandler internalTaskStartedHandler = null, EventHandler<ErrorMessageEventArgs> errorMessageHandler = null) {
 			portServer = portServerA;
 			proxy = proxyA;
+			if(!(internalTaskStartedHandler is null))
+			{
+				this.InternalTaskStarted += internalTaskStartedHandler;
+			}
+			if(!(errorMessageHandler is null))
+			{
+				this.ErrorMessageCreated += errorMessageHandler;
+			}
 			this.InitSocket();
+			this.StartAsyncReceiver();
 		}
 
 		private void OpenSocks(short port)
@@ -189,63 +202,65 @@ namespace JKClient {
 		}
 
 		private void InitSocket(bool reinit = false) {
-			try {
-				this.ipSocket?.Close();
-			} catch {}
-			try {
-				this.socksSocket?.Close();
-			} catch {}
-			this.ipSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) {
-				Blocking = false,
-				EnableBroadcast = true
-			};
-			this.ipSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
-			int i;
-			bool tryToReuse = false;
-			if (reinit) {
-				i = this.endPoint.Port - portServer;
-				if (i < 0) {
-					i = 0;
-					tryToReuse = false;
-				} else {
-					this.ipSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-					tryToReuse = true;
-				}
-			} else {
-				i = 0;
-			}
-			bool triedToReuse = false;
-			for (; i < 256; i++) {
+            lock (socketLock) { 
 				try {
-					this.endPoint = new IPEndPoint(IPAddress.Any, portServer + i);
-					if (tryToReuse && triedToReuse) {
-						this.ipSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
-						tryToReuse = false;
-					}
-					if (tryToReuse && !triedToReuse) {
-						triedToReuse = true;
-						i = -1;
-					}
-					this.ipSocket.Bind(this.endPoint);
-                    if (proxy.HasValue)
-                    {
-						OpenSocks((short)(ushort)this.endPoint.Port);
-					}
-				} catch (SocketException exception) {
-					switch (exception.SocketErrorCode) {
-					case SocketError.AddressAlreadyInUse:
-//					case SocketError.AddressFamilyNotSupported:
-						break;
-					default:
-						throw;
-					}
-					Debug.WriteLine(exception);
-					continue;
-				}
-				break;
-			}
-			if (reinit) {
+					this.ipSocket?.Close();
+				} catch {}
+				try {
+					this.socksSocket?.Close();
+				} catch {}
+				this.ipSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp) {
+					Blocking = false,
+					EnableBroadcast = true
+				};
 				this.ipSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
+				int i;
+				bool tryToReuse = false;
+				if (reinit) {
+					i = this.endPoint.Port - portServer;
+					if (i < 0) {
+						i = 0;
+						tryToReuse = false;
+					} else {
+						this.ipSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
+						tryToReuse = true;
+					}
+				} else {
+					i = 0;
+				}
+				bool triedToReuse = false;
+				for (; i < 256; i++) {
+					try {
+						this.endPoint = new IPEndPoint(IPAddress.Any, portServer + i);
+						if (tryToReuse && triedToReuse) {
+							this.ipSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
+							tryToReuse = false;
+						}
+						if (tryToReuse && !triedToReuse) {
+							triedToReuse = true;
+							i = -1;
+						}
+						this.ipSocket.Bind(this.endPoint);
+						if (proxy.HasValue)
+						{
+							OpenSocks((short)(ushort)this.endPoint.Port);
+						}
+					} catch (SocketException exception) {
+						switch (exception.SocketErrorCode) {
+						case SocketError.AddressAlreadyInUse:
+	//					case SocketError.AddressFamilyNotSupported:
+							break;
+						default:
+							throw;
+						}
+						Debug.WriteLine(exception);
+						continue;
+					}
+					break;
+				}
+				if (reinit) {
+					this.ipSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, false);
+				}
 			}
 		}
 
@@ -254,25 +269,108 @@ namespace JKClient {
 			if (this.disposed) {
 				return;
 			}
-			lock (this.ipSocket) {
-				try {
-					if(proxy.HasValue && proxy.Value.active)
-					{
-						socksBuf[0] = 0;    // reserved
-						socksBuf[1] = 0;
-						socksBuf[2] = 0;    // fragment (not fragmented)
-						socksBuf[3] = 1;    // address type: IPV4
-						Array.Copy(address.IP, 0, socksBuf, 4, 4);
-						Array.Copy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)address.Port)), 0, socksBuf, 8, 2);
-						Array.Copy(data, 0, socksBuf, 10, length);
-						this.ipSocket.SendTo(socksBuf, length+10, SocketFlags.None, proxy.Value.udpRelayAddress.ToIPEndPoint());
-					} else
-					{
-						this.ipSocket.SendTo(data, length, SocketFlags.None, address.ToIPEndPoint());
+            lock (socketLock) { 
+				lock (this.ipSocket) {
+					try {
+						if(proxy.HasValue && proxy.Value.active)
+						{
+							socksBuf[0] = 0;    // reserved
+							socksBuf[1] = 0;
+							socksBuf[2] = 0;    // fragment (not fragmented)
+							socksBuf[3] = 1;    // address type: IPV4
+							Array.Copy(address.IP, 0, socksBuf, 4, 4);
+							Array.Copy(BitConverter.GetBytes(IPAddress.HostToNetworkOrder((short)address.Port)), 0, socksBuf, 8, 2);
+							Array.Copy(data, 0, socksBuf, 10, length);
+							this.ipSocket.SendTo(socksBuf, length+10, SocketFlags.None, proxy.Value.udpRelayAddress.ToIPEndPoint());
+						} else
+						{
+							this.ipSocket.SendTo(data, length, SocketFlags.None, address.ToIPEndPoint());
+						}
+					} catch (SocketException exception) {
+						switch (exception.SocketErrorCode) {
+						case SocketError.WouldBlock:
+							break;
+						case SocketError.NotConnected:
+						case SocketError.Shutdown:
+							this.InitSocket(true);
+							goto default;
+						default:
+							Debug.WriteLine("SocketException:");
+							Debug.WriteLine(exception);
+							break;
+						}
 					}
+				}
+			}
+		}
+		public bool GetPacket(ref NetAddress address, Message msg, bool getFromBuffer = true) {
+			if (this.disposed) {
+				return false;
+			}
+			if(getFromBuffer && msgQueue.Count > 0)
+            {
+                if (msgQueue.TryDequeue(out BufferdUDPMsg bufMsg))
+                {
+					address = bufMsg.from;
+					int copyAmount = Math.Min(bufMsg.message.CurSize, msg.MaxSize);
+					Array.Copy(bufMsg.message.Data, msg.Data, copyAmount);
+					msg.CurSize = copyAmount;
+                    if (getFromBuffer)
+					{
+						//Debug.WriteLine("GetPacket: Message from buffer");
+					}
+					return true;
+				}
+				return false;
+            }
+            lock (socketLock)
+            {
+
+				EndPoint endPoint = new IPEndPoint(0, 0);
+				try {
+					if (!this.ipSocket.Poll(0,SelectMode.SelectRead))
+					{
+						return false;
+					}
+					int ret = this.ipSocket.ReceiveFrom(msg.Data, msg.MaxSize, SocketFlags.None, ref endPoint);
+#if STRONGREADDEBUG
+					msg.doDebugLogExt($"GetPacket: received {ret} bytes");
+#endif
+					if (ret == msg.MaxSize) {
+#if STRONGREADDEBUG
+						msg.doDebugLogExt("GetPacket: ret == msg.MaxSize");
+#endif
+						return false;
+					}
+					var ipEndPoint = endPoint as IPEndPoint;
+					address = new NetAddress(ipEndPoint.Address.GetAddressBytes(), (ushort)ipEndPoint.Port);
+					if (proxy.HasValue && proxy.Value.active && proxy.Value.udpRelayAddress == address) // Receiving via SOCKS proxy
+					{
+						if (ret < 10 || msg.Data[0] != 0 || msg.Data[1] != 0 || msg.Data[2] != 0 || msg.Data[3] != 1)
+						{
+							return false;
+						}
+						byte[] realIp = new byte[4];
+						Array.Copy(msg.Data, 4, realIp, 0, 4);
+						ushort realPort = (ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(msg.Data, 8));
+						address = new NetAddress(realIp, realPort);
+						byte[] dataCopy = (byte[])msg.Data.Clone();
+						ret -= 10;
+						Array.Copy(dataCopy, 10, msg.Data, 0, ret);
+#if STRONGREADDEBUG
+						msg.doDebugLogExt("GetPacket: copied from proxy message");
+#endif
+					}
+					msg.CurSize = ret;  
+					if (getFromBuffer)
+					{
+						//Debug.WriteLine("GetPacket: Message from socket");
+					}
+					return true;
 				} catch (SocketException exception) {
 					switch (exception.SocketErrorCode) {
 					case SocketError.WouldBlock:
+					case SocketError.ConnectionReset:
 						break;
 					case SocketError.NotConnected:
 					case SocketError.Shutdown:
@@ -283,66 +381,9 @@ namespace JKClient {
 						Debug.WriteLine(exception);
 						break;
 					}
-				}
-			}
-		}
-		public bool GetPacket(ref NetAddress address, Message msg) {
-			if (this.disposed) {
-				return false;
-			}
-			EndPoint endPoint = new IPEndPoint(0, 0);
-			try {
-                if (!this.ipSocket.Poll(0,SelectMode.SelectRead))
-                {
-					return false;
-                }
-				int ret = this.ipSocket.ReceiveFrom(msg.Data, msg.MaxSize, SocketFlags.None, ref endPoint);
-#if STRONGREADDEBUG
-				msg.doDebugLogExt($"GetPacket: received {ret} bytes");
-#endif
-				if (ret == msg.MaxSize) {
-#if STRONGREADDEBUG
-					msg.doDebugLogExt("GetPacket: ret == msg.MaxSize");
-#endif
 					return false;
 				}
-				var ipEndPoint = endPoint as IPEndPoint;
-				address = new NetAddress(ipEndPoint.Address.GetAddressBytes(), (ushort)ipEndPoint.Port);
-				if (proxy.HasValue && proxy.Value.active && proxy.Value.udpRelayAddress == address) // Receiving via SOCKS proxy
-                {
-                    if (ret < 10 || msg.Data[0] != 0 || msg.Data[1] != 0 || msg.Data[2] != 0 || msg.Data[3] != 1)
-                    {
-						return false;
-					}
-					byte[] realIp = new byte[4];
-					Array.Copy(msg.Data, 4, realIp, 0, 4);
-					ushort realPort = (ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(msg.Data, 8));
-					address = new NetAddress(realIp, realPort);
-					byte[] dataCopy = (byte[])msg.Data.Clone();
-					ret -= 10;
-					Array.Copy(dataCopy, 10, msg.Data, 0, ret);
-#if STRONGREADDEBUG
-					msg.doDebugLogExt("GetPacket: copied from proxy message");
-#endif
-				}
-				msg.CurSize = ret;
-				return true;
-			} catch (SocketException exception) {
-				switch (exception.SocketErrorCode) {
-				case SocketError.WouldBlock:
-				case SocketError.ConnectionReset:
-					break;
-				case SocketError.NotConnected:
-				case SocketError.Shutdown:
-					this.InitSocket(true);
-					goto default;
-				default:
-					Debug.WriteLine("SocketException:");
-					Debug.WriteLine(exception);
-					break;
-				}
-				return false;
-			}
+            }
 		}
 		public static async Task<NetAddress> StringToAddressAsync(string address, ushort port = 0, bool doDNSLookup = true) {
 			byte []ip;
@@ -385,9 +426,93 @@ namespace JKClient {
 		}
 		public void Dispose() {
 			this.disposed = true;
-			this.ipSocket?.Close(5);
-			this.socksSocket?.Close(5);
+			EndAsyncReceiver(5);
+			lock (socketLock)
+			{
+				this.ipSocket?.Close(5);
+				this.socksSocket?.Close(5);
+			}
 		}
+
+		// receiver thread
+		public event InternalTaskStartedEventHandler InternalTaskStarted;
+		private void OnInternalTaskStarted(Task task, string description)
+		{
+			InternalTaskStarted?.Invoke(this, task, description);
+		}
+		public event EventHandler<ErrorMessageEventArgs> ErrorMessageCreated;
+		protected void OnErrorMessageCreated(string errorMessage, string errorMessageDetails, MessageCopy possiblyRelatedMessage)
+		{
+			ErrorMessageCreated?.Invoke(this, new ErrorMessageEventArgs(errorMessage, errorMessageDetails, possiblyRelatedMessage));
+		}
+		Task receiveTask = null;
+		private object socketLock = new object();
+		private CancellationTokenSource cts;
+		private static int MaxMessageLength = 41952;
+		private readonly byte[] packetReceivedAsync = new byte[MaxMessageLength]; // highest known size atm
+		private class BufferdUDPMsg {
+			public Message message { get; init; }
+			public NetAddress from { get; init; }
+		}
+		private ConcurrentQueue<BufferdUDPMsg> msgQueue = new ConcurrentQueue<BufferdUDPMsg>();
+        private async Task AsyncReceiver()
+		{
+			var netmsg = new Message(this.packetReceivedAsync, sizeof(byte) * MaxMessageLength);
+			while (true)
+			{
+                if (this.stopReceiveThread || this.disposed)
+                {
+					return;
+				}
+				NetAddress address = null;
+				while (this.GetPacket(ref address, netmsg, false))
+				{
+					if ((uint)netmsg.CurSize <= netmsg.MaxSize)
+					{
+						BufferdUDPMsg buffMsg = new BufferdUDPMsg() { message = netmsg.Clone(), from = new NetAddress(address) };
+						msgQueue.Enqueue(buffMsg);
+					}
+					Common.MemSet(netmsg.Data, 0, sizeof(byte) * netmsg.MaxSize);
+				}
+				Thread.Sleep(1);
+			}
+		}
+		private void EndAsyncReceiver(int timeout = 0)
+        {
+			stopReceiveThread = true;
+			if(!(this.receiveTask is null) && this.receiveTask.Status < TaskStatus.RanToCompletion)
+			{
+                try { 
+					if (timeout == 0)
+					{
+						this.receiveTask.Wait();
+					}
+					else
+					{
+						this.receiveTask.Wait(timeout);
+					}
+				}
+                catch (Exception e)
+                {
+					if(!(e.InnerException is TaskCanceledException)){
+						OnErrorMessageCreated($"JKClient NetSystem receiveTask ending crashed WITH DETAILS", e.ToString(), null);
+					}
+                }
+			}
+		}
+		private void StartAsyncReceiver()
+		{
+			stopReceiveThread = false;
+			this.cts = new CancellationTokenSource();
+			this.receiveTask = Task.Factory.StartNew(this.AsyncReceiver, this.cts.Token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap().ContinueWith((t) => {
+
+				OnErrorMessageCreated($"JKClient NetSystem crashed WITH DETAILS", t.Exception.ToString(),null);
+			}, TaskContinuationOptions.OnlyOnFaulted); // Don't use OnlyOnFaulted. It's buggy and won't catch exceptions thrown inside event handlers.
+
+
+			this.OnInternalTaskStarted(this.receiveTask, $"{this.GetType().ToString()} Async Receiver");
+		}
+
 	}
 	public static class NetSystemExtensions {
 		public static IPEndPoint ToIPEndPoint(this NetAddress address) {

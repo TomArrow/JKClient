@@ -1119,6 +1119,7 @@ namespace JKClient {
 								{
 									didWeSkipThis = true;
 									Stats.messagesSkipped++;
+									this.lastKnownServerTimeIncludingSkipped = newServerTime;
 									return; // We're skipping this one.
 								}
 								else
@@ -1153,6 +1154,7 @@ namespace JKClient {
 										LastMessageWasDemoAFKDrop = true;
 										didWeSkipThis = true;
 										Stats.messagesSkipped++;
+										this.lastKnownServerTimeIncludingSkipped = newServerTime;
 										return; // We're skipping this one.
 									}
 									else

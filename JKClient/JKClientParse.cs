@@ -60,6 +60,7 @@ namespace JKClient {
 #region ClientActive
 		private ClientSnapshot snap = new ClientSnapshot();
 		private int serverTime = 0;
+		private int lastKnownServerTimeIncludingSkipped = 0;
 		private int? serverTimeDemo = null; // for demo time tracking. we need to know if the servertime we are looking at currently isn't valid.
 
 		// Need this for proper command timing. Or server will discard commands we send because they have duplicated servertimes
@@ -824,13 +825,13 @@ namespace JKClient {
 				Stats.deltaSnaps++;
 			}
 
-
 			if (this.SnapshotParsed?.GetInvocationList().Length > 0)
             {
 				Snapshot eventSnapsshot = new Snapshot();
 				(this as IJKClientImport).GetSnapshot(this.snap.MessageNum, ref eventSnapsshot);
-				this.OnSnapshotParsed(new SnapshotParsedEventArgs(eventSnapsshot, this.snap.MessageNum));
+				this.OnSnapshotParsed(new SnapshotParsedEventArgs(eventSnapsshot, this.snap.MessageNum, this.lastKnownServerTimeIncludingSkipped));
 			}
+			this.lastKnownServerTimeIncludingSkipped = newSnap.ServerTime;
 		}
 		private unsafe void ParsePacketEntities(in Message msg, in ClientSnapshot *oldSnap, in ClientSnapshot *newSnap, ref bool fakeNonDelta) {
 			bool mohEntityNumSubtract = this.ClientHandler is MOHClientHandler && this.Protocol > (int)ProtocolVersion.Protocol8;

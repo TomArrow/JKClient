@@ -8,10 +8,12 @@ namespace JKClient
     {
 		public Snapshot snap;
 		public int snapNum;
-		internal SnapshotParsedEventArgs(Snapshot snapA, int snapNumA)
+		public int lastKnownServerTime;
+		internal SnapshotParsedEventArgs(Snapshot snapA, int snapNumA, int lastKnownServerTimeA)
 		{
 			snap = snapA;
 			snapNum = snapNumA;
+			lastKnownServerTime = lastKnownServerTimeA;
 		}
 	}
 }

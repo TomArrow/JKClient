@@ -162,8 +162,9 @@ namespace JKClient
 		{
             if (downloadTempName == null)
 			{
+				// some servers just keep spamming us so ... dont spam the logs too much
 				var cmd = new Command(new string[] { "print", $"^3WARNING: Server sending download, but no download was requested\n" });
-				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+				this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1, null, CommandSpamType.SpamSame));
 				AddReliableCommand("stopdl");
 				return false;
 			}
@@ -262,7 +263,7 @@ namespace JKClient
                         if (!dontPrint)
 						{
 							var cmd = new Command(new string[] { "print", $"CL_ParseDownload: Expected block {downloadBlock}, got {block}. FORCING REACK.\n" });
-							this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1));
+							this.ServerCommandExecuted?.Invoke(new CommandEventArgs(cmd, -1, null,CommandSpamType.SpamSame));
 						}
 						AddReliableCommand($"nextdl {downloadBlockConfirmed}");
 						this.downloadBlockLastAcked = this.realTime;

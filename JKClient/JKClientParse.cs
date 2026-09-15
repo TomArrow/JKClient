@@ -61,6 +61,7 @@ namespace JKClient {
 		private ClientSnapshot snap = new ClientSnapshot();
 		private int serverTime = 0;
 		private int lastKnownServerTimeIncludingSkipped = 0;
+		private int lastKnownMessageNumIncludingSkipped = 0;
 		private int? serverTimeDemo = null; // for demo time tracking. we need to know if the servertime we are looking at currently isn't valid.
 
 		// Need this for proper command timing. Or server will discard commands we send because they have duplicated servertimes
@@ -261,10 +262,12 @@ namespace JKClient {
 				oldCmd = cmd;
 				if (eof) {
 					break;
-				}
-			}
+                }
+            }
 
-			if(showNetString != null)
+            this.lastKnownMessageNumIncludingSkipped = this.serverMessageSequence;
+            
+			if (showNetString != null)
             {
 				this.OnDebugEventHappened(new NetDebug() { debugString = showNetString.ToString() });
             }
@@ -829,9 +832,10 @@ namespace JKClient {
             {
 				Snapshot eventSnapsshot = new Snapshot();
 				(this as IJKClientImport).GetSnapshot(this.snap.MessageNum, ref eventSnapsshot);
-				this.OnSnapshotParsed(new SnapshotParsedEventArgs(eventSnapsshot, this.snap.MessageNum, this.lastKnownServerTimeIncludingSkipped));
+				this.OnSnapshotParsed(new SnapshotParsedEventArgs(eventSnapsshot, this.snap.MessageNum, this.lastKnownServerTimeIncludingSkipped, this.lastKnownMessageNumIncludingSkipped));
 			}
 			this.lastKnownServerTimeIncludingSkipped = newSnap.ServerTime;
+			this.lastKnownMessageNumIncludingSkipped = newSnap.MessageNum;
 		}
 		private unsafe void ParsePacketEntities(in Message msg, in ClientSnapshot *oldSnap, in ClientSnapshot *newSnap, ref bool fakeNonDelta) {
 			bool mohEntityNumSubtract = this.ClientHandler is MOHClientHandler && this.Protocol > (int)ProtocolVersion.Protocol8;

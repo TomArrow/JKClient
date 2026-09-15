@@ -1120,6 +1120,7 @@ namespace JKClient {
 									didWeSkipThis = true;
 									Stats.messagesSkipped++;
 									this.lastKnownServerTimeIncludingSkipped = newServerTime;
+									this.lastKnownMessageNumIncludingSkipped = newSnapNum;
 									return; // We're skipping this one.
 								}
 								else
@@ -1155,6 +1156,7 @@ namespace JKClient {
 										didWeSkipThis = true;
 										Stats.messagesSkipped++;
 										this.lastKnownServerTimeIncludingSkipped = newServerTime;
+										this.lastKnownMessageNumIncludingSkipped = newSnapNum;
 										return; // We're skipping this one.
 									}
 									else

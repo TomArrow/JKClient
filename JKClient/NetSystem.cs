@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Linq;
@@ -319,6 +320,7 @@ namespace JKClient {
 							int copyAmount = Math.Min(bufMsg.message.CurSize, msg.MaxSize);
 							Array.Copy(bufMsg.message.Data, msg.Data, copyAmount);
 							msg.CurSize = copyAmount;
+							bufMsg.message.FreeMemory();
 							if (getFromBuffer)
 							{
 								//Debug.WriteLine("GetPacket: Message from buffer");
@@ -427,6 +429,26 @@ namespace JKClient {
 		public static NetAddress StringToAddress(string address, ushort port = 0, bool doDNSLookup = true) {
 			return NetSystem.StringToAddressAsync(address, port, doDNSLookup).Result;
 		}
+
+		private void ClearAsyncMsgBuffer()
+        {
+            lock (socketLock)
+			{
+				while (msgQueue.Count > 0)
+				{
+					if (msgQueue.TryDequeue(out BufferdUDPMsg bufMsg))
+					{
+						bufMsg.message.FreeMemory();
+					}
+				}
+			}
+		}
+
+        ~NetSystem()
+        {
+			ClearAsyncMsgBuffer(); // just to be safe
+		}
+
 		public void Dispose() {
 			this.disposed = true;
 			EndAsyncReceiver(5);
@@ -435,6 +457,7 @@ namespace JKClient {
 				this.ipSocket?.Close(5);
 				this.socksSocket?.Close(5);
 			}
+			ClearAsyncMsgBuffer();
 		}
 
 		// receiver thread
@@ -474,7 +497,7 @@ namespace JKClient {
 					{
 						if ((uint)netmsg.CurSize <= netmsg.MaxSize)
 						{
-							BufferdUDPMsg buffMsg = new BufferdUDPMsg() { message = netmsg.Clone(), from = new NetAddress(address) };
+							BufferdUDPMsg buffMsg = new BufferdUDPMsg() { message = netmsg.Clone(true), from = new NetAddress(address) };
 							msgQueue.Enqueue(buffMsg);
 						}
 						Common.MemSet(netmsg.Data, 0, sizeof(byte) * netmsg.MaxSize);

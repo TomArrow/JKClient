@@ -1,7 +1,11 @@
 ﻿
+#if DEBUG
+//#define ARRAYPOOLDEBUG
+#endif
 #define FASTHUFFMAN // Based on: https://github.com/mightycow/uberdemotools/commit/685b132abc4803f4c813fa07928cd9a4099e5d59
 
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -366,7 +370,10 @@ namespace JKClient {
 		public int? serverTime = null;
     }
 
-    public class MessageCopy {
+    public class MessageCopy
+	{
+		private bool isMemoryReturned = false;
+		public bool IsMemoryPooled { get; init; } = false;
 		public bool Overflowed { get; init; }
 		public bool OOB { get; init; }
 		public byte[] Data { get; init; }
@@ -375,6 +382,49 @@ namespace JKClient {
 		public int ReadCount { get; init; } = 0;
 		public int Bit { get; init; } = 0;
 		public string debugMessage = null;
+
+
+#if ARRAYPOOLDEBUG
+		private string freeingMemberName = null;
+		private string freeingFilePath = null;
+		private int freeingLineNumber = 0;
+#endif
+		public void FreeMemory(
+#if ARRAYPOOLDEBUG
+			[CallerMemberName] string memberName = null,
+			[CallerFilePath] string filePath = null,
+			[CallerLineNumber] int LineNumber = 0
+#endif
+			)
+		{
+            if (!this.IsMemoryPooled)
+            {
+				throw new InvalidOperationException("Attempted free on a non-arraypooled MessageCopy");
+			}
+            else if (this.isMemoryReturned)
+            {
+#if ARRAYPOOLDEBUG
+				throw new InvalidOperationException($"Double free on MessageCopy array pool, previously freed by {freeingMemberName} @ {freeingFilePath}, {freeingLineNumber}");
+#else
+				throw new InvalidOperationException("Double free on MessageCopy array pool");
+#endif
+			}
+#if ARRAYPOOLDEBUG
+			freeingMemberName = memberName;
+			freeingFilePath = filePath;
+			freeingLineNumber = LineNumber;
+#endif
+
+			ArrayPool<byte>.Shared.Return(this.Data,false);
+			this.isMemoryReturned = true;
+		}
+		~MessageCopy()
+		{
+			if (this.IsMemoryPooled && !this.isMemoryReturned)
+			{
+				throw new InvalidOperationException("Memory pooled MessageCopy reached destructor without being freed");
+			}
+		}
 	}
 
     
@@ -386,6 +436,8 @@ namespace JKClient {
 		private int bitSaved = 0;
 		private bool oobSaved = false;
 		private int readCountSaved = 0;
+		private bool isMemoryReturned = false;
+		public bool IsMemoryPooled { get; init; } = false;
 		public bool Overflowed { get; private set; }
 		public bool OOB { get; private set; }
 		public byte []Data { get; init; }
@@ -413,9 +465,12 @@ namespace JKClient {
 			this.MaxSize = length;
 			this.OOB = oob;
 		}
-		public Message Clone()
+		// Careful if you call this with fromArrayPool set to true.
+		// You MUST call FreeMemory() after you are done with this message,
+		// and you must ONLY call it once.
+		public Message Clone(bool fromArrayPool = false)
         {
-			Message retVal = new Message() { MaxSize= this.MaxSize, Data= (byte[])this.Data.Clone() };
+			Message retVal = new Message() { MaxSize= this.MaxSize, Data=fromArrayPool? this.Data.CloneFromArrayPool() : (byte[])this.Data.Clone(), IsMemoryPooled = fromArrayPool };
 			retVal.Overflowed = this.Overflowed;
 			retVal.OOB = this.OOB;
 			//retVal.MaxSize = this.MaxSize;
@@ -425,12 +480,57 @@ namespace JKClient {
 			//retVal.Data = (byte[])this.Data.Clone();
 			return retVal;
         }
-		public MessageCopy MakePublicCopy()
+#if ARRAYPOOLDEBUG
+		private string freeingMemberName = null;
+		private string freeingFilePath = null;
+		private int freeingLineNumber = 0;
+#endif
+		public void FreeMemory(
+#if ARRAYPOOLDEBUG
+			[CallerMemberName] string memberName = null,
+			[CallerFilePath] string filePath = null,
+			[CallerLineNumber] int LineNumber = 0
+#endif
+			)
+		{
+            if (!this.IsMemoryPooled)
+            {
+				throw new InvalidOperationException("Attempted free on a non-arraypooled Message");
+			}
+            else if (this.isMemoryReturned)
+            {
+#if ARRAYPOOLDEBUG
+				throw new InvalidOperationException($"Double free on Message array pool, previously freed by {freeingMemberName} @ {freeingFilePath}, {freeingLineNumber}");
+#else
+				throw new InvalidOperationException("Double free on Message array pool");
+#endif
+			}
+#if ARRAYPOOLDEBUG
+			freeingMemberName = memberName;
+			freeingFilePath = filePath;
+			freeingLineNumber = LineNumber;
+#endif
+
+			ArrayPool<byte>.Shared.Return(this.Data,false);
+			this.isMemoryReturned = true;
+		}
+		~Message()
+        {
+			if (this.IsMemoryPooled && !this.isMemoryReturned)
+			{
+				throw new InvalidOperationException("Memory pooled Message reached destructor without being freed");
+			}
+		}
+		// Careful if you call this with fromArrayPool set to true.
+		// You MUST call FreeMemory() after you are done with this message,
+		// and you must ONLY call it once.
+		public MessageCopy MakePublicCopy(bool fromArrayPool = false)
 		{
 			MessageCopy retVal = new MessageCopy()
 			{
 				MaxSize = this.MaxSize,
-				Data = (byte[])this.Data.Clone(),
+				Data = fromArrayPool ? this.Data.CloneFromArrayPool() : (byte[])this.Data.Clone(),
+				IsMemoryPooled = fromArrayPool,
 				Overflowed = this.Overflowed,
 				OOB = this.OOB,
 				CurSize = this.CurSize,

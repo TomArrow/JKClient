@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.CompilerServices;
@@ -62,6 +63,17 @@ namespace JKClient {
 			dst[0] = src[0];
 			dst[1] = src[1];
 			dst[2] = src[2];
+        }
+
+		public static byte[] CloneFromArrayPool(this byte[] inArray)
+        {
+			if(inArray is null)
+            {
+				throw new InvalidOperationException("Trying to clone null array from ArrayPool");
+            }
+			byte[] retVal = ArrayPool<byte>.Shared.Rent(inArray.Length);
+			inArray.CopyTo(retVal,0);
+			return retVal;
         }
 
 		public static bool ProtocolIsMOH(ProtocolVersion protocol)

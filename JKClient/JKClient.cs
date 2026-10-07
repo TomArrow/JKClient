@@ -152,7 +152,25 @@ namespace JKClient {
 			}
         }
 
-		BufferedDemoMessageContainer DemoAfkSnapsDropLastDroppedMessage = null; // With afk snap skipping, we wanna always keep the last one and write it when a change is detected, so that playing the demo doesn't result in unnatural movement from longer interpolation times.
+		// With afk snap skipping, we wanna always keep the last one and write it when a change is detected, so that playing the demo doesn't result in unnatural movement from longer interpolation times.
+		private BufferedDemoMessageContainer _DemoAfkSnapsDropLastDroppedMessage = null;
+		BufferedDemoMessageContainer DemoAfkSnapsDropLastDroppedMessage
+        {
+			get
+			{
+				return _DemoAfkSnapsDropLastDroppedMessage;
+			}
+			set
+			{
+
+				if (!(_DemoAfkSnapsDropLastDroppedMessage is null))
+				{
+					_DemoAfkSnapsDropLastDroppedMessage.msg.FreeMemory();
+				}
+				_DemoAfkSnapsDropLastDroppedMessage = value;
+			}
+		}
+		
 		int DemoAfkSnapsDropLastDroppedMessageNumber = -1;
 		bool LastMessageWasDemoAFKDrop = false;
 		
@@ -359,6 +377,27 @@ namespace JKClient {
 				this.serverCommands[i] = new sbyte[Common.MaxStringCharsMOH];
 				this.reliableCommands[i] = new sbyte[Common.MaxStringCharsMOH];
 			}
+		}
+
+		
+		// needs memory freed, hence we use this func :)
+		void ClearBufferedDemoMessages()
+		{
+            lock (bufferedDemoMessages)
+            {
+				foreach(var msg in bufferedDemoMessages)
+                {
+					msg.Value.msg.FreeMemory();
+                }
+				bufferedDemoMessages.Clear();
+			}
+		}
+
+
+		~JKClient()
+        {
+			this.DemoAfkSnapsDropLastDroppedMessage = null;
+			ClearBufferedDemoMessages();
 		}
 
 		public void RemoveEngineIdentification()
@@ -1146,7 +1185,7 @@ namespace JKClient {
 									{
 										DemoAfkSnapsDropLastDroppedMessage = new BufferedDemoMessageContainer()
 										{
-											msg = msg.Clone(),
+											msg = msg.Clone(true),
 											time = DateTime.Now,
 											serverTime = newServerTime,
 											containsFullSnapshot = false // To be determined
@@ -1185,7 +1224,8 @@ namespace JKClient {
 								else
 								{
 									bufferedDemoMessages.Add(DemoAfkSnapsDropLastDroppedMessageNumber, DemoAfkSnapsDropLastDroppedMessage);
-									/*if (validButOutOfOrder)
+									_DemoAfkSnapsDropLastDroppedMessage = null; // we set the hidden variable instead of the member because bufferedDemoMessages owns the object now and will free it itself
+ 									/*if (validButOutOfOrder)
 									{
 										this.Stats.messagesDropped--;
 									}*/ // Hmm might need some handling for better stats when using this afk dropping stuff? Oh well.
@@ -1207,7 +1247,7 @@ namespace JKClient {
 							{
 								bufferedDemoMessages.Add(sequenceNumber, new BufferedDemoMessageContainer()
 								{
-									msg = msg.Clone(),
+									msg = msg.Clone(true),
 									time = DateTime.Now,
 									containsFullSnapshot = false // To be determined
 								});
@@ -1862,6 +1902,7 @@ namespace JKClient {
 					// While we have all the messages without any gaps, we can just dump them all into the demo file.
 					Message tmpMsg = bufferedDemoMessages[DemoLastWrittenSequenceNumber + 1].msg;
 					WriteDemoMessage(tmpMsg, tmpMsg.ReadCount, DemoLastWrittenSequenceNumber + 1, bufferedDemoMessages[DemoLastWrittenSequenceNumber + 1].serverTime);
+					tmpMsg.FreeMemory();
 					DemoLastWrittenSequenceNumber = DemoLastWrittenSequenceNumber + 1;
 					bufferedDemoMessages.Remove(DemoLastWrittenSequenceNumber);
 				}
@@ -1874,6 +1915,7 @@ namespace JKClient {
 					if (tmpMsg.Key <= DemoLastWrittenSequenceNumber)
 					{ // Older or identical number to stuff we already wrote. Discard.
 						itemsToErase.Add(tmpMsg.Key);
+						tmpMsg.Value.msg.FreeMemory();
 						continue;
 					}
 					// First potential candidate.
@@ -1882,6 +1924,7 @@ namespace JKClient {
 					{
 						WriteDemoMessage(tmpMsg.Value.msg, tmpMsg.Value.msg.ReadCount, tmpMsg.Key, tmpMsg.Value.serverTime);
 						DemoLastWrittenSequenceNumber = tmpMsg.Key;
+						tmpMsg.Value.msg.FreeMemory();
 						itemsToErase.Add(tmpMsg.Key);
 					}
 					else

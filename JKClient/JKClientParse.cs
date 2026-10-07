@@ -511,7 +511,7 @@ namespace JKClient {
 
 			this.Demowaiting = 0;
 			this.Demorecording = false;
-			this.bufferedDemoMessages.Clear();
+			this.ClearBufferedDemoMessages();
 			this.DemoLastWrittenSequenceNumber = -1;
 			this.DemoAfkSnapsDropLastDroppedMessage = null;
 			this.DemoAfkSnapsDropLastDroppedMessageNumber = -1;

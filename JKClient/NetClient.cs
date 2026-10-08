@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -139,7 +140,7 @@ namespace JKClient {
 		{
 			bool isMOH = Common.ProtocolIsMOH((ProtocolVersion)this.Protocol);
 
-			byte []msg = new byte[this.NetHandler.MaxMessageLength*2];
+			byte []msg = ArrayPool<byte>.Shared.Rent(this.NetHandler.MaxMessageLength*2);
 			msg[0] = 0xff;
 			msg[1] = 0xff;
 			msg[2] = 0xff;
@@ -156,6 +157,7 @@ namespace JKClient {
 			//mbuf.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			Huffman.Compress(mbuf, isMOH ? 13 : 12);
 			this.net.SendPacket(mbuf.CurSize, mbuf.Data, address);
+			ArrayPool<byte>.Shared.Return(msg);
 		}
 		private protected abstract void PacketEvent(in NetAddress address, in Message msg);
 		private protected abstract Task Run();

@@ -1,0 +1,3 @@
+﻿[*.cs]
+#CA2000: Throw error when analyzer finds objects not being disposed properly.
+dotnet_diagnostic.CA2000.severity = error

@@ -1,24 +1,29 @@
 ﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Text;
 
 namespace JKClient {
 
-	internal class FragmentAssemblyBuffer
+	internal class FragmentAssemblyBuffer : IDisposable
 	{
 		public const double FragmentBuffersTimeout = 10;
 
-		public byte[] data;//[MAX_MSGLEN]; // actual data
+		public byte[] data { get; init; }//[MAX_MSGLEN]; // actual data
 		public int[] fragmentsReceived;//[MAX_MSGLEN / FRAGMENT_SIZE + 1]; // array indicating if a particular fragment has been received
 		public int lastFragment; // index of the last fragment. 0 means we don't know yet.
 		public int totalLength; // length of the entire message
 		public DateTime time; // when was this fragment buffer last accessed? we want to clean up old unfinished fragment buffers.
 		public FragmentAssemblyBuffer(int maxMessageLength)
 		{
-			data = new byte[maxMessageLength];
+			data = ArrayPool<byte>.Shared.Rent(maxMessageLength);
 			fragmentsReceived = new int[maxMessageLength / NetChannel.FragmentSize + 1];
 		}
-	}
+		public void Dispose()
+        {
+			ArrayPool<byte>.Shared.Return(data);
+        }
+    }
 
 	internal sealed class NetChannel {
 		private const int MaxPacketLen = 1400;
@@ -49,10 +54,22 @@ namespace JKClient {
 			//this.fragmentBuffer = new byte[this.maxMessageLength];
 			this.unsentBuffer = new byte[this.maxMessageLength];
 		}
+        ~NetChannel()
+        {
+			ClearFragmentBuffers();
+		}
 		internal event Action<string, MessageCopy> ErrorMessageCreated;
 		private void OnErrorMessageCreated(string errorMessage, MessageCopy relatedMessage)
 		{
 			ErrorMessageCreated?.Invoke(errorMessage, relatedMessage);
+		}
+		public void ClearFragmentBuffers()
+        {
+			foreach (KeyValuePair<int, FragmentAssemblyBuffer> fab in fragmentBuffers)
+			{
+				fab.Value.Dispose();
+			}
+			fragmentBuffers.Clear();
 		}
 		public unsafe bool Process(Message msg, bool isMOH, ref int sequenceNumber, ref bool validButOutOfOrder) {
 			msg.BeginReading(true);
@@ -97,6 +114,7 @@ namespace JKClient {
 					//if (fab.Value.time + FragmentAssemblyBuffer.FragmentBuffersTimeout < Com_RealTime(NULL))
 					if (  (DateTime.Now - fab.Value.time).TotalSeconds > FragmentAssemblyBuffer.FragmentBuffersTimeout)
 					{
+						fab.Value.Dispose();
 						toErase.Add(fab.Key);
 					}
 				}
@@ -213,6 +231,7 @@ namespace JKClient {
 				msg.doDebugLogExt($"Fragments reassembled & state restored: sequence {sequence}, incomingSequence {this.incomingSequence}, cursize {msg.CurSize}, bit {msg.Bit}, oob {msg.OOB}, readCount {msg.ReadCount}, lastFragment {thisFragmentBuffer.lastFragment}, fragmentTotalLength {thisFragmentBuffer.totalLength}, outOfOrder {isOutOfOrder}, duplicatedFragments {duplicatedFragmentsFound}");
 #endif
 
+				thisFragmentBuffer.Dispose();
 				thisFragmentBuffer = null;
 				fragmentBuffers.Remove(sequence); // Now that the message is fully assembled, we can discard the fragment buffer
 
@@ -251,18 +270,17 @@ namespace JKClient {
 				this.TransmitNextFragment();
 				return;
 			}
-			byte []buf = new byte[NetChannel.MaxPacketLen];
-			var msg = new Message(buf, sizeof(byte)*NetChannel.MaxPacketLen, true);
+			var msg = new ExplicitMemoryPooledMessage(sizeof(byte) * NetChannel.MaxPacketLen, oob: true);
 			//msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			msg.WriteLong(this.OutgoingSequence);
 			this.OutgoingSequence++;
 			msg.WriteShort(this.qport);
 			msg.WriteData(data, length);
 			this.net.SendPacket(msg.CurSize, msg.Data, this.Address);
+			msg.Dispose();
 		}
 		public unsafe void TransmitNextFragment() {
-			byte []buf = new byte[NetChannel.MaxPacketLen];
-			var msg = new Message(buf, sizeof(byte)*NetChannel.MaxPacketLen, true);
+			var msg = new ExplicitMemoryPooledMessage(sizeof(byte)*NetChannel.MaxPacketLen, oob: true);
 			//msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			msg.WriteLong(this.OutgoingSequence | NetChannel.FragmentBit);
 			msg.WriteShort(this.qport);
@@ -281,6 +299,7 @@ namespace JKClient {
 				this.OutgoingSequence++;
 				this.UnsentFragments = false;
 			}
+			msg.Dispose();
 		}
 	}
 }

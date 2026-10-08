@@ -428,7 +428,7 @@ namespace JKClient {
 	}
 
     
-	internal sealed partial class Message {
+	internal partial class Message {
 		
 		public const int FloatIntBits = 13;
 		private const int FloatIntBias = (1<<(Message.FloatIntBits-1));
@@ -438,12 +438,12 @@ namespace JKClient {
 		private int readCountSaved = 0;
 		private bool isMemoryReturned = false;
 		public bool IsMemoryPooled { get; init; } = false;
-		public bool Overflowed { get; private set; }
-		public bool OOB { get; private set; }
+		public bool Overflowed { get; protected set; }
+		public bool OOB { get; protected set; }
 		public byte []Data { get; init; }
 		public int MaxSize { get; init; }
 		public int CurSize { get; set; } = 0;
-		public int ReadCount { get; private set; } = 0;
+		public int ReadCount { get; protected set; } = 0;
 		public int Bit {
 			get => this.bit;
 			private set => this.bit = value;
@@ -462,6 +462,13 @@ namespace JKClient {
 		public Message() {}
 		public Message(byte []data, int length, bool oob = false) {
 			this.Data = data;
+			this.MaxSize = length;
+			this.OOB = oob;
+		}
+		// construct byte array internally.
+		public Message(int length, bool fromArrayPool = false, bool oob = false) {
+			this.Data = fromArrayPool ? ArrayPool<byte>.Shared.Rent(length) : new byte[length];
+			this.IsMemoryPooled = fromArrayPool;
 			this.MaxSize = length;
 			this.OOB = oob;
 		}
@@ -2078,4 +2085,21 @@ namespace JKClient {
 			13504,			// 255
 		};
 	}
+
+
+    internal class ExplicitMemoryPooledMessage : Message, IDisposable
+    {
+		// with this derived class, do not call FreeMemory, simply call Dispose() :)
+		public ExplicitMemoryPooledMessage(int length, bool oob = false)
+		{
+			this.Data = ArrayPool<byte>.Shared.Rent(length);
+			this.IsMemoryPooled = true;
+			this.MaxSize = length;
+			this.OOB = oob;
+		}
+		public void Dispose()
+        {
+			this.FreeMemory();
+        }
+    }
 }

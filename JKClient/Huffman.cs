@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Runtime.InteropServices;
 
 namespace JKClient {
@@ -267,26 +268,33 @@ namespace JKClient {
 		}
 		public static unsafe void Compress(Message msg, int offset) {
 			int ch;
-			byte []seq = new byte[65536];
-			int size = msg.CurSize - offset;
-			if (size <= 0) {
-				return;
-			}
-			fixed (byte *b = msg.Data) {
-				byte *buffer = b+ + offset;
-				using (var huff = new Huffman()) {
-					seq[0] = (byte)(size>>8);
-					seq[1] = (byte)(size&0xff);
-					huff.bloc = 16;
-					for (int i = 0; i < size; i++) {
-						ch = buffer[i];
-						huff.Transmit(ch, seq);
-						huff.AddReference((byte)ch);
-					}
-					huff.bloc += 8;
-					msg.CurSize = (huff.bloc>>3) + offset;
-					Array.Copy(seq, 0, msg.Data, offset, (huff.bloc>>3));
+			byte []seq = ArrayPool<byte>.Shared.Rent(65536);
+            try { 
+
+				int size = msg.CurSize - offset;
+				if (size <= 0) {
+					return;
 				}
+				fixed (byte *b = msg.Data) {
+					byte *buffer = b+ + offset;
+					using (var huff = new Huffman()) {
+						seq[0] = (byte)(size>>8);
+						seq[1] = (byte)(size&0xff);
+						huff.bloc = 16;
+						for (int i = 0; i < size; i++) {
+							ch = buffer[i];
+							huff.Transmit(ch, seq);
+							huff.AddReference((byte)ch);
+						}
+						huff.bloc += 8;
+						msg.CurSize = (huff.bloc>>3) + offset;
+						Array.Copy(seq, 0, msg.Data, offset, (huff.bloc>>3));
+					}
+				}
+			}
+			finally
+			{
+				ArrayPool<byte>.Shared.Return(seq);
 			}
 		}
 		public void Dispose() {

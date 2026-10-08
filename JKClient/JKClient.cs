@@ -13,6 +13,7 @@ using System.ComponentModel;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Web;
+using System.Buffers;
 
 namespace System.Runtime.CompilerServices
 {
@@ -1616,8 +1617,7 @@ namespace JKClient {
 			bool isMOH = this.ClientHandler is MOHClientHandler;
 			lock (this.netChannel) {
 				var oldcmd = new UserCommand();
-				byte[] data = new byte[this.ClientHandler.MaxMessageLength];
-				var msg = new Message(data, sizeof(byte)*this.ClientHandler.MaxMessageLength);
+				var msg = new ExplicitMemoryPooledMessage(sizeof(byte) * this.ClientHandler.MaxMessageLength);
                 msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 				msg.Bitstream();
 				msg.WriteLong(this.serverId);
@@ -1688,6 +1688,7 @@ namespace JKClient {
 					// and last packet was sent X milliseconds ago where X is smaller than the millisecond value of the minimum client fps we want.
 					// Don't wanna be seen as ddosing people but sometimes we do need a high fps (like if we are doing actual gameplay)
 					this.Stats.userPacketCulled(true);
+					msg.Dispose();
 					return;
 				}
                 else
@@ -1711,6 +1712,7 @@ namespace JKClient {
 						this.netChannel.TransmitNextFragment();
 					}
 				}
+				msg.Dispose();
 			}
 		}
 
@@ -2029,11 +2031,10 @@ namespace JKClient {
 			return DemoName;
         }
 
-		Message constructMetaMessage()
+		ExplicitMemoryPooledMessage constructMetaMessage()
         {
 			bool isMOH = this.ClientHandler is MOHClientHandler;
-			byte[] data = new byte[ClientHandler.MaxMessageLength];
-			var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
+			var msg = new ExplicitMemoryPooledMessage(sizeof(byte) * ClientHandler.MaxMessageLength);
 			msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 			msg.Bitstream(); 
 			msg.WriteLong(reliableSequence);
@@ -2139,18 +2140,17 @@ namespace JKClient {
 					int len;
 
 					// Metadata
-					Message metaMsg = constructMetaMessage();
-					len = this.serverMessageSequence - 2;
-					Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-					len = metaMsg.CurSize;
-					Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
-					Demofile.Write(metaMsg.Data, 0, metaMsg.CurSize);
-
-					//byte[] data = new byte[Message.MaxLength];
-					byte[] data = new byte[ClientHandler.MaxMessageLength];
+					using (ExplicitMemoryPooledMessage metaMsg = constructMetaMessage())
+                    {
+						len = this.serverMessageSequence - 2;
+						Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+						len = metaMsg.CurSize;
+						Demofile.Write(BitConverter.GetBytes(len), 0, sizeof(int));
+						Demofile.Write(metaMsg.Data, 0, metaMsg.CurSize);
+					}
 
 					// write out the gamestate message
-					var msg = new Message(data, sizeof(byte) * ClientHandler.MaxMessageLength);
+					var msg = new ExplicitMemoryPooledMessage(sizeof(byte) * ClientHandler.MaxMessageLength);
 					msg.ErrorMessageCreated += Msg_ErrorMessageCreated;
 
 					msg.Bitstream();
@@ -2280,6 +2280,8 @@ namespace JKClient {
 					DemoLastFullFlushTime = DateTime.Now;
 					Stats.demoSize = Demofile.Position;
 					Stats.demoSizeFullFlushed = DemoLastFullFlush;
+
+					msg.Dispose();
 
 					return true;
 

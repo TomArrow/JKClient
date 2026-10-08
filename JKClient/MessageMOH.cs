@@ -6,7 +6,7 @@ using System.Text;
 namespace JKClient
 {
     // MOH related message functions.
-    internal  sealed partial class Message
+    internal  partial class Message
     {
 
 		//

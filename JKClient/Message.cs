@@ -1375,7 +1375,8 @@ namespace JKClient {
 
 			if (lc < 0 || lc > fields.Count)
 			{
-				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}, msgCursize {this.CurSize}, msgReadCount {this.ReadCount}, msgBit {this.Bit}");
+				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}, msgCursize {this.CurSize}, msgReadCount {this.ReadCount}, msgBit {this.Bit}");				
+				throw new Exception("ReadDeltaEntity: lc < 0 || lc > fields.Count\n");
 			}
 
 			to->Number = number;
@@ -1572,6 +1573,7 @@ namespace JKClient {
 			if (lc < 0 || lc > fields.Count)
 			{
 				OnErrorMessageCreated($"EXCEPTION WILL HAPPEN: lc is {lc}, fields.Count is {fields.Count}, protocol is {protocol}, msgCursize {this.CurSize}, msgReadCount {this.ReadCount}, msgBit {this.Bit}");
+				throw new Exception("ReadDeltaPlayerState: lc < 0 || lc > fields.Count\n");
 			}
 
 			//if (lc >= fields.Count || lc < 0)

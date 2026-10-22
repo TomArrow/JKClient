@@ -19,4 +19,16 @@ namespace JKClient {
 		Ironman,
 		DuelQueue
 	}
+
+
+	public enum TommyTernalPlayerModeTeam {
+		Invalid,
+		Normal,
+		Defrag,
+		Duel,
+		AllForce,
+		IronmanCapper,
+		IronmanChaser,
+		DuelQueue
+	};
 }

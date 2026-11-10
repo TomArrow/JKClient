@@ -17,10 +17,10 @@ namespace JKClient
 
 	public struct Player
     {
-		public int score { get; internal set; }
-		public int ping { get; internal set; }
-		public string name { get; internal set; }
-		public bool isBot { get; internal set; }
+		public int score { get; init; }
+		public int ping { get; init; }
+		public string name { get; init; }
+		public bool isBot { get; init; }
 		public override string ToString()
         {
 			string botStringPart = isBot ? ",bot" : "";
@@ -48,6 +48,7 @@ namespace JKClient
 		public NetAddress Address { get; internal set; }
 		public bool NoBots { get; internal set; } = false;
 		public string HostName { get; internal set; }
+		public string HostNameNWH { get; internal set; }
 		public string MapName { get; internal set; }
 		public bool UDPDownloads { get; internal set; } = false;
 		public bool HTTPDownloads { get; internal set; } = false;
@@ -112,6 +113,7 @@ namespace JKClient
 			this.Protocol = (ProtocolVersion)info["protocol"].Atoi();
 			this.Clients = this.ClientsIncludingBots = info["clients"].Atoi();
 			this.HostName = info["hostname"];
+			this.HostNameNWH = info["hostnamenwh"];
 			this.NWH = info.ContainsKey("nwh") ? (info["nwh"].Atoi()==0?false:true) : false;
 			this.MapName = info["mapname"];
 			this.MaxClients = info["sv_maxclients"].Atoi();
@@ -155,6 +157,7 @@ namespace JKClient
 
 			this.pr_downloads = info["pr_downloads"];
 			this.HostName = info["sv_hostname"];
+			this.HostNameNWH = info["sv_hostnamenwh"];
 			this.MapName = info["mapname"];
 			this.UDPDownloads = info["sv_allowDownload"].Atoi() != 0;
 			this.HTTPDownloads = info["mv_httpdownloads"].Atoi() != 0;
@@ -187,7 +190,16 @@ namespace JKClient
 				return;
 			}
 			this.Protocol = (ProtocolVersion)info["protocol"].Atoi();
-			this.HostName = info["sv_hostname"];
+            if (info.ContainsKey("hostname") && !info.ContainsKey("sv_hostname"))
+            {
+                // deal with butchered AI-slopped servers that are too broken to even send a correct statusresponse
+				this.HostName = info["hostname"];
+            }
+            else
+            {
+				this.HostName = info["sv_hostname"];
+            }
+			this.HostNameNWH = info["sv_hostnamenwh"];
 			this.MapName = info["mapname"];
 			this.UDPDownloads = info["sv_allowDownload"].Atoi() != 0;
 			this.HTTPDownloads = info["mv_httpdownloads"].Atoi() != 0;
